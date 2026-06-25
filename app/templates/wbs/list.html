@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}WBS | Agentic Product Studio{% endblock %}
+{% block page_title %}WBS 작업 관리{% endblock %}
+{% block topbar_eyebrow %}Work Breakdown Structure{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('wbs.create_task') }}" class="button button--primary">새 작업</a>
+{% endblock %}
+
+{% block content %}
+  <section class="panel filter-panel">
+    <form method="get" class="filter-grid">
+      <div class="field">
+        <label for="status">상태</label>
+        <select id="status" name="status">
+          <option value="">전체</option>
+          {% for status in statuses %}
+            <option value="{{ status }}" {% if filters.status == status %}selected{% endif %}>{{ status }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="assignee_id">담당자</label>
+        <select id="assignee_id" name="assignee_id">
+          <option value="">전체</option>
+          {% for member in members %}
+            <option value="{{ member['id'] }}" {% if filters.assignee_id == member['id']|string %}selected{% endif %}>{{ member["name"] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="priority">우선순위</label>
+        <select id="priority" name="priority">
+          <option value="">전체</option>
+          {% for priority in priorities %}
+            <option value="{{ priority }}" {% if filters.priority == priority %}selected{% endif %}>{{ priority }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field field--actions">
+        <button type="submit" class="button button--primary">필터 적용</button>
+        <a href="{{ url_for('wbs.list_tasks') }}" class="button button--secondary">초기화</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-heading">
+      <h2>작업 목록</h2>
+      <p>상위/하위 작업 구조와 현재 진행 상태를 함께 관리합니다.</p>
+    </div>
+
+    {% if task_rows %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>작업명</th>
+              <th>담당자</th>
+              <th>상태</th>
+              <th>우선순위</th>
+              <th>진행률</th>
+              <th>시작일</th>
+              <th>마감일</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in task_rows %}
+              {% set task = row.task %}
+              <tr class="{% if row.is_delayed %}row--delayed{% elif row.is_due_soon %}row--warning{% endif %}">
+                <td>#{{ task["id"] }}</td>
+                <td>
+                  <div class="tree-cell" style="--depth: {{ row.depth }};">
+                    <span class="tree-indent"></span>
+                    <div>
+                      <strong>{{ task["title"] }}</strong>
+                      <div class="subtext">
+                        {% if task["parent_title"] %}상위 작업: {{ task["parent_title"] }}{% else %}최상위 작업{% endif %}
+                        {% if row.is_delayed %} · 지연{% elif row.is_due_soon %} · 마감 임박{% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td>{{ task["assignee_name"] or "-" }}</td>
+                <td><span class="badge badge--status">{{ task["status"] }}</span></td>
+                <td><span class="badge badge--priority">{{ task["priority"] }}</span></td>
+                <td>
+                  <div class="progress-cell">
+                    <div class="progress-bar"><span style="width: {{ task['progress'] }}%;"></span></div>
+                    <span>{{ task["progress"] }}%</span>
+                  </div>
+                </td>
+                <td>{{ task["start_date"] or "-" }}</td>
+                <td>{{ task["due_date"] or "-" }}</td>
+                <td class="table-actions">
+                  <a href="{{ url_for('wbs.edit_task', task_id=task['id']) }}" class="text-link">수정</a>
+                  <form method="post" action="{{ url_for('wbs.delete_task', task_id=task['id']) }}" onsubmit="return confirm('이 작업을 삭제할까요? 하위 작업과 연결 상태를 먼저 확인하세요.');">
+                    <button type="submit" class="button-link button-link--danger">삭제</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-state">조건에 맞는 WBS 작업이 없습니다.</p>
+    {% endif %}
+  </section>
+{% endblock %}

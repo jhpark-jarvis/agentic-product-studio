@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}{{ document['title'] }} | Agentic Product Studio{% endblock %}
+{% block page_title %}문서 상세{% endblock %}
+{% block topbar_eyebrow %}Documents{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('documents.edit_document', document_id=document['id']) }}" class="button button--primary">문서 수정</a>
+  <a href="{{ url_for('documents.list_documents') }}" class="button button--secondary">목록으로</a>
+{% endblock %}
+
+{% block content %}
+  <section class="detail-grid">
+    <article class="panel panel--wide">
+      <div class="panel-heading">
+        <div>
+          <h2>{{ document["title"] }}</h2>
+          <p>{{ document["doc_type"] }} · {{ document["author_name"] or "작성자 미지정" }} · 수정 {{ document["updated_at"] }}</p>
+        </div>
+      </div>
+      <div class="markdown-body">
+        {{ rendered_content }}
+      </div>
+    </article>
+
+    <aside class="panel">
+      <div class="panel-heading">
+        <h2>문서 메타데이터</h2>
+        <p>관련 작업과 태그 정보</p>
+      </div>
+
+      <div class="stack-list">
+        <div>
+          <span class="meta-key">유형</span>
+          <strong>{{ document["doc_type"] }}</strong>
+        </div>
+        <div>
+          <span class="meta-key">작성자</span>
+          <strong>{{ document["author_name"] or "-" }}</strong>
+        </div>
+        <div>
+          <span class="meta-key">태그</span>
+          <div class="tag-list">
+            {% if tags %}
+              {% for tag in tags %}
+                <span class="tag">{{ tag }}</span>
+              {% endfor %}
+            {% else %}
+              <span class="muted-text">태그 없음</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-subsection">
+        <h3>관련 WBS 작업</h3>
+        {% if related_tasks %}
+          <ul class="item-list">
+            {% for task in related_tasks %}
+              <li>
+                <div class="list-row">
+                  <div>
+                    <a class="item-title-link" href="{{ url_for('wbs.edit_task', task_id=task['id']) }}">{{ task["title"] }}</a>
+                    <span>{{ task["status"] }} · {{ task["priority"] }}</span>
+                  </div>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="empty-state">연결된 WBS 작업이 없습니다.</p>
+        {% endif %}
+      </div>
+    </aside>
+  </section>
+{% endblock %}

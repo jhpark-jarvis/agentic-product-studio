@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} | Agentic Product Studio{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block topbar_eyebrow %}Schedules{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('schedules.list_schedules') }}" class="button button--secondary">목록으로</a>
+{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <form method="post" class="form-grid">
+      <div class="field field--full">
+        <label for="title">일정명</label>
+        <input id="title" name="title" type="text" value="{{ form_data.title if form_data else schedule['title'] if schedule else '' }}">
+      </div>
+
+      <div class="field field--full">
+        <label for="description">설명</label>
+        <textarea id="description" name="description" rows="4">{{ form_data.description if form_data else schedule['description'] if schedule else '' }}</textarea>
+      </div>
+
+      <div class="field">
+        <label for="schedule_type">일정 유형</label>
+        <select id="schedule_type" name="schedule_type">
+          {% set selected_type = form_data.schedule_type if form_data else schedule['schedule_type'] if schedule else '개발' %}
+          {% for schedule_type in schedule_types %}
+            <option value="{{ schedule_type }}" {% if selected_type == schedule_type %}selected{% endif %}>{{ schedule_type }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="assignee_id">담당자</label>
+        <select id="assignee_id" name="assignee_id">
+          <option value="">미지정</option>
+          {% set selected_assignee = form_data.assignee_id if form_data else schedule['assignee_id'] if schedule else '' %}
+          {% for member in members %}
+            <option value="{{ member['id'] }}" {% if selected_assignee and selected_assignee|string == member['id']|string %}selected{% endif %}>{{ member["name"] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="wbs_task_id">관련 WBS 작업</label>
+        <select id="wbs_task_id" name="wbs_task_id">
+          <option value="">없음</option>
+          {% set selected_task = form_data.wbs_task_id if form_data else schedule['wbs_task_id'] if schedule else '' %}
+          {% for task in tasks %}
+            <option value="{{ task['id'] }}" {% if selected_task and selected_task|string == task['id']|string %}selected{% endif %}>#{{ task["id"] }} {{ task["title"] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="start_date">시작일</label>
+        <input id="start_date" name="start_date" type="date" value="{{ form_data.start_date if form_data else schedule['start_date'] if schedule else '' }}">
+      </div>
+
+      <div class="field">
+        <label for="end_date">종료일</label>
+        <input id="end_date" name="end_date" type="date" value="{{ form_data.end_date if form_data else schedule['end_date'] if schedule else '' }}">
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="button button--primary">{{ submit_label }}</button>
+        <a href="{{ url_for('schedules.list_schedules') }}" class="button button--secondary">취소</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

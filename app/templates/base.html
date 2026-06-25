@@ -7,40 +7,54 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   </head>
   <body>
-    <div class="page-shell">
-      <header class="site-header">
-        <div class="site-header__top">
-          <p class="eyebrow">Agentic Product Studio</p>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar__brand">
+          <p class="sidebar__eyebrow">INTERNAL</p>
+          <a href="{{ url_for('dashboard.index') }}" class="sidebar__title">Agentic Product Studio</a>
+          <p class="sidebar__caption">문서, WBS, 일정, 팀 협업을 한곳에서 관리합니다.</p>
         </div>
-        <div class="hero">
-          <div class="hero-copy">
-            <h1>Shared docs, project context, and team schedules in one place.</h1>
-            <p class="lead">개발자끼리 문서를 공유하고, 필요한 참고 자료를 빠르게 찾고, 일정까지 함께 관리하는 내부 협업 페이지입니다.</p>
-            <div class="hero-actions">
-              <a href="#recent-documents" class="button button--primary">Open Docs</a>
-              <a href="#team-ops" class="button button--secondary">Team Schedule</a>
-            </div>
-          </div>
-          <aside class="hero-meta">
-            <div class="meta-card">
-              <span class="meta-label">Scope</span>
-              <strong>Development docs and shared files</strong>
-            </div>
-            <div class="meta-card">
-              <span class="meta-label">Status</span>
-              <strong>Internal collaboration workspace</strong>
-            </div>
-            <div class="meta-card">
-              <span class="meta-label">Goal</span>
-              <strong>Keep references and schedules aligned</strong>
-            </div>
-          </aside>
-        </div>
-      </header>
 
-      <main>
-        {% block content %}{% endblock %}
-      </main>
+        <nav class="sidebar__nav">
+          <a class="nav-link {% if request.endpoint == 'dashboard.index' %}is-active{% endif %}" href="{{ url_for('dashboard.index') }}">대시보드</a>
+          <a class="nav-link {% if request.endpoint and request.endpoint.startswith('wbs.') %}is-active{% endif %}" href="{{ url_for('wbs.list_tasks') }}">WBS</a>
+          <a class="nav-link {% if request.endpoint and request.endpoint.startswith('documents.') %}is-active{% endif %}" href="{{ url_for('documents.list_documents') }}">문서</a>
+          <a class="nav-link {% if request.endpoint and request.endpoint.startswith('schedules.') %}is-active{% endif %}" href="{{ url_for('schedules.list_schedules') }}">일정</a>
+          <a class="nav-link {% if request.endpoint and request.endpoint.startswith('members.') %}is-active{% endif %}" href="{{ url_for('members.list_members') }}">팀원</a>
+        </nav>
+
+        <div class="sidebar__note">
+          <span class="sidebar__note-label">Core Focus</span><br>
+          <strong>WBS 중심 협업 흐름</strong>
+          <p>작업, 일정, 문서를 자연스럽게 연결해 현재 상황을 빠르게 파악할 수 있게 합니다.</p>
+        </div>
+      </aside>
+
+      <div class="main-shell">
+        <header class="topbar">
+          <div>
+            <p class="topbar__eyebrow">{% block topbar_eyebrow %}Internal Collaboration{% endblock %}</p>
+            <h1 class="topbar__title">{% block page_title %}Agentic Product Studio{% endblock %}</h1>
+          </div>
+          <div class="topbar__actions">
+            {% block topbar_actions %}{% endblock %}
+          </div>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <section class="flash-stack">
+              {% for category, message in messages %}
+                <div class="flash flash--{{ category }}">{{ message }}</div>
+              {% endfor %}
+            </section>
+          {% endif %}
+        {% endwith %}
+
+        <main class="page-content">
+          {% block content %}{% endblock %}
+        </main>
+      </div>
     </div>
   </body>
 </html>

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}문서 | Agentic Product Studio{% endblock %}
+{% block page_title %}문서 공유{% endblock %}
+{% block topbar_eyebrow %}Documents{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('documents.create_document') }}" class="button button--primary">새 문서</a>
+{% endblock %}
+
+{% block content %}
+  <section class="panel filter-panel">
+    <form method="get" class="filter-grid filter-grid--wide">
+      <div class="field">
+        <label for="q">검색</label>
+        <input id="q" name="q" type="text" value="{{ filters.q }}" placeholder="제목 또는 내용 검색">
+      </div>
+      <div class="field">
+        <label for="doc_type">문서 유형</label>
+        <select id="doc_type" name="doc_type">
+          <option value="">전체</option>
+          {% for doc_type in document_types %}
+            <option value="{{ doc_type }}" {% if filters.doc_type == doc_type %}selected{% endif %}>{{ doc_type }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="tag">태그</label>
+        <select id="tag" name="tag">
+          <option value="">전체</option>
+          {% for option in tag_options %}
+            <option value="{{ option['tag'] }}" {% if filters.tag == option['tag'] %}selected{% endif %}>{{ option["tag"] }} ({{ option["usage_count"] }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field field--actions">
+        <button type="submit" class="button button--primary">검색</button>
+        <a href="{{ url_for('documents.list_documents') }}" class="button button--secondary">초기화</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-heading">
+      <h2>문서 목록</h2>
+      <p>기획서, 기술문서, 회의록, 참고자료를 한곳에서 검색하고 연결합니다.</p>
+    </div>
+    {% if documents %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>제목</th>
+              <th>유형</th>
+              <th>작성자</th>
+              <th>수정일</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for document in documents %}
+              <tr>
+                <td><a class="table-link" href="{{ url_for('documents.detail', document_id=document['id']) }}">{{ document["title"] }}</a></td>
+                <td>{{ document["doc_type"] }}</td>
+                <td>{{ document["author_name"] or "-" }}</td>
+                <td>{{ document["updated_at"] }}</td>
+                <td class="table-actions">
+                  <a href="{{ url_for('documents.edit_document', document_id=document['id']) }}" class="text-link">수정</a>
+                  <form method="post" action="{{ url_for('documents.delete_document', document_id=document['id']) }}" onsubmit="return confirm('이 문서를 삭제할까요? 연결된 작업 정보도 함께 해제됩니다.');">
+                    <button type="submit" class="button-link button-link--danger">삭제</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-state">조건에 맞는 문서가 없습니다.</p>
+    {% endif %}
+  </section>
+{% endblock %}

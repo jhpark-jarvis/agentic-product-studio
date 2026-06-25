@@ -19,12 +19,28 @@
         <ul class="item-list">
           {% for item in week_items %}
             <li>
-              <div class="list-row">
-                <div>
+              <div class="list-row schedule-row">
+                <div class="schedule-row__content">
                   <a class="item-title-link" href="{{ url_for('schedules.edit_schedule', schedule_id=item['id']) }}">{{ item["title"] }}</a>
+                  <div class="schedule-meta" aria-label="schedule meta">
+                    <span class="badge badge--planned">{{ item["schedule_type"] }}</span>
+                    <span class="meta-chip">
+                      <span class="meta-key">담당</span>
+                      <span>{{ item["assignee_name"] or "?대떦??誘몄???" }}</span>
+                    </span>
+                    {% if item["task_title"] %}
+                      <span class="meta-chip">
+                        <span class="meta-key">WBS</span>
+                        <span>{{ item["task_title"] }}</span>
+                      </span>
+                    {% endif %}
+                  </div>
                   <span>{{ item["schedule_type"] }} · {{ item["assignee_name"] or "담당자 미지정" }}{% if item["task_title"] %} · {{ item["task_title"] }}{% endif %}</span>
                 </div>
-                <time>{{ item["start_date"] }} ~ {{ item["end_date"] }}</time>
+                <div class="schedule-date-block">
+                  <span class="meta-key">일정</span>
+                  <time>{{ item["start_date"] }} ~ {{ item["end_date"] }}</time>
+                </div>
               </div>
             </li>
           {% endfor %}

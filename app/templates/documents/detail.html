@@ -15,7 +15,7 @@
       <div class="panel-heading">
         <div>
           <h2>{{ document["title"] }}</h2>
-          <p>{{ document["doc_type"] }} · {{ document["author_name"] or "작성자 미지정" }} · 수정 {{ document["updated_at"] }}</p>
+          <p>{{ document["doc_type"] }} · {{ document["author_name"] or "작성자 미지정" }} · 수정 {{ document["updated_at"]|datetime_local }}</p>
         </div>
       </div>
       <div class="markdown-body">

@@ -71,7 +71,7 @@
                   <strong>{{ doc["title"] }}</strong>
                   <span>{{ doc["doc_type"] }}</span>
                 </div>
-                <time>{{ doc["created_at"] }}</time>
+                <time>{{ doc["created_at"]|datetime_local }}</time>
               </div>
             </li>
           {% endfor %}
@@ -95,7 +95,7 @@
                   <strong>{{ asset["title"] }}</strong>
                   <span>{{ asset["file_name"] }}</span>
                 </div>
-                <time>{{ asset["created_at"] }}</time>
+                <time>{{ asset["created_at"]|datetime_local }}</time>
               </div>
             </li>
           {% endfor %}

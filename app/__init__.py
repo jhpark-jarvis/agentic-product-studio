@@ -7,7 +7,7 @@ from .db import close_db, init_app as init_db_app, init_db
 from .documents import bp as documents_bp
 from .members import bp as members_bp
 from .schedules import bp as schedules_bp
-from .utils import markdown_to_html
+from .utils import DEFAULT_TIMEZONE, format_datetime_local, markdown_to_html
 from .wbs import bp as wbs_bp
 
 
@@ -22,6 +22,7 @@ def create_app(test_config=None):
         DATABASE=str(Path(app.instance_path) / "app.db"),
         UPLOAD_FOLDER=str(upload_dir),
         MAX_CONTENT_LENGTH=20 * 1024 * 1024,
+        DISPLAY_TIMEZONE=DEFAULT_TIMEZONE,
     )
 
     if test_config is None:
@@ -40,6 +41,7 @@ def create_app(test_config=None):
     app.teardown_appcontext(close_db)
     init_db_app(app)
     app.jinja_env.filters["markdown"] = markdown_to_html
+    app.jinja_env.filters["datetime_local"] = format_datetime_local
 
     # Initialize the small local SQLite schema on first run.
     with app.app_context():

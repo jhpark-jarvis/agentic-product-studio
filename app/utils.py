@@ -3,8 +3,10 @@ from __future__ import annotations
 import calendar
 import json
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from xml.dom import minidom
+from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfoNotFoundError
 
 import black
 import markdown
@@ -19,6 +21,7 @@ JSON_ALIASES = {"json"}
 SQL_ALIASES = {"sql", "mysql", "postgresql", "sqlite"}
 YAML_ALIASES = {"yaml", "yml"}
 HTML_ALIASES = {"html", "htm", "xml", "svg"}
+DEFAULT_TIMEZONE = "Asia/Seoul"
 
 
 def parse_date(value: str | None) -> date | None:
@@ -31,8 +34,39 @@ def parse_date(value: str | None) -> date | None:
         return None
 
 
+def _timezone(tz_name: str | None = None):
+    name = tz_name or DEFAULT_TIMEZONE
+    try:
+        return ZoneInfo(name)
+    except ZoneInfoNotFoundError:
+        if name == "UTC":
+            return timezone.utc
+        if name == DEFAULT_TIMEZONE:
+            return timezone(timedelta(hours=9))
+        return timezone.utc
+
+
+def parse_timestamp(value: str | None) -> datetime | None:
+    if not value:
+        return None
+
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            return datetime.strptime(value, fmt).replace(tzinfo=_timezone("UTC"))
+        except ValueError:
+            continue
+
+    try:
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=_timezone("UTC"))
+        return parsed
+    except ValueError:
+        return None
+
+
 def today_local() -> date:
-    return date.today()
+    return datetime.now(_timezone()).date()
 
 
 def week_bounds(reference: date | None = None) -> tuple[date, date]:
@@ -48,6 +82,13 @@ def month_bounds(reference: date | None = None) -> tuple[date, date]:
     _, last_day = calendar.monthrange(current.year, current.month)
     end = current.replace(day=last_day)
     return start, end
+
+
+def format_datetime_local(value: str | None, fmt: str = "%Y-%m-%d %H:%M") -> str:
+    parsed = parse_timestamp(value)
+    if not parsed:
+        return value or "-"
+    return parsed.astimezone(_timezone()).strftime(fmt)
 
 
 def format_code_block(language: str | None, code: str) -> str:

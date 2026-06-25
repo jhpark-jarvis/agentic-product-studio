@@ -82,7 +82,7 @@
         <div class="notice-card">
           <strong>{{ pinned_notice["title"] }}</strong>
           <p>{{ pinned_notice["content"] }}</p>
-          <span class="muted-text">업데이트 {{ pinned_notice["updated_at"] }}</span>
+          <span class="muted-text">업데이트 {{ pinned_notice["updated_at"]|datetime_local }}</span>
         </div>
       {% else %}
         <p class="empty-state">표시할 공지가 없습니다.</p>
@@ -108,7 +108,7 @@
                   <a class="item-title-link" href="{{ url_for('documents.detail', document_id=document['id']) }}">{{ document["title"] }}</a>
                   <span>{{ document["doc_type"] }} · {{ document["author_name"] or "작성자 미지정" }}</span>
                 </div>
-                <time>{{ document["updated_at"] }}</time>
+                <time>{{ document["updated_at"]|datetime_local }}</time>
               </div>
             </li>
           {% endfor %}
@@ -135,7 +135,7 @@
                   <a class="item-title-link" href="{{ url_for('wbs.edit_task', task_id=row['id']) }}">{{ row["title"] }}</a>
                   <span>{{ row["assignee_name"] or "담당자 미지정" }} · {{ row["status"] }} · {{ row["priority"] }}</span>
                 </div>
-                <time>{{ row["updated_at"] }}</time>
+                <time>{{ row["updated_at"]|datetime_local }}</time>
               </div>
             </li>
           {% endfor %}
@@ -146,7 +146,7 @@
     </article>
   </section>
 
-  <section class="panel">
+  <section class="panel" style="margin-top:18px;">
     <div class="panel-heading">
       <div>
         <h2>다가오는 일정</h2>

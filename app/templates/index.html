@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Agentic Product Studio{% endblock %}
+
+{% block content %}
+  <section class="stats-grid">
+    <article class="stat-card">
+      <span class="stat-label">DOCUMENTS</span>
+      <strong>{{ docs_count }}</strong>
+      <p>팀이 공유 중인 개발 문서 수</p>
+    </article>
+    <article class="stat-card">
+      <span class="stat-label">RESOURCES</span>
+      <strong>{{ assets_count }}</strong>
+      <p>참고 파일과 공유 자료 수</p>
+    </article>
+    <article class="stat-card">
+      <span class="stat-label">FILES</span>
+      <strong>{{ upload_count }}</strong>
+      <p>현재 보관 중인 실제 업로드 파일 수</p>
+    </article>
+  </section>
+
+  <section class="overview-grid">
+    <article class="panel panel--dense">
+      <div class="panel-heading">
+        <h2>Workspace Overview</h2>
+        <p>이 페이지가 담당하는 협업 범위를 한눈에 보는 요약</p>
+      </div>
+      <div class="key-value-list">
+        <div class="key-value-row">
+          <span>Primary Use</span>
+          <strong>Development doc sharing</strong>
+        </div>
+        <div class="key-value-row">
+          <span>Secondary Use</span>
+          <strong>Schedule and work coordination</strong>
+        </div>
+        <div class="key-value-row">
+          <span>Current Scope</span>
+          <strong>Docs, resources, and team ops</strong>
+        </div>
+      </div>
+    </article>
+    <article class="panel panel--dense">
+      <div class="panel-heading">
+        <h2>Team Workflow</h2>
+        <p>초기 버전에서 바로 체감되는 기능 우선순위</p>
+      </div>
+      <ol class="ordered-list">
+        <li>문서 등록과 수정 이력 메모 추가</li>
+        <li>주간 일정 보드 추가</li>
+        <li>담당자와 상태 필드 추가</li>
+        <li>검색과 필터 기능 추가</li>
+      </ol>
+    </article>
+  </section>
+
+  <section class="panel-grid">
+    <article class="panel" id="recent-documents">
+      <div class="panel-heading">
+        <h2>Recent Documents</h2>
+        <p>최근 공유된 문서 5건</p>
+      </div>
+      {% if recent_documents %}
+        <ul class="item-list">
+          {% for doc in recent_documents %}
+            <li>
+              <div class="list-row">
+                <div>
+                  <strong>{{ doc["title"] }}</strong>
+                  <span>{{ doc["doc_type"] }}</span>
+                </div>
+                <time>{{ doc["created_at"] }}</time>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-state">아직 공유된 문서가 없습니다. 첫 번째 팀 문서를 등록해보세요.</p>
+      {% endif %}
+    </article>
+
+    <article class="panel" id="recent-assets">
+      <div class="panel-heading">
+        <h2>Recent Resources</h2>
+        <p>최근 추가된 참고 자료 5건</p>
+      </div>
+      {% if recent_assets %}
+        <ul class="item-list">
+          {% for asset in recent_assets %}
+            <li>
+              <div class="list-row">
+                <div>
+                  <strong>{{ asset["title"] }}</strong>
+                  <span>{{ asset["file_name"] }}</span>
+                </div>
+                <time>{{ asset["created_at"] }}</time>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-state">아직 공유 자료가 없습니다. 파일 업로드 기능을 붙이면 여기서 바로 확인할 수 있습니다.</p>
+      {% endif %}
+    </article>
+  </section>
+
+  <section class="panel panel--terminal" id="team-ops">
+    <div class="panel-heading">
+      <h2>Team Ops Queue</h2>
+      <p>다음으로 붙이면 좋은 일정 및 협업 기능</p>
+    </div>
+    <pre class="terminal-block">$ add document owner and status
+$ add weekly schedule board
+$ add release checklist view
+$ add search and filters</pre>
+  </section>
+{% endblock %}

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Agentic Product Studio{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="site-header__top">
+          <p class="eyebrow">Agentic Product Studio</p>
+        </div>
+        <div class="hero">
+          <div class="hero-copy">
+            <h1>Shared docs, project context, and team schedules in one place.</h1>
+            <p class="lead">개발자끼리 문서를 공유하고, 필요한 참고 자료를 빠르게 찾고, 일정까지 함께 관리하는 내부 협업 페이지입니다.</p>
+            <div class="hero-actions">
+              <a href="#recent-documents" class="button button--primary">Open Docs</a>
+              <a href="#team-ops" class="button button--secondary">Team Schedule</a>
+            </div>
+          </div>
+          <aside class="hero-meta">
+            <div class="meta-card">
+              <span class="meta-label">Scope</span>
+              <strong>Development docs and shared files</strong>
+            </div>
+            <div class="meta-card">
+              <span class="meta-label">Status</span>
+              <strong>Internal collaboration workspace</strong>
+            </div>
+            <div class="meta-card">
+              <span class="meta-label">Goal</span>
+              <strong>Keep references and schedules aligned</strong>
+            </div>
+          </aside>
+        </div>
+      </header>
+
+      <main>
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </body>
+</html>

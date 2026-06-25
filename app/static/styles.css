@@ -206,6 +206,11 @@ button, input, select, textarea { font: inherit; }
   cursor: pointer;
 }
 
+.toolbar-button--accent {
+  border-color: var(--accent-strong);
+  color: var(--accent-strong);
+}
+
 .markdown-editor__status {
   margin-left: auto;
   color: var(--muted);
@@ -274,6 +279,41 @@ button, input, select, textarea { font: inherit; }
 .markdown-body p, .markdown-body ul, .markdown-body ol, .markdown-body pre, .markdown-body table { margin-bottom: 1em; }
 .markdown-body pre { overflow-x: auto; padding: 14px; border-radius: 12px; background: #0f172a; color: #eff6ff; }
 .markdown-body code { font-family: Consolas, "Courier New", monospace; }
+.markdown-body .codehilite {
+  margin-bottom: 1em;
+  overflow-x: auto;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  background: #0f172a;
+}
+.markdown-body .codehilite pre {
+  margin: 0;
+  border-radius: 0;
+  border: 0;
+}
+.markdown-body .codehilite .hll { background-color: #1e293b; }
+.markdown-body .codehilite .c { color: #94a3b8; font-style: italic; }
+.markdown-body .codehilite .k,
+.markdown-body .codehilite .kn,
+.markdown-body .codehilite .kp,
+.markdown-body .codehilite .kr { color: #c084fc; }
+.markdown-body .codehilite .s,
+.markdown-body .codehilite .sa,
+.markdown-body .codehilite .sb,
+.markdown-body .codehilite .sc,
+.markdown-body .codehilite .sd,
+.markdown-body .codehilite .s2 { color: #86efac; }
+.markdown-body .codehilite .nf,
+.markdown-body .codehilite .fm { color: #60a5fa; }
+.markdown-body .codehilite .nc,
+.markdown-body .codehilite .nn { color: #fbbf24; }
+.markdown-body .codehilite .mi,
+.markdown-body .codehilite .mf { color: #fca5a5; }
+.markdown-body .codehilite .o { color: #f8fafc; }
+.markdown-body .codehilite .nb { color: #38bdf8; }
+.markdown-body .codehilite .nt { color: #f472b6; }
+.markdown-body .codehilite .na { color: #93c5fd; }
+.markdown-body .codehilite .p { color: #cbd5e1; }
 .markdown-body table { width: 100%; border-collapse: collapse; }
 .markdown-body th, .markdown-body td { padding: 10px; border: 1px solid var(--line); text-align: left; }
 .panel-subsection { margin-top: 26px; }

@@ -1,2 +1,6 @@
 Flask>=3.0,<4.0
 Markdown>=3.6,<4.0
+black>=24.0,<25.0
+Pygments>=2.18,<3.0
+PyYAML>=6.0,<7.0
+sqlparse>=0.5,<1.0

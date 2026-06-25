@@ -4,7 +4,7 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 
 from .constants import DOCUMENT_TYPES
 from .db import get_db, sync_document_tags, sync_task_documents_for_document
-from .utils import markdown_to_html
+from .utils import format_markdown_code_blocks, markdown_to_html
 
 
 bp = Blueprint("documents", __name__, url_prefix="/documents")
@@ -268,3 +268,9 @@ def delete_document(document_id: int):
 def preview_markdown():
     content = request.form.get("content", "")
     return jsonify({"html": str(markdown_to_html(content))})
+
+
+@bp.route("/format-markdown", methods=("POST",))
+def format_markdown():
+    content = request.form.get("content", "")
+    return jsonify({"content": format_markdown_code_blocks(content)})

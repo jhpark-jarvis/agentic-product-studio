@@ -58,6 +58,7 @@
           class="markdown-editor"
           data-markdown-editor
           data-preview-url="{{ url_for('documents.preview_markdown') }}"
+          data-format-url="{{ url_for('documents.format_markdown') }}"
         >
           <div class="markdown-editor__toolbar">
             <button type="button" class="toolbar-button" data-md-insert="# {selection}">H1</button>
@@ -68,6 +69,7 @@
             <button type="button" class="toolbar-button" data-md-insert="```
 {selection}
 ```">Block</button>
+            <button type="button" class="toolbar-button toolbar-button--accent" data-md-format>Format blocks</button>
             <span class="markdown-editor__status" data-markdown-status>Preview syncing...</span>
           </div>
           <div class="markdown-editor__panes">

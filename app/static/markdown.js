@@ -17,8 +17,10 @@ function setupMarkdownEditor() {
   const textarea = editorRoot.querySelector("textarea");
   const preview = editorRoot.querySelector("[data-markdown-preview]");
   const buttons = editorRoot.querySelectorAll("[data-md-insert]");
+  const formatButton = editorRoot.querySelector("[data-md-format]");
   const status = editorRoot.querySelector("[data-markdown-status]");
   const previewUrl = editorRoot.dataset.previewUrl;
+  const formatUrl = editorRoot.dataset.formatUrl;
 
   const insertSnippet = (snippet) => {
     const start = textarea.selectionStart ?? textarea.value.length;
@@ -36,6 +38,30 @@ function setupMarkdownEditor() {
   buttons.forEach((button) => {
     button.addEventListener("click", () => insertSnippet(button.dataset.mdInsert || ""));
   });
+
+  if (formatButton && formatUrl) {
+    formatButton.addEventListener("click", async () => {
+      status.textContent = "Formatting code blocks...";
+      const body = new URLSearchParams();
+      body.set("content", textarea.value);
+
+      try {
+        const response = await fetch(formatUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+          },
+          body: body.toString(),
+        });
+        const payload = await response.json();
+        textarea.value = payload.content || textarea.value;
+        textarea.dispatchEvent(new Event("input"));
+        status.textContent = "Formatting applied";
+      } catch (_error) {
+        status.textContent = "Formatting failed";
+      }
+    });
+  }
 
   const renderPreview = debounce(async () => {
     if (!previewUrl) {

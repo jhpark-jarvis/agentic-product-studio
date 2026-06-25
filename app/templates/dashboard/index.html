@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}대시보드 | Agentic Product Studio{% endblock %}
+{% block title %}Dashboard | Agentic Product Studio{% endblock %}
 {% block page_title %}프로젝트 대시보드{% endblock %}
 {% block topbar_eyebrow %}Overview{% endblock %}
 
@@ -14,22 +14,22 @@
     <article class="stat-card">
       <span class="stat-label">전체 작업</span>
       <strong>{{ summary["total_tasks"] or 0 }}</strong>
-      <p>현재 등록된 WBS 전체 항목 수</p>
+      <p>현재 등록된 WBS 작업 수</p>
     </article>
     <article class="stat-card">
       <span class="stat-label">진행 중</span>
       <strong>{{ summary["in_progress_tasks"] or 0 }}</strong>
-      <p>진행중 또는 검토중 상태의 작업</p>
+      <p>진행중 또는 검토중 상태 작업</p>
     </article>
     <article class="stat-card">
       <span class="stat-label">완료</span>
       <strong>{{ summary["completed_tasks"] or 0 }}</strong>
-      <p>완료 처리된 작업</p>
+      <p>완료 처리된 작업 수</p>
     </article>
     <article class="stat-card stat-card--alert">
       <span class="stat-label">지연 작업</span>
       <strong>{{ summary["delayed_tasks"] or 0 }}</strong>
-      <p>마감일이 지났지만 완료되지 않은 작업</p>
+      <p>마감일이 지났지만 완료되지 않은 작업 수</p>
     </article>
   </section>
 
@@ -38,7 +38,7 @@
       <div class="panel-heading">
         <div>
           <h2>이번 주 마감 작업</h2>
-          <p>{{ today.strftime("%Y-%m-%d") }} ~ {{ week_end.strftime("%Y-%m-%d") }}</p>
+          <p>{{ week_due_task_count }}개 · {{ today.strftime("%Y-%m-%d") }} ~ {{ week_end.strftime("%Y-%m-%d") }}</p>
         </div>
         <a href="{{ url_for('wbs.list_tasks') }}" class="text-link">전체 WBS 보기</a>
       </div>
@@ -95,7 +95,7 @@
       <div class="panel-heading">
         <div>
           <h2>최근 문서</h2>
-          <p>최근 업데이트된 문서 6건</p>
+          <p>최근 업데이트된 문서 {{ recent_document_count }}건</p>
         </div>
         <a href="{{ url_for('documents.list_documents') }}" class="text-link">문서 보기</a>
       </div>
@@ -122,7 +122,7 @@
       <div class="panel-heading">
         <div>
           <h2>최근 업데이트된 WBS</h2>
-          <p>상태 변경이나 수정이 있었던 항목</p>
+          <p>최근 업데이트된 작업 {{ recent_task_count }}건</p>
         </div>
         <a href="{{ url_for('wbs.list_tasks') }}" class="text-link">WBS 보기</a>
       </div>
@@ -150,7 +150,7 @@
     <div class="panel-heading">
       <div>
         <h2>다가오는 일정</h2>
-        <p>이번 주 이후 예정된 일정</p>
+        <p>이번 주 이후 예정된 일정 {{ upcoming_schedule_count }}건</p>
       </div>
       <a href="{{ url_for('schedules.list_schedules') }}" class="text-link">일정 보기</a>
     </div>

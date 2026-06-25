@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% block content %}
-  <section class="detail-grid">
+  <section class="detail-grid detail-grid--reader" data-markdown-reader>
     <article class="panel panel--wide">
       <div class="panel-heading">
         <div>
@@ -49,6 +49,27 @@
               <span class="muted-text">태그 없음</span>
             {% endif %}
           </div>
+        </div>
+      </div>
+
+      <div class="panel-subsection">
+        <h3>Reader Summary</h3>
+        <div class="stack-list">
+          <div>
+            <span class="meta-key">Words</span>
+            <strong>{{ word_count }}</strong>
+          </div>
+          <div>
+            <span class="meta-key">Headings</span>
+            <strong>{{ heading_count }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-subsection">
+        <h3>Outline</h3>
+        <div data-reader-outline>
+          <p class="muted-text">Generating outline...</p>
         </div>
       </div>
 

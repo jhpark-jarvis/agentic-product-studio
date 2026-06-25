@@ -54,7 +54,33 @@
 
       <div class="field field--full">
         <label for="content">내용 (Markdown)</label>
-        <textarea id="content" name="content" rows="16" class="textarea-mono">{{ form_data.content if form_data else document['content'] if document else '' }}</textarea>
+        <div
+          class="markdown-editor"
+          data-markdown-editor
+          data-preview-url="{{ url_for('documents.preview_markdown') }}"
+        >
+          <div class="markdown-editor__toolbar">
+            <button type="button" class="toolbar-button" data-md-insert="# {selection}">H1</button>
+            <button type="button" class="toolbar-button" data-md-insert="## {selection}">H2</button>
+            <button type="button" class="toolbar-button" data-md-insert="- {selection}">List</button>
+            <button type="button" class="toolbar-button" data-md-insert="**{selection}**">Bold</button>
+            <button type="button" class="toolbar-button" data-md-insert="`{selection}`">Code</button>
+            <button type="button" class="toolbar-button" data-md-insert="```
+{selection}
+```">Block</button>
+            <span class="markdown-editor__status" data-markdown-status>Preview syncing...</span>
+          </div>
+          <div class="markdown-editor__panes">
+            <div class="markdown-editor__pane">
+              <span class="markdown-editor__label">Editor</span>
+              <textarea id="content" name="content" rows="18" class="textarea-mono markdown-editor__textarea">{{ form_data.content if form_data else document['content'] if document else '' }}</textarea>
+            </div>
+            <div class="markdown-editor__pane">
+              <span class="markdown-editor__label">Preview</span>
+              <div class="markdown-preview markdown-body" data-markdown-preview></div>
+            </div>
+          </div>
+        </div>
         <p class="field-help">Markdown 문법을 지원합니다. 제목, 목록, 코드 블록, 표를 사용할 수 있습니다.</p>
       </div>
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 
 from .constants import DOCUMENT_TYPES
 from .db import get_db, sync_document_tags, sync_task_documents_for_document
@@ -184,12 +184,18 @@ def detail(document_id: int):
         flash("문서를 찾을 수 없습니다.", "error")
         return redirect(url_for("documents.list_documents"))
 
+    content = document["content"] or ""
+    word_count = len(content.split())
+    heading_count = sum(1 for line in content.splitlines() if line.lstrip().startswith("#"))
+
     return render_template(
         "documents/detail.html",
         document=document,
         related_tasks=related_tasks,
         tags=tags,
         rendered_content=markdown_to_html(document["content"]),
+        word_count=word_count,
+        heading_count=heading_count,
     )
 
 
@@ -256,3 +262,9 @@ def delete_document(document_id: int):
     db.commit()
     flash("문서가 삭제되었습니다.", "success")
     return redirect(url_for("documents.list_documents"))
+
+
+@bp.route("/preview-markdown", methods=("POST",))
+def preview_markdown():
+    content = request.form.get("content", "")
+    return jsonify({"html": str(markdown_to_html(content))})

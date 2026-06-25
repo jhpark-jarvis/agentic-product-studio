@@ -179,6 +179,76 @@ button, input, select, textarea { font: inherit; }
 .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .form-actions { display: flex; gap: 10px; grid-column: 1 / -1; }
 
+.markdown-editor {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.markdown-editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  background: #fbfcfe;
+}
+
+.toolbar-button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.markdown-editor__status {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.markdown-editor__panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.markdown-editor__pane {
+  min-width: 0;
+}
+
+.markdown-editor__pane + .markdown-editor__pane {
+  border-left: 1px solid var(--line);
+}
+
+.markdown-editor__label {
+  display: block;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.markdown-editor__textarea {
+  min-height: 420px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.markdown-preview {
+  min-height: 420px;
+  padding: 16px;
+  background: #fff;
+}
+
 .tree-cell { display: flex; align-items: flex-start; gap: 12px; padding-left: calc(var(--depth, 0) * 18px); }
 .tree-indent { flex: 0 0 4px; min-height: 24px; border-radius: 999px; background: var(--line); }
 .row--warning { background: #fffdf6; }
@@ -209,6 +279,33 @@ button, input, select, textarea { font: inherit; }
 .panel-subsection { margin-top: 26px; }
 .empty-state { padding: 10px 0 4px; }
 
+.detail-grid--reader {
+  align-items: start;
+}
+
+.reader-outline {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.reader-outline__item {
+  padding: 6px 0;
+}
+
+.reader-outline__item a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.reader-outline__item--h2 {
+  padding-left: 12px;
+}
+
+.reader-outline__item--h3 {
+  padding-left: 24px;
+}
+
 @media (max-width: 1100px) {
   .app-shell { grid-template-columns: 1fr; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--sidebar-border); }
@@ -222,4 +319,7 @@ button, input, select, textarea { font: inherit; }
   .calendar-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .field--actions, .form-actions, .topbar__actions, .table-actions { flex-wrap: wrap; }
   .sidebar__nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .markdown-editor__panes { grid-template-columns: 1fr; }
+  .markdown-editor__pane + .markdown-editor__pane { border-left: 0; border-top: 1px solid var(--line); }
+  .markdown-editor__status { width: 100%; margin-left: 0; }
 }

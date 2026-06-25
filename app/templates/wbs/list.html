@@ -71,8 +71,8 @@
             {% for row in task_rows %}
               {% set task = row.task %}
               <tr class="{% if row.is_delayed %}row--delayed{% elif row.is_due_soon %}row--warning{% endif %}">
-                <td>#{{ task["id"] }}</td>
-                <td>
+                <td data-label="ID">#{{ task["id"] }}</td>
+                <td data-label="작업명">
                   <div class="tree-cell" style="--depth: {{ row.depth }};">
                     <span class="tree-indent"></span>
                     <div>
@@ -84,18 +84,18 @@
                     </div>
                   </div>
                 </td>
-                <td>{{ task["assignee_name"] or "-" }}</td>
-                <td><span class="badge badge--status">{{ task["status"] }}</span></td>
-                <td><span class="badge badge--priority">{{ task["priority"] }}</span></td>
-                <td>
+                <td data-label="담당자">{{ task["assignee_name"] or "-" }}</td>
+                <td data-label="상태"><span class="badge badge--status">{{ task["status"] }}</span></td>
+                <td data-label="우선순위"><span class="badge badge--priority">{{ task["priority"] }}</span></td>
+                <td data-label="진행률">
                   <div class="progress-cell">
                     <div class="progress-bar"><span style="width: {{ task['progress'] }}%;"></span></div>
                     <span>{{ task["progress"] }}%</span>
                   </div>
                 </td>
-                <td>{{ task["start_date"] or "-" }}</td>
-                <td>{{ task["due_date"] or "-" }}</td>
-                <td class="table-actions">
+                <td data-label="시작일">{{ task["start_date"] or "-" }}</td>
+                <td data-label="마감일">{{ task["due_date"] or "-" }}</td>
+                <td data-label="관리" class="table-actions">
                   <a href="{{ url_for('wbs.edit_task', task_id=task['id']) }}" class="text-link">수정</a>
                   <form method="post" action="{{ url_for('wbs.delete_task', task_id=task['id']) }}" onsubmit="return confirm('이 작업을 삭제할까요? 하위 작업과 연결 상태를 먼저 확인하세요.');">
                     <button type="submit" class="button-link button-link--danger">삭제</button>

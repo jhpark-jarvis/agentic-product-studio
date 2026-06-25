@@ -83,13 +83,13 @@
           <tbody>
             {% for item in schedules %}
               <tr>
-                <td><a class="table-link" href="{{ url_for('schedules.edit_schedule', schedule_id=item['id']) }}">{{ item["title"] }}</a></td>
-                <td>{{ item["schedule_type"] }}</td>
-                <td>{{ item["assignee_name"] or "-" }}</td>
-                <td>{{ item["task_title"] or "-" }}</td>
-                <td>{{ item["start_date"] }}</td>
-                <td>{{ item["end_date"] }}</td>
-                <td class="table-actions">
+                <td data-label="일정명"><a class="table-link" href="{{ url_for('schedules.edit_schedule', schedule_id=item['id']) }}">{{ item["title"] }}</a></td>
+                <td data-label="유형">{{ item["schedule_type"] }}</td>
+                <td data-label="담당자">{{ item["assignee_name"] or "-" }}</td>
+                <td data-label="관련 WBS">{{ item["task_title"] or "-" }}</td>
+                <td data-label="시작일">{{ item["start_date"] }}</td>
+                <td data-label="종료일">{{ item["end_date"] }}</td>
+                <td data-label="관리" class="table-actions">
                   <a href="{{ url_for('schedules.edit_schedule', schedule_id=item['id']) }}" class="text-link">수정</a>
                   <form method="post" action="{{ url_for('schedules.delete_schedule', schedule_id=item['id']) }}" onsubmit="return confirm('이 일정을 삭제할까요?');">
                     <button type="submit" class="button-link button-link--danger">삭제</button>

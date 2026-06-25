@@ -60,11 +60,11 @@
           <tbody>
             {% for document in documents %}
               <tr>
-                <td><a class="table-link" href="{{ url_for('documents.detail', document_id=document['id']) }}">{{ document["title"] }}</a></td>
-                <td>{{ document["doc_type"] }}</td>
-                <td>{{ document["author_name"] or "-" }}</td>
-                <td>{{ document["updated_at"]|datetime_local }}</td>
-                <td class="table-actions">
+                <td data-label="제목"><a class="table-link" href="{{ url_for('documents.detail', document_id=document['id']) }}">{{ document["title"] }}</a></td>
+                <td data-label="유형">{{ document["doc_type"] }}</td>
+                <td data-label="작성자">{{ document["author_name"] or "-" }}</td>
+                <td data-label="수정일">{{ document["updated_at"]|datetime_local }}</td>
+                <td data-label="관리" class="table-actions">
                   <a href="{{ url_for('documents.edit_document', document_id=document['id']) }}" class="text-link">수정</a>
                   <form method="post" action="{{ url_for('documents.delete_document', document_id=document['id']) }}" onsubmit="return confirm('이 문서를 삭제할까요? 연결된 작업 정보도 함께 해제됩니다.');">
                     <button type="submit" class="button-link button-link--danger">삭제</button>

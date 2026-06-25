@@ -32,20 +32,20 @@
           <tbody>
             {% for member in members %}
               <tr>
-                <td>{{ member["name"] }}</td>
-                <td>{{ member["role"] or "-" }}</td>
-                <td>{{ member["part"] or "-" }}</td>
-                <td>{{ member["contact"] or "-" }}</td>
-                <td>
+                <td data-label="이름">{{ member["name"] }}</td>
+                <td data-label="역할">{{ member["role"] or "-" }}</td>
+                <td data-label="담당 파트">{{ member["part"] or "-" }}</td>
+                <td data-label="연락처">{{ member["contact"] or "-" }}</td>
+                <td data-label="상태">
                   {% if member["is_active"] %}
                     <span class="badge badge--done">활성</span>
                   {% else %}
                     <span class="badge badge--hold">비활성</span>
                   {% endif %}
                 </td>
-                <td>{{ member["task_count"] }}</td>
-                <td>{{ member["schedule_count"] }}</td>
-                <td class="table-actions">
+                <td data-label="작업 수">{{ member["task_count"] }}</td>
+                <td data-label="일정 수">{{ member["schedule_count"] }}</td>
+                <td data-label="관리" class="table-actions">
                   <a href="{{ url_for('members.edit_member', member_id=member['id']) }}" class="text-link">수정</a>
                   <form method="post" action="{{ url_for('members.delete_member', member_id=member['id']) }}" onsubmit="return confirm('이 팀원을 삭제할까요? 연결된 담당자 정보는 해제됩니다.');">
                     <button type="submit" class="button-link button-link--danger">삭제</button>

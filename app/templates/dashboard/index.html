@@ -58,11 +58,11 @@
             <tbody>
               {% for task in week_due_tasks %}
                 <tr>
-                  <td><a class="table-link" href="{{ url_for('wbs.edit_task', task_id=task['id']) }}">{{ task["title"] }}</a></td>
-                  <td>{{ task["assignee_name"] or "-" }}</td>
-                  <td><span class="badge badge--status">{{ task["status"] }}</span></td>
-                  <td><span class="badge badge--priority">{{ task["priority"] }}</span></td>
-                  <td>{{ task["due_date"] or "-" }}</td>
+                  <td data-label="작업명"><a class="table-link" href="{{ url_for('wbs.edit_task', task_id=task['id']) }}">{{ task["title"] }}</a></td>
+                  <td data-label="담당자">{{ task["assignee_name"] or "-" }}</td>
+                  <td data-label="상태"><span class="badge badge--status">{{ task["status"] }}</span></td>
+                  <td data-label="우선순위"><span class="badge badge--priority">{{ task["priority"] }}</span></td>
+                  <td data-label="마감일">{{ task["due_date"] or "-" }}</td>
                 </tr>
               {% endfor %}
             </tbody>
@@ -106,9 +106,12 @@
               <div class="list-row">
                 <div>
                   <a class="item-title-link" href="{{ url_for('documents.detail', document_id=document['id']) }}">{{ document["title"] }}</a>
+                  <div class="list-meta-line">
+                    <time>{{ document["updated_at"]|datetime_local }}</time>
                   <span>{{ document["doc_type"] }} · {{ document["author_name"] or "작성자 미지정" }}</span>
+                  </div>
                 </div>
-                <time>{{ document["updated_at"]|datetime_local }}</time>
+                
               </div>
             </li>
           {% endfor %}
@@ -169,11 +172,11 @@
           <tbody>
             {% for item in upcoming_schedules %}
               <tr>
-                <td><a class="table-link" href="{{ url_for('schedules.edit_schedule', schedule_id=item['id']) }}">{{ item["title"] }}</a></td>
-                <td>{{ item["schedule_type"] }}</td>
-                <td>{{ item["assignee_name"] or "-" }}</td>
-                <td>{{ item["start_date"] }}</td>
-                <td>{{ item["end_date"] }}</td>
+                <td data-label="일정명"><a class="table-link" href="{{ url_for('schedules.edit_schedule', schedule_id=item['id']) }}">{{ item["title"] }}</a></td>
+                <td data-label="유형">{{ item["schedule_type"] }}</td>
+                <td data-label="담당자">{{ item["assignee_name"] or "-" }}</td>
+                <td data-label="시작일">{{ item["start_date"] }}</td>
+                <td data-label="종료일">{{ item["end_date"] }}</td>
               </tr>
             {% endfor %}
           </tbody>

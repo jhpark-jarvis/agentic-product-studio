@@ -136,9 +136,17 @@
               <div class="list-row">
                 <div>
                   <a class="item-title-link" href="{{ url_for('wbs.edit_task', task_id=row['id']) }}">{{ row["title"] }}</a>
+                  <div class="dashboard-meta-inline">
+                    <span class="meta-chip">
+                      <span class="meta-key">담당</span>
+                      <span>{{ row["assignee_name"] or "미지정" }}</span>
+                    </span>
+                    <span class="badge {{ row['status']|badge_class }}">{{ row["status"] }}</span>
+                    <span class="badge {{ row['priority']|badge_class('priority') }}">{{ row["priority"] }}</span>
+                  </div>
                   <span>{{ row["assignee_name"] or "담당자 미지정" }} · {{ row["status"] }} · {{ row["priority"] }}</span>
                 </div>
-                <time>{{ row["updated_at"]|datetime_local }}</time>
+                <time class="date-range">{{ row["updated_at"]|datetime_local }}</time>
               </div>
             </li>
           {% endfor %}
@@ -180,7 +188,7 @@
               </div>
               <div class="schedule-date-block">
                 <span class="meta-key">일정</span>
-                <time>{{ item["start_date"] }} ~ {{ item["end_date"] }}</time>
+                <time class="date-range">{{ item["start_date"] }} ~ {{ item["end_date"] }}</time>
               </div>
             </div>
           </li>

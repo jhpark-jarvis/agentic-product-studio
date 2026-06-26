@@ -10,7 +10,12 @@
 
 {% block content %}
   <section class="panel">
-    <form method="post" class="form-grid">
+    <form
+      method="post"
+      class="form-grid"
+      data-wbs-form
+      data-completed-status="{{ statuses[3] if statuses|length > 3 else '완료' }}"
+    >
       <div class="field">
         <label for="title">작업명</label>
         <input id="title" name="title" type="text" value="{{ form_data.title if form_data else task['title'] if task else '' }}">
@@ -33,6 +38,16 @@
       </div>
 
       <div class="field">
+        <label for="platform">대상 플랫폼</label>
+        <select id="platform" name="platform">
+          {% set selected_platform = form_data.platform if form_data else task['platform'] if task else platforms[0] %}
+          {% for platform in platforms %}
+            <option value="{{ platform }}" {% if selected_platform == platform %}selected{% endif %}>{{ platform }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
         <label for="assignee_id">담당자</label>
         <select id="assignee_id" name="assignee_id">
           <option value="">미지정</option>
@@ -45,8 +60,8 @@
 
       <div class="field">
         <label for="status">상태</label>
-        <select id="status" name="status">
-          {% set selected_status = form_data.status if form_data else task['status'] if task else '예정' %}
+        <select id="status" name="status" data-wbs-status>
+          {% set selected_status = form_data.status if form_data else task['status'] if task else statuses[0] %}
           {% for status in statuses %}
             <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>{{ status }}</option>
           {% endfor %}
@@ -56,7 +71,7 @@
       <div class="field">
         <label for="priority">우선순위</label>
         <select id="priority" name="priority">
-          {% set selected_priority = form_data.priority if form_data else task['priority'] if task else '보통' %}
+          {% set selected_priority = form_data.priority if form_data else task['priority'] if task else priorities[1] %}
           {% for priority in priorities %}
             <option value="{{ priority }}" {% if selected_priority == priority %}selected{% endif %}>{{ priority }}</option>
           {% endfor %}
@@ -65,7 +80,7 @@
 
       <div class="field">
         <label for="progress">진행률</label>
-        <input id="progress" name="progress" type="number" min="0" max="100" value="{{ form_data.progress if form_data else task['progress'] if task else 0 }}">
+        <input id="progress" name="progress" type="number" min="0" max="100" value="{{ form_data.progress if form_data else task['progress'] if task else 0 }}" data-wbs-progress>
       </div>
 
       <div class="field">
@@ -80,17 +95,19 @@
 
       <div class="field">
         <label for="completed_date">실제 완료일</label>
-        <input id="completed_date" name="completed_date" type="date" value="{{ form_data.completed_date if form_data else task['completed_date'] if task else '' }}">
+        <input id="completed_date" name="completed_date" type="date" value="{{ form_data.completed_date if form_data else task['completed_date'] if task else '' }}" data-wbs-completed-date>
       </div>
 
       <div class="field field--full">
-        <label for="document_ids">관련 문서</label>
+        <label for="document_ids">연관 문서</label>
         <select id="document_ids" name="document_ids" multiple size="7">
           {% for document in documents %}
-            <option value="{{ document['id'] }}" {% if document['id'] in selected_document_ids %}selected{% endif %}>{{ document["title"] }} · {{ document["doc_type"] }}</option>
+            <option value="{{ document['id'] }}" {% if document['id'] in selected_document_ids %}selected{% endif %}>
+              {{ document["title"] }} · {{ document["doc_type"] }}{% if document["is_hidden"] %} · 숨김{% endif %}
+            </option>
           {% endfor %}
         </select>
-        <p class="field-help">Ctrl 또는 Shift 키로 여러 문서를 선택할 수 있습니다.</p>
+        <p class="field-help">Ctrl 또는 Shift로 여러 문서를 선택할 수 있습니다.</p>
       </div>
 
       <div class="field field--full">

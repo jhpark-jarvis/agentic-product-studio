@@ -6,7 +6,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from .constants import TASK_PRIORITIES, TASK_STATUSES
 from .db import get_db, sync_task_documents
-from .utils import parse_date, today_local
+from .utils import WBS_PLATFORM_OPTIONS, parse_date, today_local
 
 
 bp = Blueprint("wbs", __name__, url_prefix="/wbs")
@@ -26,9 +26,9 @@ def _fetch_members():
 def _fetch_documents():
     return get_db().execute(
         """
-        SELECT id, title, doc_type
+        SELECT id, title, doc_type, is_hidden
         FROM documents
-        ORDER BY updated_at DESC, title COLLATE NOCASE ASC
+        ORDER BY is_hidden ASC, updated_at DESC, title COLLATE NOCASE ASC
         """
     ).fetchall()
 
@@ -72,6 +72,9 @@ def _fetch_flattened_tasks(filters: dict[str, str]):
     if filters.get("priority"):
         clauses.append("t.priority = ?")
         params.append(filters["priority"])
+    if filters.get("platform"):
+        clauses.append("COALESCE(t.platform, 'Agentic Product Studio') = ?")
+        params.append(filters["platform"])
 
     where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     tasks = db.execute(
@@ -105,8 +108,8 @@ def _fetch_flattened_tasks(filters: dict[str, str]):
     def walk(parent_id: int | None, depth: int):
         for task in children.get(parent_id, []):
             due = parse_date(task["due_date"])
-            is_delayed = bool(due and due < today and task["status"] != "완료")
-            is_due_soon = bool(due and 0 <= (due - today).days <= 3 and task["status"] != "완료")
+            is_delayed = bool(due and due < today and task["status"] != "?꾨즺")
+            is_due_soon = bool(due and 0 <= (due - today).days <= 3 and task["status"] != "?꾨즺")
             flattened.append(
                 {
                     "task": task,
@@ -128,8 +131,9 @@ def _task_form_data():
         "title": request.form.get("title", "").strip(),
         "description": request.form.get("description", "").strip(),
         "assignee_id": request.form.get("assignee_id") or None,
-        "status": request.form.get("status", "예정"),
-        "priority": request.form.get("priority", "보통"),
+        "platform": request.form.get("platform", WBS_PLATFORM_OPTIONS[0]).strip(),
+        "status": request.form.get("status", "?덉젙"),
+        "priority": request.form.get("priority", "蹂댄넻"),
         "start_date": request.form.get("start_date") or None,
         "due_date": request.form.get("due_date") or None,
         "completed_date": request.form.get("completed_date") or None,
@@ -147,6 +151,8 @@ def _validate_task_form(data, task_id: int | None = None):
         errors.append("유효하지 않은 상태값입니다.")
     if data["priority"] not in TASK_PRIORITIES:
         errors.append("유효하지 않은 우선순위입니다.")
+    if data["platform"] not in WBS_PLATFORM_OPTIONS:
+        errors.append("유효하지 않은 플랫폼입니다.")
 
     try:
         progress_value = int(data["progress"])
@@ -155,10 +161,17 @@ def _validate_task_form(data, task_id: int | None = None):
     except ValueError:
         errors.append("진행률은 0에서 100 사이 정수여야 합니다.")
         progress_value = 0
+
+    completed_status = TASK_STATUSES[3] if len(TASK_STATUSES) > 3 else "완료"
+    if data["status"] == completed_status:
+        progress_value = 100
+        if not data["completed_date"]:
+            data["completed_date"] = today_local().isoformat()
+
     data["progress"] = progress_value
 
     if data["parent_id"] and task_id and int(data["parent_id"]) == task_id:
-        errors.append("상위 작업에 자기 자신을 선택할 수 없습니다.")
+        errors.append("상위 작업으로 자기 자신을 선택할 수 없습니다.")
 
     start = parse_date(data["start_date"])
     due = parse_date(data["due_date"])
@@ -181,6 +194,7 @@ def list_tasks():
         "status": request.args.get("status", ""),
         "assignee_id": request.args.get("assignee_id", ""),
         "priority": request.args.get("priority", ""),
+        "platform": request.args.get("platform", ""),
     }
     return render_template(
         "wbs/list.html",
@@ -188,6 +202,7 @@ def list_tasks():
         members=_fetch_members(),
         statuses=TASK_STATUSES,
         priorities=TASK_PRIORITIES,
+        platforms=WBS_PLATFORM_OPTIONS,
         filters=filters,
     )
 
@@ -202,16 +217,17 @@ def create_task():
             cursor = db.execute(
                 """
                 INSERT INTO wbs_tasks (
-                    parent_id, title, description, assignee_id, status, priority,
+                    parent_id, title, description, assignee_id, platform, status, priority,
                     start_date, due_date, completed_date, progress, notes
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     data["parent_id"],
                     data["title"],
                     data["description"],
                     data["assignee_id"],
+                    data["platform"],
                     data["status"],
                     data["priority"],
                     data["start_date"],
@@ -245,6 +261,7 @@ def create_task():
         documents=_fetch_documents(),
         statuses=TASK_STATUSES,
         priorities=TASK_PRIORITIES,
+        platforms=WBS_PLATFORM_OPTIONS,
         form_data=form_data,
     )
 
@@ -264,10 +281,9 @@ def edit_task(task_id: int):
             db.execute(
                 """
                 UPDATE wbs_tasks
-                SET parent_id = ?, title = ?, description = ?, assignee_id = ?,
+                SET parent_id = ?, title = ?, description = ?, assignee_id = ?, platform = ?,
                     status = ?, priority = ?, start_date = ?, due_date = ?,
-                    completed_date = ?, progress = ?, notes = ?,
-                    updated_at = CURRENT_TIMESTAMP
+                    completed_date = ?, progress = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,
                 (
@@ -275,6 +291,7 @@ def edit_task(task_id: int):
                     data["title"],
                     data["description"],
                     data["assignee_id"],
+                    data["platform"],
                     data["status"],
                     data["priority"],
                     data["start_date"],
@@ -310,6 +327,7 @@ def edit_task(task_id: int):
         documents=_fetch_documents(),
         statuses=TASK_STATUSES,
         priorities=TASK_PRIORITIES,
+        platforms=WBS_PLATFORM_OPTIONS,
         form_data=form_data,
     )
 

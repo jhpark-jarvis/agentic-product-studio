@@ -2,7 +2,7 @@
 
 {% block title %}{{ page_title }} | Agentic Product Studio{% endblock %}
 {% block page_title %}{{ page_title }}{% endblock %}
-{% block topbar_eyebrow %}Schedules{% endblock %}
+{% block topbar_eyebrow %}SCHEDULES{% endblock %}
 
 {% block topbar_actions %}
   <a href="{{ url_for('schedules.list_schedules') }}" class="button button--secondary">목록으로</a>
@@ -24,7 +24,7 @@
       <div class="field">
         <label for="schedule_type">일정 유형</label>
         <select id="schedule_type" name="schedule_type">
-          {% set selected_type = form_data.schedule_type if form_data else schedule['schedule_type'] if schedule else '개발' %}
+          {% set selected_type = form_data.schedule_type if form_data else schedule['schedule_type'] if schedule else schedule_types[0] %}
           {% for schedule_type in schedule_types %}
             <option value="{{ schedule_type }}" {% if selected_type == schedule_type %}selected{% endif %}>{{ schedule_type }}</option>
           {% endfor %}
@@ -43,7 +43,7 @@
       </div>
 
       <div class="field">
-        <label for="wbs_task_id">관련 WBS 작업</label>
+        <label for="wbs_task_id">연관 WBS</label>
         <select id="wbs_task_id" name="wbs_task_id">
           <option value="">없음</option>
           {% set selected_task = form_data.wbs_task_id if form_data else schedule['wbs_task_id'] if schedule else '' %}

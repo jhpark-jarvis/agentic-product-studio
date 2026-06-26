@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block title %}일정 | Agentic Product Studio{% endblock %}
-{% block page_title %}일정 공유{% endblock %}
-{% block topbar_eyebrow %}Schedules{% endblock %}
+{% block page_title %}일정{% endblock %}
+{% block topbar_eyebrow %}SCHEDULES{% endblock %}
 
 {% block topbar_actions %}
   <a href="{{ url_for('schedules.create_schedule') }}" class="button button--primary">새 일정</a>
@@ -19,14 +19,14 @@
         <ul class="item-list">
           {% for item in week_items %}
             <li>
-              <div class="list-row schedule-row">
+              <div class="list-row schedule-row schedule-row--weekly">
                 <div class="schedule-row__content">
                   <a class="item-title-link" href="{{ url_for('schedules.edit_schedule', schedule_id=item['id']) }}">{{ item["title"] }}</a>
                   <div class="schedule-meta" aria-label="schedule meta">
                     <span class="badge badge--planned">{{ item["schedule_type"] }}</span>
                     <span class="meta-chip">
                       <span class="meta-key">담당</span>
-                      <span>{{ item["assignee_name"] or "?대떦??誘몄???" }}</span>
+                      <span>{{ item["assignee_name"] or "미지정" }}</span>
                     </span>
                     {% if item["task_title"] %}
                       <span class="meta-chip">
@@ -35,11 +35,10 @@
                       </span>
                     {% endif %}
                   </div>
-                  <span>{{ item["schedule_type"] }} · {{ item["assignee_name"] or "담당자 미지정" }}{% if item["task_title"] %} · {{ item["task_title"] }}{% endif %}</span>
                 </div>
                 <div class="schedule-date-block">
                   <span class="meta-key">일정</span>
-                  <time>{{ item["start_date"] }} ~ {{ item["end_date"] }}</time>
+                  <time class="date-range">{{ item["start_date"] }} ~ {{ item["end_date"] }}</time>
                 </div>
               </div>
             </li>
@@ -52,26 +51,46 @@
 
     <article class="panel">
       <div class="panel-heading">
-        <h2>월간 일정</h2>
-        <p>{{ month_query }}</p>
+        <div>
+          <h2>월간 일정</h2>
+          <p>{{ month_query }}</p>
+        </div>
+        <span class="muted-text">날짜를 누르면 상세 일정이 열립니다.</span>
       </div>
-      <div class="calendar-list">
+
+      <div class="calendar-list calendar-list--compact calendar-list--schedule" data-schedule-calendar>
         {% for day in month_days %}
-          <div class="calendar-day {% if day.date.isoformat() == today.isoformat() %}calendar-day--today{% endif %}">
+          <button
+            type="button"
+            class="calendar-day calendar-day--button {% if day.is_today %}calendar-day--today{% endif %}"
+            data-calendar-day
+            data-day-label="{{ day.date.strftime('%Y-%m-%d (%a)') }}"
+            data-day-items='{{ day.modal_items|tojson }}'
+          >
             <div class="calendar-day__header">
               <strong>{{ day.date.day }}</strong>
               <span>{{ day.date.strftime("%a") }}</span>
             </div>
-            {% if day["items"] %}
-              <ul>
-                {% for item in day["items"] %}
-                  <li>{{ item["title"] }}</li>
+
+            {% if day.item_count %}
+              <div class="calendar-day__summary">
+                <span class="calendar-count">{{ day.item_count }}건</span>
+              </div>
+              <div class="calendar-preview-list">
+                {% for item in day.start_items %}
+                  <span class="calendar-preview-chip" title="{{ item['title'] }}">{{ item["title"] }}</span>
                 {% endfor %}
-              </ul>
+                {% if day.hidden_start_count %}
+                  <span class="calendar-preview-more">+ 시작 {{ day.hidden_start_count }}건</span>
+                {% endif %}
+                {% if day.continuing_count %}
+                  <span class="calendar-preview-more">진행 중 {{ day.continuing_count }}건</span>
+                {% endif %}
+              </div>
             {% else %}
-              <p>-</p>
+              <p class="calendar-empty">-</p>
             {% endif %}
-          </div>
+          </button>
         {% endfor %}
       </div>
     </article>
@@ -80,17 +99,17 @@
   <section class="panel">
     <div class="panel-heading">
       <h2>전체 일정 목록</h2>
-      <p>WBS 작업과 연결된 일정까지 함께 확인합니다.</p>
+      <p>WBS와 연결된 전체 일정을 확인합니다.</p>
     </div>
     {% if schedules %}
       <div class="table-wrap">
-        <table class="table">
+        <table class="table table--schedules">
           <thead>
             <tr>
               <th>일정명</th>
               <th>유형</th>
               <th>담당자</th>
-              <th>관련 WBS</th>
+              <th>연관 WBS</th>
               <th>시작일</th>
               <th>종료일</th>
               <th>관리</th>
@@ -102,10 +121,10 @@
                 <td data-label="일정명"><a class="table-link" href="{{ url_for('schedules.edit_schedule', schedule_id=item['id']) }}">{{ item["title"] }}</a></td>
                 <td data-label="유형">{{ item["schedule_type"] }}</td>
                 <td data-label="담당자">{{ item["assignee_name"] or "-" }}</td>
-                <td data-label="관련 WBS">{{ item["task_title"] or "-" }}</td>
-                <td data-label="시작일">{{ item["start_date"] }}</td>
-                <td data-label="종료일">{{ item["end_date"] }}</td>
-                <td data-label="관리" class="table-actions">
+                <td data-label="연관 WBS">{{ item["task_title"] or "-" }}</td>
+                <td class="date-cell" data-label="시작일">{{ item["start_date"] }}</td>
+                <td class="date-cell" data-label="종료일">{{ item["end_date"] }}</td>
+                <td class="table-actions" data-label="관리">
                   <a href="{{ url_for('schedules.edit_schedule', schedule_id=item['id']) }}" class="text-link">수정</a>
                   <form method="post" action="{{ url_for('schedules.delete_schedule', schedule_id=item['id']) }}" onsubmit="return confirm('이 일정을 삭제할까요?');">
                     <button type="submit" class="button-link button-link--danger">삭제</button>
@@ -120,4 +139,17 @@
       <p class="empty-state">등록된 일정이 없습니다.</p>
     {% endif %}
   </section>
+
+  <div class="modal-backdrop" data-schedule-modal hidden>
+    <div class="modal-card modal-card--schedule" role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title">
+      <div class="modal-card__header">
+        <div>
+          <p class="topbar__eyebrow">SCHEDULE DETAIL</p>
+          <h3 class="modal-card__title" id="schedule-modal-title" data-modal-title>일정 상세</h3>
+        </div>
+        <button type="button" class="button button--secondary" data-modal-close>닫기</button>
+      </div>
+      <div class="modal-card__body" data-modal-body></div>
+    </div>
+  </div>
 {% endblock %}

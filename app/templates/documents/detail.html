@@ -2,7 +2,7 @@
 
 {% block title %}{{ document['title'] }} | Agentic Product Studio{% endblock %}
 {% block page_title %}문서 상세{% endblock %}
-{% block topbar_eyebrow %}Documents{% endblock %}
+{% block topbar_eyebrow %}DOCUMENTS{% endblock %}
 
 {% block topbar_actions %}
   <a href="{{ url_for('documents.edit_document', document_id=document['id']) }}" class="button button--primary">문서 수정</a>
@@ -15,7 +15,12 @@
       <div class="panel-heading">
         <div>
           <h2>{{ document["title"] }}</h2>
-          <p>{{ document["doc_type"] }} · {{ document["author_name"] or "작성자 미지정" }} · 수정 {{ document["updated_at"]|datetime_local }}</p>
+          <p>
+            {{ document["doc_type"] }}
+            {% if document["folder_name"] %} · {{ document["folder_name"] }}{% endif %}
+            · {{ document["author_name"] or "작성자 미지정" }}
+            · 수정 {{ document["updated_at"]|datetime_local }}
+          </p>
         </div>
       </div>
       <div class="markdown-body">
@@ -26,7 +31,7 @@
     <aside class="panel">
       <div class="panel-heading">
         <h2>문서 메타데이터</h2>
-        <p>관련 작업과 태그 정보</p>
+        <p>연결된 작업 및 태그 정보</p>
       </div>
 
       <div class="stack-list">
@@ -35,8 +40,16 @@
           <strong>{{ document["doc_type"] }}</strong>
         </div>
         <div>
+          <span class="meta-key">폴더</span>
+          <strong>{{ document["folder_name"] or "미지정" }}</strong>
+        </div>
+        <div>
           <span class="meta-key">작성자</span>
           <strong>{{ document["author_name"] or "-" }}</strong>
+        </div>
+        <div>
+          <span class="meta-key">목록 노출</span>
+          <strong>{% if document["is_hidden"] %}숨김{% else %}표시{% endif %}</strong>
         </div>
         <div>
           <span class="meta-key">태그</span>
@@ -74,7 +87,7 @@
       </div>
 
       <div class="panel-subsection">
-        <h3>관련 WBS 작업</h3>
+        <h3>연관 WBS 작업</h3>
         {% if related_tasks %}
           <ul class="item-list">
             {% for task in related_tasks %}

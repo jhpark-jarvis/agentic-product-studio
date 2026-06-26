@@ -33,7 +33,7 @@ def _schedule_form_data():
         "end_date": request.form.get("end_date") or None,
         "assignee_id": request.form.get("assignee_id") or None,
         "wbs_task_id": request.form.get("wbs_task_id") or None,
-        "schedule_type": request.form.get("schedule_type", "개발"),
+        "schedule_type": request.form.get("schedule_type", SCHEDULE_TYPES[0]),
     }
 
 
@@ -50,7 +50,7 @@ def _validate_schedule_form(data):
     if data["end_date"] and not end:
         errors.append("종료일 형식이 올바르지 않습니다.")
     if start and end and end < start:
-        errors.append("종료일은 시작일보다 이를 수 없습니다.")
+        errors.append("종료일은 시작일보다 빠를 수 없습니다.")
     return errors
 
 
@@ -65,6 +65,56 @@ def _fetch_schedule(schedule_id: int):
         """,
         (schedule_id,),
     ).fetchone()
+
+
+def _build_month_days(schedules, month_start, month_end, today):
+    per_day = defaultdict(list)
+    for item in schedules:
+        start = parse_date(item["start_date"])
+        end = parse_date(item["end_date"]) or start
+        if not start or not end:
+            continue
+        if end < month_start or start > month_end:
+            continue
+
+        cursor = max(start, month_start)
+        final = min(end, month_end)
+        while cursor <= final:
+            per_day[cursor.isoformat()].append(
+                {
+                    "id": item["id"],
+                    "title": item["title"],
+                    "summary": item["description"] or "",
+                    "schedule_type": item["schedule_type"],
+                    "assignee_name": item["assignee_name"] or "-",
+                    "task_title": item["task_title"] or "",
+                    "start_date": item["start_date"],
+                    "end_date": item["end_date"],
+                    "starts_today": cursor == start,
+                }
+            )
+            cursor += timedelta(days=1)
+
+    ordered_days = []
+    cursor = month_start
+    while cursor <= month_end:
+        day_items = per_day.get(cursor.isoformat(), [])
+        start_items = [item for item in day_items if item["starts_today"]][:2]
+        total_start_count = len([item for item in day_items if item["starts_today"]])
+        continuing_count = sum(1 for item in day_items if not item["starts_today"])
+        ordered_days.append(
+            {
+                "date": cursor,
+                "is_today": cursor.isoformat() == today.isoformat(),
+                "item_count": len(day_items),
+                "start_items": start_items,
+                "continuing_count": continuing_count,
+                "hidden_start_count": max(0, total_start_count - len(start_items)),
+                "modal_items": day_items,
+            }
+        )
+        cursor += timedelta(days=1)
+    return ordered_days
 
 
 @bp.route("/")
@@ -92,7 +142,6 @@ def list_schedules():
     ).fetchall()
 
     week_items = []
-    month_groups = defaultdict(list)
     for item in schedules:
         start = parse_date(item["start_date"])
         end = parse_date(item["end_date"]) or start
@@ -100,29 +149,12 @@ def list_schedules():
             continue
         if end >= week_start and start <= week_end:
             week_items.append(item)
-        if end >= month_start and start <= month_end:
-            cursor = max(start, month_start)
-            final = min(end, month_end)
-            while cursor <= final:
-                month_groups[cursor.isoformat()].append(item)
-                cursor += timedelta(days=1)
-
-    ordered_month_days = []
-    cursor = month_start
-    while cursor <= month_end:
-        ordered_month_days.append(
-            {
-                "date": cursor,
-                "items": month_groups.get(cursor.isoformat(), []),
-            }
-        )
-        cursor += timedelta(days=1)
 
     return render_template(
         "schedules/list.html",
         schedules=schedules,
         week_items=week_items,
-        month_days=ordered_month_days,
+        month_days=_build_month_days(schedules, month_start, month_end, today),
         today=today,
         week_start=week_start,
         week_end=week_end,

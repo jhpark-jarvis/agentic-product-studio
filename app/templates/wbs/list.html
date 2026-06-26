@@ -2,7 +2,7 @@
 
 {% block title %}WBS | Agentic Product Studio{% endblock %}
 {% block page_title %}WBS 작업 관리{% endblock %}
-{% block topbar_eyebrow %}Work Breakdown Structure{% endblock %}
+{% block topbar_eyebrow %}WORK BREAKDOWN STRUCTURE{% endblock %}
 
 {% block topbar_actions %}
   <a href="{{ url_for('wbs.create_task') }}" class="button button--primary">새 작업</a>
@@ -10,7 +10,7 @@
 
 {% block content %}
   <section class="panel filter-panel">
-    <form method="get" class="filter-grid">
+    <form method="get" class="filter-grid filter-grid--wbs">
       <div class="field">
         <label for="status">상태</label>
         <select id="status" name="status">
@@ -38,6 +38,15 @@
           {% endfor %}
         </select>
       </div>
+      <div class="field">
+        <label for="platform">플랫폼</label>
+        <select id="platform" name="platform">
+          <option value="">전체</option>
+          {% for platform in platforms %}
+            <option value="{{ platform }}" {% if filters.platform == platform %}selected{% endif %}>{{ platform }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <div class="field field--actions">
         <button type="submit" class="button button--primary">필터 적용</button>
         <a href="{{ url_for('wbs.list_tasks') }}" class="button button--secondary">초기화</a>
@@ -53,11 +62,12 @@
 
     {% if task_rows %}
       <div class="table-wrap">
-        <table class="table">
+        <table class="table table--wbs">
           <thead>
             <tr>
               <th>ID</th>
               <th>작업명</th>
+              <th>플랫폼</th>
               <th>담당자</th>
               <th>상태</th>
               <th>우선순위</th>
@@ -84,20 +94,21 @@
                     </div>
                   </div>
                 </td>
+                <td data-label="플랫폼">{{ task["platform"] or "Agentic Product Studio" }}</td>
                 <td data-label="담당자">{{ task["assignee_name"] or "-" }}</td>
-                <td data-label="상태"><span class="badge badge--status">{{ task["status"] }}</span></td>
-                <td data-label="우선순위"><span class="badge badge--priority">{{ task["priority"] }}</span></td>
+                <td data-label="상태"><span class="badge {{ task['status']|badge_class }}">{{ task["status"] }}</span></td>
+                <td data-label="우선순위"><span class="badge {{ task['priority']|badge_class('priority') }}">{{ task["priority"] }}</span></td>
                 <td data-label="진행률">
                   <div class="progress-cell">
                     <div class="progress-bar"><span style="width: {{ task['progress'] }}%;"></span></div>
-                    <span>{{ task["progress"] }}%</span>
+                    <span class="progress-value">{{ task["progress"] }}%</span>
                   </div>
                 </td>
                 <td data-label="시작일">{{ task["start_date"] or "-" }}</td>
                 <td data-label="마감일">{{ task["due_date"] or "-" }}</td>
                 <td data-label="관리" class="table-actions">
                   <a href="{{ url_for('wbs.edit_task', task_id=task['id']) }}" class="text-link">수정</a>
-                  <form method="post" action="{{ url_for('wbs.delete_task', task_id=task['id']) }}" onsubmit="return confirm('이 작업을 삭제할까요? 하위 작업과 연결 상태를 먼저 확인하세요.');">
+                  <form method="post" action="{{ url_for('wbs.delete_task', task_id=task['id']) }}" onsubmit="return confirm('이 작업을 삭제할까요? 하위 작업과 연결 상태를 먼저 확인해주세요.');">
                     <button type="submit" class="button-link button-link--danger">삭제</button>
                   </form>
                 </td>

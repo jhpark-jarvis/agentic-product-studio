@@ -4,11 +4,11 @@ from flask import Flask
 
 from .dashboard import bp as dashboard_bp
 from .db import close_db, init_app as init_db_app, init_db
-from .documents_v4 import bp as documents_bp
+from .documents import bp as documents_bp
 from .members import bp as members_bp
-from .schedules_v3 import bp as schedules_bp
+from .schedules import bp as schedules_bp
 from .utils import DEFAULT_TIMEZONE, css_badge_class, format_datetime_local, markdown_to_html
-from .wbs_v2 import bp as wbs_bp
+from .wbs import bp as wbs_bp
 
 
 def create_app(test_config=None):

@@ -91,6 +91,35 @@ def format_datetime_local(value: str | None, fmt: str = "%Y-%m-%d %H:%M") -> str
     return parsed.astimezone(_timezone()).strftime(fmt)
 
 
+def parse_int(value, default: int, allowed: set[int] | None = None, minimum: int | None = None) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+
+    if minimum is not None and parsed < minimum:
+        return default
+    if allowed is not None and parsed not in allowed:
+        return default
+    return parsed
+
+
+def build_pagination(page: int, per_page: int, total_count: int) -> dict[str, int | bool]:
+    total_pages = max(1, (total_count + per_page - 1) // per_page)
+    current_page = min(max(page, 1), total_pages)
+    return {
+        "page": current_page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "total_pages": total_pages,
+        "has_prev": current_page > 1,
+        "has_next": current_page < total_pages,
+        "prev_page": current_page - 1,
+        "next_page": current_page + 1,
+        "offset": (current_page - 1) * per_page,
+    }
+
+
 def format_code_block(language: str | None, code: str) -> str:
     lang = (language or "").strip().lower()
     stripped = code.strip("\n")

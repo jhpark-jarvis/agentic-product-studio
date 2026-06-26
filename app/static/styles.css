@@ -229,6 +229,10 @@ button, input, select, textarea { font: inherit; }
   background: var(--surface-soft);
 }
 
+.dashboard-schedule-legacy {
+  display: none;
+}
+
 .list-row--stack {
   display: grid;
   gap: 8px;
@@ -256,8 +260,20 @@ button, input, select, textarea { font: inherit; }
 .filter-panel { margin-bottom: 18px; }
 .filter-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .filter-grid--wide { grid-template-columns: 1.2fr 0.8fr 0.8fr auto; }
+.filter-grid--docs { grid-template-columns: 1.3fr 0.85fr 0.85fr 0.85fr 0.7fr auto; }
 .field { display: grid; gap: 8px; }
 .field label { font-weight: 600; }
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.field-inline-help {
+  color: var(--muted);
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
 .field input, .field select, .field textarea {
   width: 100%;
   padding: 11px 12px;
@@ -386,9 +402,150 @@ button, input, select, textarea { font: inherit; }
 
 .calendar-list { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; }
 .calendar-day { min-height: 128px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); }
+.calendar-day--button {
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.calendar-day--button:hover {
+  border-color: var(--accent);
+  background: #f7faff;
+}
 .calendar-day--today { border-color: var(--accent); background: #f5f9ff; }
 .calendar-day__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .calendar-day ul { margin: 0; padding-left: 16px; color: var(--muted); }
+.calendar-list--compact {
+  align-items: start;
+}
+.calendar-day__summary {
+  margin-bottom: 8px;
+}
+.calendar-count {
+  display: inline-flex;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #e7f1ff;
+  color: #315381;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.calendar-preview-list {
+  display: grid;
+  gap: 6px;
+}
+.calendar-preview-chip,
+.calendar-preview-more {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+.calendar-preview-chip {
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text);
+}
+.calendar-preview-more,
+.calendar-empty {
+  color: var(--muted);
+}
+
+.folder-path {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.table-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.pagination-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.45);
+  pointer-events: auto;
+}
+
+.modal-backdrop[hidden] {
+  display: none !important;
+}
+
+.modal-card {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 22px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  pointer-events: auto;
+}
+
+.modal-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.modal-card__title {
+  margin: 0;
+}
+
+.modal-card__body {
+  display: grid;
+  gap: 14px;
+}
+
+.modal-schedule {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.modal-schedule__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.modal-schedule__summary {
+  margin: 12px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
 
 .stack-list { display: grid; gap: 16px; }
 .meta-key { display: block; }
@@ -511,7 +668,7 @@ button, input, select, textarea { font: inherit; }
   .topbar__actions .button {
     flex: 1 1 180px;
   }
-  .stats-grid, .dashboard-grid, .detail-grid, .filter-grid, .filter-grid--wide, .form-grid { grid-template-columns: 1fr; }
+  .stats-grid, .dashboard-grid, .detail-grid, .filter-grid, .filter-grid--wide, .filter-grid--docs, .form-grid { grid-template-columns: 1fr; }
   .calendar-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .field--actions, .form-actions, .topbar__actions, .table-actions { flex-wrap: wrap; }
   .markdown-editor__panes { grid-template-columns: 1fr; }
@@ -529,6 +686,11 @@ button, input, select, textarea { font: inherit; }
   .field select,
   .field textarea {
     padding: 10px 11px;
+  }
+  .field-label-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
   .button,
   .button-link {
@@ -595,6 +757,11 @@ button, input, select, textarea { font: inherit; }
     min-width: 0;
     justify-items: start;
   }
+  .pagination-bar,
+  .modal-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
   .list-meta-line {
     flex-direction: column;
     align-items: flex-start;
@@ -635,5 +802,11 @@ button, input, select, textarea { font: inherit; }
   }
   .table td::before {
     margin-bottom: 2px;
+  }
+  .modal-backdrop {
+    padding: 12px;
+  }
+  .modal-card {
+    padding: 16px;
   }
 }

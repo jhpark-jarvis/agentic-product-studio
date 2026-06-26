@@ -158,7 +158,35 @@
       <a href="{{ url_for('schedules.list_schedules') }}" class="text-link">일정 보기</a>
     </div>
     {% if upcoming_schedules %}
-      <div class="table-wrap">
+      <ul class="item-list">
+        {% for item in upcoming_schedules %}
+          <li>
+            <div class="list-row schedule-row">
+              <div class="schedule-row__content">
+                <a class="item-title-link" href="{{ url_for('schedules.edit_schedule', schedule_id=item['id']) }}">{{ item["title"] }}</a>
+                <div class="schedule-meta" aria-label="schedule meta">
+                  <span class="badge badge--planned">{{ item["schedule_type"] }}</span>
+                  <span class="meta-chip">
+                    <span class="meta-key">담당</span>
+                    <span>{{ item["assignee_name"] or "-" }}</span>
+                  </span>
+                  {% if item["task_title"] %}
+                    <span class="meta-chip">
+                      <span class="meta-key">WBS</span>
+                      <span>{{ item["task_title"] }}</span>
+                    </span>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="schedule-date-block">
+                <span class="meta-key">일정</span>
+                <time>{{ item["start_date"] }} ~ {{ item["end_date"] }}</time>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+      <div class="table-wrap dashboard-schedule-legacy">
         <table class="table">
           <thead>
             <tr>

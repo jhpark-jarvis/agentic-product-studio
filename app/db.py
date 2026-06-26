@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS documents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     doc_type TEXT NOT NULL,
+    folder_id INTEGER REFERENCES document_folders(id) ON DELETE SET NULL,
     file_name TEXT,
     notes TEXT,
     content TEXT DEFAULT '',
@@ -51,6 +52,14 @@ CREATE TABLE IF NOT EXISTS document_tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
     tag TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS document_folders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_type TEXT NOT NULL,
+    name TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(doc_type, name)
 );
 
 CREATE TABLE IF NOT EXISTS task_documents (
@@ -139,6 +148,30 @@ def migrate_legacy_schema(db):
         _add_column_if_missing(db, "documents", "author_id", "INTEGER")
         _add_column_if_missing(db, "documents", "tags", "TEXT DEFAULT ''")
         _add_column_if_missing(db, "documents", "updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+        _add_column_if_missing(db, "documents", "folder_id", "INTEGER")
+
+
+def ensure_document_folder(db, doc_type, folder_name):
+    normalized_name = (folder_name or "").strip()
+    if not normalized_name:
+        return None
+
+    existing = db.execute(
+        """
+        SELECT id
+        FROM document_folders
+        WHERE doc_type = ? AND lower(name) = lower(?)
+        """,
+        (doc_type, normalized_name),
+    ).fetchone()
+    if existing:
+        return existing["id"]
+
+    cursor = db.execute(
+        "INSERT INTO document_folders (doc_type, name) VALUES (?, ?)",
+        (doc_type, normalized_name),
+    )
+    return cursor.lastrowid
 
 
 def normalize_tags(tags_text):

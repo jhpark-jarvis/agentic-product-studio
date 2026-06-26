@@ -79,9 +79,17 @@ def index():
 
     upcoming_schedules = db.execute(
         """
-        SELECT s.id, s.title, s.start_date, s.end_date, s.schedule_type, m.name AS assignee_name
+        SELECT
+            s.id,
+            s.title,
+            s.start_date,
+            s.end_date,
+            s.schedule_type,
+            m.name AS assignee_name,
+            t.title AS task_title
         FROM schedules s
         LEFT JOIN members m ON m.id = s.assignee_id
+        LEFT JOIN wbs_tasks t ON t.id = s.wbs_task_id
         WHERE s.end_date >= ?
         ORDER BY s.start_date ASC, s.id ASC
         LIMIT 6

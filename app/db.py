@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS wbs_tasks (
     title TEXT NOT NULL,
     description TEXT,
     assignee_id INTEGER REFERENCES members(id) ON DELETE SET NULL,
+    platform TEXT DEFAULT 'Agentic Product Studio',
     status TEXT NOT NULL DEFAULT '예정',
     priority TEXT NOT NULL DEFAULT '보통',
     start_date TEXT,
@@ -39,6 +40,7 @@ CREATE TABLE IF NOT EXISTS documents (
     title TEXT NOT NULL,
     doc_type TEXT NOT NULL,
     folder_id INTEGER REFERENCES document_folders(id) ON DELETE SET NULL,
+    is_hidden INTEGER NOT NULL DEFAULT 0,
     file_name TEXT,
     notes TEXT,
     content TEXT DEFAULT '',
@@ -149,6 +151,9 @@ def migrate_legacy_schema(db):
         _add_column_if_missing(db, "documents", "tags", "TEXT DEFAULT ''")
         _add_column_if_missing(db, "documents", "updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
         _add_column_if_missing(db, "documents", "folder_id", "INTEGER")
+        _add_column_if_missing(db, "documents", "is_hidden", "INTEGER NOT NULL DEFAULT 0")
+    if _table_exists(db, "wbs_tasks"):
+        _add_column_if_missing(db, "wbs_tasks", "platform", "TEXT DEFAULT 'Agentic Product Studio'")
 
 
 def ensure_document_folder(db, doc_type, folder_name):

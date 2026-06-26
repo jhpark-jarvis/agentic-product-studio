@@ -15,6 +15,10 @@ import yaml
 from markupsafe import Markup
 
 FENCED_CODE_RE = re.compile(r"```([a-zA-Z0-9_+\-#.]+)?\n(.*?)```", re.DOTALL)
+DETAILS_RE = re.compile(
+    r"<details(?P<attrs>[^>]*)>\s*<summary>(?P<summary>.*?)</summary>(?P<body>.*?)</details>",
+    re.DOTALL | re.IGNORECASE,
+)
 
 PYTHON_ALIASES = {"py", "python", "py3", "python3"}
 JSON_ALIASES = {"json"}
@@ -22,6 +26,7 @@ SQL_ALIASES = {"sql", "mysql", "postgresql", "sqlite"}
 YAML_ALIASES = {"yaml", "yml"}
 HTML_ALIASES = {"html", "htm", "xml", "svg"}
 DEFAULT_TIMEZONE = "Asia/Seoul"
+WBS_PLATFORM_OPTIONS = ["Agentic Product Studio", "외부 에셋 카탈로그(게임 제작)"]
 
 
 def parse_date(value: str | None) -> date | None:
@@ -120,6 +125,82 @@ def build_pagination(page: int, per_page: int, total_count: int) -> dict[str, in
     }
 
 
+def _build_markdown_html(text: str) -> str:
+    return markdown.markdown(
+        text,
+        extensions=["fenced_code", "codehilite", "tables", "sane_lists", "nl2br"],
+        extension_configs={
+            "codehilite": {
+                "guess_lang": False,
+                "use_pygments": True,
+                "noclasses": False,
+            }
+        },
+    )
+
+
+def _strip_wrapping_paragraph(html: str) -> str:
+    stripped = html.strip()
+    if stripped.startswith("<p>") and stripped.endswith("</p>") and stripped.count("<p>") == 1:
+        return stripped[3:-4]
+    return stripped
+
+
+def _render_details_blocks(text: str) -> str:
+    source = text or ""
+
+    def replace(match: re.Match[str]) -> str:
+        attrs = match.group("attrs") or ""
+        summary = (match.group("summary") or "").strip()
+        body = (match.group("body") or "").strip()
+        rendered_summary = _strip_wrapping_paragraph(_build_markdown_html(format_markdown_code_blocks(summary)))
+        rendered_body = _render_markdown_with_details(body)
+        return (
+            f"<details{attrs}>"
+            f"<summary>{rendered_summary}</summary>"
+            f"{rendered_body}"
+            f"</details>"
+        )
+
+    previous = None
+    while previous != source:
+        previous = source
+        source = DETAILS_RE.sub(replace, source)
+    return source
+
+
+def _render_markdown_with_details(text: str) -> str:
+    prepared = _render_details_blocks(format_markdown_code_blocks(text))
+    return _build_markdown_html(prepared)
+
+
+def css_badge_class(value: str | None, kind: str = "status") -> str:
+    token = (value or "").strip().lower()
+
+    if kind == "priority":
+        if "긴급" in token or "urgent" in token:
+            return "badge--priority-urgent"
+        if "높" in token or "high" in token:
+            return "badge--priority-high"
+        if "보통" in token or "medium" in token or "normal" in token:
+            return "badge--priority-medium"
+        if "낮" in token or "low" in token:
+            return "badge--priority-low"
+        return "badge--priority"
+
+    if "완료" in token or "done" in token or "complete" in token:
+        return "badge--done"
+    if "검토" in token or "review" in token:
+        return "badge--review"
+    if "진행" in token or "progress" in token or "doing" in token:
+        return "badge--in-progress"
+    if "보류" in token or "hold" in token or "pause" in token:
+        return "badge--hold"
+    if "예정" in token or "plan" in token or "todo" in token:
+        return "badge--planned"
+    return "badge--status"
+
+
 def format_code_block(language: str | None, code: str) -> str:
     lang = (language or "").strip().lower()
     stripped = code.strip("\n")
@@ -169,16 +250,4 @@ def format_markdown_code_blocks(text: str | None) -> str:
 
 
 def markdown_to_html(value: str | None) -> Markup:
-    text = format_markdown_code_blocks(value)
-    html = markdown.markdown(
-        text,
-        extensions=["fenced_code", "codehilite", "tables", "sane_lists", "nl2br"],
-        extension_configs={
-            "codehilite": {
-                "guess_lang": False,
-                "use_pygments": True,
-                "noclasses": False,
-            }
-        },
-    )
-    return Markup(html)
+    return Markup(_render_markdown_with_details(value or ""))

@@ -52,6 +52,7 @@ def index():
         SELECT d.id, d.title, d.doc_type, d.updated_at, m.name AS author_name
         FROM documents d
         LEFT JOIN members m ON m.id = d.author_id
+        WHERE COALESCE(d.is_hidden, 0) = 0
         ORDER BY d.updated_at DESC, d.id DESC
         LIMIT 6
         """

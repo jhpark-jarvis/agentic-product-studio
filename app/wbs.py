@@ -58,6 +58,14 @@ def _fetch_task_with_links(task_id: int):
     return task, document_ids
 
 
+def _is_completed_task(task) -> bool:
+    completed_status = TASK_STATUSES[3] if len(TASK_STATUSES) > 3 else "완료"
+    status = (task["status"] or "").strip()
+    completed_date = parse_date(task["completed_date"])
+    progress = task["progress"] or 0
+    return status == completed_status or completed_date is not None or progress >= 100
+
+
 def _fetch_flattened_tasks(filters: dict[str, str]):
     db = get_db()
     clauses = []
@@ -110,6 +118,9 @@ def _fetch_flattened_tasks(filters: dict[str, str]):
             due = parse_date(task["due_date"])
             is_delayed = bool(due and due < today and task["status"] != "?꾨즺")
             is_due_soon = bool(due and 0 <= (due - today).days <= 3 and task["status"] != "?꾨즺")
+            completed = _is_completed_task(task)
+            is_delayed = bool(due and due < today and not completed)
+            is_due_soon = bool(due and 0 <= (due - today).days <= 3 and not completed)
             flattened.append(
                 {
                     "task": task,

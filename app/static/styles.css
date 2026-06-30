@@ -568,13 +568,21 @@ button, input, select, textarea { font: inherit; }
   white-space: nowrap;
 }
 
+.table--wbs {
+  min-width: 1480px;
+  table-layout: fixed;
+}
+
 .table--wbs th:nth-child(1), .table--wbs td:nth-child(1) { width: 72px; }
-.table--wbs th:nth-child(2), .table--wbs td:nth-child(2) { width: 28%; }
-.table--wbs th:nth-child(3), .table--wbs td:nth-child(3) { width: 14%; }
-.table--wbs th:nth-child(4), .table--wbs td:nth-child(4) { width: 12%; }
-.table--wbs th:nth-child(5), .table--wbs td:nth-child(5) { width: 11%; }
-.table--wbs th:nth-child(6), .table--wbs td:nth-child(6) { width: 11%; }
+.table--wbs th:nth-child(2), .table--wbs td:nth-child(2) { width: 31%; }
+.table--wbs th:nth-child(3), .table--wbs td:nth-child(3) { width: 15%; }
+.table--wbs th:nth-child(4), .table--wbs td:nth-child(4) { width: 11%; }
+.table--wbs th:nth-child(5), .table--wbs td:nth-child(5) { width: 10%; }
+.table--wbs th:nth-child(6), .table--wbs td:nth-child(6) { width: 10%; }
 .table--wbs th:nth-child(7), .table--wbs td:nth-child(7) { width: 132px; }
+.table--wbs th:nth-child(8), .table--wbs td:nth-child(8) { width: 98px; }
+.table--wbs th:nth-child(9), .table--wbs td:nth-child(9) { width: 98px; }
+.table--wbs th:nth-child(10), .table--wbs td:nth-child(10) { width: 88px; }
 
 .table--dashboard-tasks td:nth-child(2),
 .table--dashboard-tasks td:nth-child(5) {

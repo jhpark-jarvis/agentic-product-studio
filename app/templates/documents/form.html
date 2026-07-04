@@ -11,6 +11,7 @@
 {% block content %}
   <section class="panel">
     <form method="post" class="form-grid" data-document-form>
+      <input type="hidden" name="asset_draft_key" value="{{ asset_draft_key }}">
       <div class="field field--full">
         <label for="title">제목</label>
         <input id="title" name="title" type="text" value="{{ form_data.title if form_data else document['title'] if document else '' }}">
@@ -81,6 +82,8 @@
         <div
           class="markdown-editor"
           data-markdown-editor
+          {% if document %}data-document-id="{{ document['id'] }}"{% endif %}
+          data-draft-key="{{ asset_draft_key }}"
           data-preview-url="{{ url_for('documents.preview_markdown') }}"
           data-format-url="{{ url_for('documents.format_markdown') }}"
           data-upload-url="{{ url_for('documents.upload_markdown_image') }}"

@@ -60,6 +60,9 @@ def _r2_client():
 def upload_image(file_storage, folder: str = "documents") -> dict[str, str]:
     object_key = build_object_key(folder, file_storage.filename or "image")
     content_type = file_storage.mimetype or "application/octet-stream"
+    file_storage.stream.seek(0, 2)
+    size = file_storage.stream.tell()
+    file_storage.stream.seek(0)
 
     if is_r2_enabled():
         client = _r2_client()
@@ -69,7 +72,12 @@ def upload_image(file_storage, folder: str = "documents") -> dict[str, str]:
             object_key,
             ExtraArgs={"ContentType": content_type},
         )
-        return {"object_key": object_key, "url": public_asset_url(object_key)}
+        return {
+            "object_key": object_key,
+            "url": public_asset_url(object_key),
+            "content_type": content_type,
+            "size": str(size),
+        }
 
     upload_dir = Path(current_app.config["UPLOAD_FOLDER"]) / folder
     upload_dir.mkdir(parents=True, exist_ok=True)
@@ -78,4 +86,20 @@ def upload_image(file_storage, folder: str = "documents") -> dict[str, str]:
     return {
         "object_key": f"{folder}/{target.name}",
         "url": public_asset_url(f"{folder}/{target.name}"),
+        "content_type": content_type,
+        "size": str(size),
     }
+
+
+def delete_object(object_key: str) -> None:
+    if not object_key:
+        return
+
+    if is_r2_enabled():
+        client = _r2_client()
+        client.delete_object(Bucket=current_app.config["R2_BUCKET_NAME"], Key=object_key)
+        return
+
+    target = Path(current_app.config["UPLOAD_FOLDER"]) / object_key
+    if target.exists():
+        target.unlink()

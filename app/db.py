@@ -99,6 +99,18 @@ CREATE TABLE IF NOT EXISTS assets (
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS document_assets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+    draft_key TEXT,
+    object_key TEXT NOT NULL,
+    url TEXT NOT NULL,
+    original_filename TEXT NOT NULL,
+    content_type TEXT,
+    size INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
@@ -154,6 +166,13 @@ def migrate_legacy_schema(db):
         _add_column_if_missing(db, "documents", "is_hidden", "INTEGER NOT NULL DEFAULT 0")
     if _table_exists(db, "wbs_tasks"):
         _add_column_if_missing(db, "wbs_tasks", "platform", "TEXT DEFAULT 'Agentic Product Studio'")
+    if _table_exists(db, "document_assets"):
+        _add_column_if_missing(db, "document_assets", "draft_key", "TEXT")
+        _add_column_if_missing(db, "document_assets", "object_key", "TEXT")
+        _add_column_if_missing(db, "document_assets", "url", "TEXT")
+        _add_column_if_missing(db, "document_assets", "original_filename", "TEXT")
+        _add_column_if_missing(db, "document_assets", "content_type", "TEXT")
+        _add_column_if_missing(db, "document_assets", "size", "INTEGER NOT NULL DEFAULT 0")
 
 
 def ensure_document_folder(db, doc_type, folder_name):
@@ -213,6 +232,70 @@ def sync_task_documents_for_document(db, document_id, task_ids):
             "INSERT OR IGNORE INTO task_documents (task_id, document_id) VALUES (?, ?)",
             (task_id, document_id),
         )
+
+
+def create_document_asset(
+    db,
+    *,
+    document_id,
+    draft_key,
+    object_key,
+    url,
+    original_filename,
+    content_type,
+    size,
+):
+    cursor = db.execute(
+        """
+        INSERT INTO document_assets (
+            document_id, draft_key, object_key, url, original_filename, content_type, size
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (document_id, draft_key, object_key, url, original_filename, content_type, size),
+    )
+    return cursor.lastrowid
+
+
+def assign_draft_assets_to_document(db, document_id, draft_key):
+    if not draft_key:
+        return
+
+    db.execute(
+        """
+        UPDATE document_assets
+        SET document_id = ?, draft_key = NULL
+        WHERE draft_key = ? AND document_id IS NULL
+        """,
+        (document_id, draft_key),
+    )
+
+
+def fetch_document_assets(db, document_id):
+    return db.execute(
+        """
+        SELECT id, document_id, object_key, url, original_filename, content_type, size, created_at
+        FROM document_assets
+        WHERE document_id = ?
+        ORDER BY created_at DESC, id DESC
+        """,
+        (document_id,),
+    ).fetchall()
+
+
+def fetch_document_asset(db, asset_id):
+    return db.execute(
+        """
+        SELECT id, document_id, draft_key, object_key, url, original_filename, content_type, size, created_at
+        FROM document_assets
+        WHERE id = ?
+        """,
+        (asset_id,),
+    ).fetchone()
+
+
+def delete_document_asset(db, asset_id):
+    db.execute("DELETE FROM document_assets WHERE id = ?", (asset_id,))
 
 
 @click.command("init-db")

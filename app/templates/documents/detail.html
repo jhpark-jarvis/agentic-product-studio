@@ -87,6 +87,32 @@
       </div>
 
       <div class="panel-subsection">
+        <h3>Image Assets</h3>
+        {% if assets %}
+          <ul class="item-list">
+            {% for asset in assets %}
+              <li>
+                <div class="list-row list-row--stack">
+                  <div>
+                    <a class="item-title-link" href="{{ asset['url'] }}" target="_blank" rel="noreferrer">{{ asset["original_filename"] }}</a>
+                    <div class="table-meta">
+                      <span class="muted-text">{{ asset["content_type"] or "image/*" }}</span>
+                      <span class="muted-text">{{ asset["size"] }} bytes</span>
+                    </div>
+                  </div>
+                  <form method="post" action="{{ url_for('documents.delete_document_asset', document_id=document['id'], asset_id=asset['id']) }}" onsubmit="return confirm('이 이미지를 삭제할까요? 문서 본문의 링크도 함께 확인해주세요.');">
+                    <button type="submit" class="button button--danger button--compact">삭제</button>
+                  </form>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="empty-state">업로드된 문서 이미지가 없습니다.</p>
+        {% endif %}
+      </div>
+
+      <div class="panel-subsection">
         <h3>연관 WBS 작업</h3>
         {% if related_tasks %}
           <ul class="item-list">

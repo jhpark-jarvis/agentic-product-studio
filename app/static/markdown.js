@@ -21,9 +21,33 @@ function setupMarkdownEditor() {
   const uploadButton = editorRoot.querySelector("[data-md-upload-image]");
   const imageInput = editorRoot.querySelector("[data-md-image-input]");
   const status = editorRoot.querySelector("[data-markdown-status]");
+  const documentId = editorRoot.dataset.documentId || "";
+  const draftKey = editorRoot.dataset.draftKey || "";
   const previewUrl = editorRoot.dataset.previewUrl;
   const formatUrl = editorRoot.dataset.formatUrl;
   const uploadUrl = editorRoot.dataset.uploadUrl;
+  let isUploading = false;
+
+  const setStatus = (message) => {
+    if (status) {
+      status.textContent = message;
+    }
+  };
+
+  const setUploadingState = (uploading) => {
+    isUploading = uploading;
+    editorRoot.classList.toggle("markdown-editor--uploading", uploading);
+    if (uploadButton) {
+      uploadButton.disabled = uploading;
+    }
+    if (formatButton) {
+      formatButton.disabled = uploading;
+    }
+  };
+
+  const clearDragState = () => {
+    editorRoot.classList.remove("markdown-editor--dragover");
+  };
 
   const insertSnippet = (snippet) => {
     const start = textarea.selectionStart ?? textarea.value.length;
@@ -42,43 +66,100 @@ function setupMarkdownEditor() {
     button.addEventListener("click", () => insertSnippet(button.dataset.mdInsert || ""));
   });
 
+  const uploadSelectedImage = async (file) => {
+    if (!file || !uploadUrl || isUploading) {
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setStatus("Only image files can be uploaded");
+      return;
+    }
+
+    setUploadingState(true);
+    setStatus("Uploading image...");
+    const body = new FormData();
+    body.set("image", file);
+    body.set("alt", file.name.replace(/\.[^.]+$/, ""));
+    if (documentId) {
+      body.set("document_id", documentId);
+    }
+    if (draftKey) {
+      body.set("draft_key", draftKey);
+    }
+
+    try {
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        body,
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Upload failed");
+      }
+
+      insertSnippet(`\n${payload.markdown}\n`);
+      setStatus("Image uploaded");
+    } catch (error) {
+      setStatus(error?.message || "Image upload failed");
+    } finally {
+      setUploadingState(false);
+      if (imageInput) {
+        imageInput.value = "";
+      }
+    }
+  };
+
   if (uploadButton && imageInput && uploadUrl) {
     uploadButton.addEventListener("click", () => imageInput.click());
 
     imageInput.addEventListener("change", async () => {
       const [file] = imageInput.files || [];
-      if (!file) {
-        return;
-      }
-
-      status.textContent = "Uploading image...";
-      const body = new FormData();
-      body.set("image", file);
-      body.set("alt", file.name.replace(/\.[^.]+$/, ""));
-
-      try {
-        const response = await fetch(uploadUrl, {
-          method: "POST",
-          body,
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload.error || "Upload failed");
-        }
-
-        insertSnippet(`\n${payload.markdown}\n`);
-        status.textContent = "Image uploaded";
-      } catch (_error) {
-        status.textContent = "Image upload failed";
-      } finally {
-        imageInput.value = "";
-      }
+      await uploadSelectedImage(file);
     });
   }
 
+  ["dragenter", "dragover"].forEach((eventName) => {
+    editorRoot.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      editorRoot.classList.add("markdown-editor--dragover");
+    });
+  });
+
+  ["dragleave", "drop"].forEach((eventName) => {
+    editorRoot.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      if (eventName === "dragleave" && editorRoot.contains(event.relatedTarget)) {
+        return;
+      }
+      clearDragState();
+    });
+  });
+
+  editorRoot.addEventListener("drop", async (event) => {
+    const [file] = Array.from(event.dataTransfer?.files || []);
+    await uploadSelectedImage(file);
+  });
+
+  textarea.addEventListener("paste", async (event) => {
+    const items = Array.from(event.clipboardData?.items || []);
+    const imageItem = items.find((item) => item.type?.startsWith("image/"));
+    if (!imageItem) {
+      return;
+    }
+
+    const file = imageItem.getAsFile();
+    if (!file) {
+      setStatus("Clipboard image could not be read");
+      return;
+    }
+
+    event.preventDefault();
+    await uploadSelectedImage(file);
+  });
+
   if (formatButton && formatUrl) {
     formatButton.addEventListener("click", async () => {
-      status.textContent = "Formatting code blocks...";
+      setStatus("Formatting code blocks...");
       const body = new URLSearchParams();
       body.set("content", textarea.value);
 
@@ -93,9 +174,9 @@ function setupMarkdownEditor() {
         const payload = await response.json();
         textarea.value = payload.content || textarea.value;
         textarea.dispatchEvent(new Event("input"));
-        status.textContent = "Formatting applied";
+        setStatus("Formatting applied");
       } catch (_error) {
-        status.textContent = "Formatting failed";
+        setStatus("Formatting failed");
       }
     });
   }
@@ -105,7 +186,9 @@ function setupMarkdownEditor() {
       return;
     }
 
-    status.textContent = "Rendering preview...";
+    if (!isUploading) {
+      setStatus("Rendering preview...");
+    }
     const body = new URLSearchParams();
     body.set("content", textarea.value);
 
@@ -119,9 +202,13 @@ function setupMarkdownEditor() {
       });
       const payload = await response.json();
       preview.innerHTML = payload.html || "<p class='muted-text'>No preview available.</p>";
-      status.textContent = "Preview synced";
+      if (!isUploading) {
+        setStatus("Preview synced");
+      }
     } catch (_error) {
-      status.textContent = "Preview failed";
+      if (!isUploading) {
+        setStatus("Preview failed");
+      }
     }
   }, 180);
 

@@ -1,17 +1,23 @@
 from __future__ import annotations
 
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 
 from .constants import DOCUMENT_TYPES
 from .db import (
+    assign_draft_assets_to_document,
+    create_document_asset,
+    delete_document_asset as delete_document_asset_record,
     ensure_document_folder,
+    fetch_document_asset,
+    fetch_document_assets,
     get_db,
     sync_document_tags,
     sync_task_documents_for_document,
 )
-from .storage import is_allowed_image, upload_image
+from .storage import delete_object, is_allowed_image, upload_image
 from .utils import build_pagination, format_markdown_code_blocks, markdown_to_html, parse_int
 
 
@@ -70,6 +76,7 @@ def _fetch_folder(folder_id: int):
 def _document_form_data():
     related_task_ids = request.form.getlist("related_task_ids")
     return {
+        "asset_draft_key": request.form.get("asset_draft_key", "").strip(),
         "title": request.form.get("title", "").strip(),
         "doc_type": request.form.get("doc_type", DOCUMENT_TYPES[-1]),
         "folder_id": request.form.get("folder_id") or None,
@@ -116,7 +123,7 @@ def _fetch_document(document_id: int):
         (document_id,),
     ).fetchone()
     if not document:
-        return None, [], []
+        return None, [], [], []
 
     related_tasks = db.execute(
         """
@@ -132,7 +139,8 @@ def _fetch_document(document_id: int):
         "SELECT tag FROM document_tags WHERE document_id = ? ORDER BY tag COLLATE NOCASE ASC",
         (document_id,),
     ).fetchall()
-    return document, related_tasks, [row["tag"] for row in tag_rows]
+    assets = fetch_document_assets(db, document_id)
+    return document, related_tasks, [row["tag"] for row in tag_rows], assets
 
 
 def _pager_query(filters, page, per_page):
@@ -255,6 +263,7 @@ def create_document():
                 ),
             )
             document_id = cursor.lastrowid
+            assign_draft_assets_to_document(db, document_id, data["asset_draft_key"])
             sync_document_tags(db, document_id, data["tags"])
             sync_task_documents_for_document(db, document_id, data["related_task_ids"])
             db.commit()
@@ -278,12 +287,13 @@ def create_document():
         tasks=_fetch_tasks(),
         form_data=form_data,
         selected_type=form_data["doc_type"] if form_data else DOCUMENT_TYPES[0],
+        asset_draft_key=(form_data["asset_draft_key"] if form_data else uuid4().hex),
     )
 
 
 @bp.route("/<int:document_id>")
 def detail(document_id: int):
-    document, related_tasks, tags = _fetch_document(document_id)
+    document, related_tasks, tags, assets = _fetch_document(document_id)
     if not document:
         flash("문서를 찾을 수 없습니다.", "error")
         return redirect(url_for("documents.list_documents"))
@@ -297,6 +307,7 @@ def detail(document_id: int):
         document=document,
         related_tasks=related_tasks,
         tags=tags,
+        assets=assets,
         rendered_content=markdown_to_html(document["content"]),
         word_count=word_count,
         heading_count=heading_count,
@@ -306,7 +317,7 @@ def detail(document_id: int):
 @bp.route("/<int:document_id>/edit", methods=("GET", "POST"))
 def edit_document(document_id: int):
     db = get_db()
-    document, related_tasks, tags = _fetch_document(document_id)
+    document, related_tasks, tags, _assets = _fetch_document(document_id)
     if not document:
         flash("문서를 찾을 수 없습니다.", "error")
         return redirect(url_for("documents.list_documents"))
@@ -360,12 +371,17 @@ def edit_document(document_id: int):
         form_data=form_data,
         existing_tags=", ".join(tags),
         selected_type=(form_data["doc_type"] if form_data else document["doc_type"]),
+        asset_draft_key=(form_data["asset_draft_key"] if form_data else ""),
     )
 
 
 @bp.route("/<int:document_id>/delete", methods=("POST",))
 def delete_document(document_id: int):
     db = get_db()
+    assets = fetch_document_assets(db, document_id)
+    for asset in assets:
+        delete_object(asset["object_key"])
+    db.execute("DELETE FROM document_assets WHERE document_id = ?", (document_id,))
     db.execute("DELETE FROM task_documents WHERE document_id = ?", (document_id,))
     db.execute("DELETE FROM document_tags WHERE document_id = ?", (document_id,))
     db.execute("DELETE FROM documents WHERE id = ?", (document_id,))
@@ -397,7 +413,7 @@ def create_folder():
 @bp.route("/<int:document_id>/folder", methods=("POST",))
 def update_document_folder(document_id: int):
     db = get_db()
-    document, _, _ = _fetch_document(document_id)
+    document, _, _, _ = _fetch_document(document_id)
     if not document:
         flash("문서를 찾을 수 없습니다.", "error")
         return redirect(url_for("documents.list_documents"))
@@ -450,18 +466,49 @@ def format_markdown():
 
 @bp.route("/upload-image", methods=("POST",))
 def upload_markdown_image():
+    db = get_db()
     image = request.files.get("image")
     if not image or not image.filename:
         return jsonify({"error": "업로드할 이미지 파일이 없습니다."}), 400
     if not is_allowed_image(image.filename):
         return jsonify({"error": "지원하지 않는 이미지 형식입니다."}), 400
 
+    document_id_raw = (request.form.get("document_id") or "").strip()
+    document_id = int(document_id_raw) if document_id_raw.isdigit() else None
+    draft_key = request.form.get("draft_key", "").strip() or None
     uploaded = upload_image(image, folder="documents")
+    asset_id = create_document_asset(
+        db,
+        document_id=document_id,
+        draft_key=draft_key,
+        object_key=uploaded["object_key"],
+        url=uploaded["url"],
+        original_filename=image.filename,
+        content_type=uploaded["content_type"],
+        size=int(uploaded["size"]),
+    )
+    db.commit()
     alt = request.form.get("alt", "").strip() or image.filename.rsplit(".", 1)[0]
     return jsonify(
         {
+            "asset_id": asset_id,
             "url": uploaded["url"],
             "object_key": uploaded["object_key"],
             "markdown": f"![{alt}]({uploaded['url']})",
         }
     )
+
+
+@bp.route("/<int:document_id>/assets/<int:asset_id>/delete", methods=("POST",))
+def delete_document_asset(document_id: int, asset_id: int):
+    db = get_db()
+    asset = fetch_document_asset(db, asset_id)
+    if not asset or asset["document_id"] != document_id:
+        flash("이미지 자산을 찾을 수 없습니다.", "error")
+        return redirect(url_for("documents.detail", document_id=document_id))
+
+    delete_object(asset["object_key"])
+    delete_document_asset_record(db, asset_id)
+    db.commit()
+    flash("문서 이미지가 삭제되었습니다.", "success")
+    return redirect(url_for("documents.detail", document_id=document_id))

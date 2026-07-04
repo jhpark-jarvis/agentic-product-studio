@@ -11,6 +11,7 @@ from .db import (
     sync_document_tags,
     sync_task_documents_for_document,
 )
+from .storage import is_allowed_image, upload_image
 from .utils import build_pagination, format_markdown_code_blocks, markdown_to_html, parse_int
 
 
@@ -445,3 +446,22 @@ def preview_markdown():
 def format_markdown():
     content = request.form.get("content", "")
     return jsonify({"content": format_markdown_code_blocks(content)})
+
+
+@bp.route("/upload-image", methods=("POST",))
+def upload_markdown_image():
+    image = request.files.get("image")
+    if not image or not image.filename:
+        return jsonify({"error": "업로드할 이미지 파일이 없습니다."}), 400
+    if not is_allowed_image(image.filename):
+        return jsonify({"error": "지원하지 않는 이미지 형식입니다."}), 400
+
+    uploaded = upload_image(image, folder="documents")
+    alt = request.form.get("alt", "").strip() or image.filename.rsplit(".", 1)[0]
+    return jsonify(
+        {
+            "url": uploaded["url"],
+            "object_key": uploaded["object_key"],
+            "markdown": f"![{alt}]({uploaded['url']})",
+        }
+    )

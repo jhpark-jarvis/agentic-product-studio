@@ -18,9 +18,12 @@ function setupMarkdownEditor() {
   const preview = editorRoot.querySelector("[data-markdown-preview]");
   const buttons = editorRoot.querySelectorAll("[data-md-insert]");
   const formatButton = editorRoot.querySelector("[data-md-format]");
+  const uploadButton = editorRoot.querySelector("[data-md-upload-image]");
+  const imageInput = editorRoot.querySelector("[data-md-image-input]");
   const status = editorRoot.querySelector("[data-markdown-status]");
   const previewUrl = editorRoot.dataset.previewUrl;
   const formatUrl = editorRoot.dataset.formatUrl;
+  const uploadUrl = editorRoot.dataset.uploadUrl;
 
   const insertSnippet = (snippet) => {
     const start = textarea.selectionStart ?? textarea.value.length;
@@ -38,6 +41,40 @@ function setupMarkdownEditor() {
   buttons.forEach((button) => {
     button.addEventListener("click", () => insertSnippet(button.dataset.mdInsert || ""));
   });
+
+  if (uploadButton && imageInput && uploadUrl) {
+    uploadButton.addEventListener("click", () => imageInput.click());
+
+    imageInput.addEventListener("change", async () => {
+      const [file] = imageInput.files || [];
+      if (!file) {
+        return;
+      }
+
+      status.textContent = "Uploading image...";
+      const body = new FormData();
+      body.set("image", file);
+      body.set("alt", file.name.replace(/\.[^.]+$/, ""));
+
+      try {
+        const response = await fetch(uploadUrl, {
+          method: "POST",
+          body,
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || "Upload failed");
+        }
+
+        insertSnippet(`\n${payload.markdown}\n`);
+        status.textContent = "Image uploaded";
+      } catch (_error) {
+        status.textContent = "Image upload failed";
+      } finally {
+        imageInput.value = "";
+      }
+    });
+  }
 
   if (formatButton && formatUrl) {
     formatButton.addEventListener("click", async () => {

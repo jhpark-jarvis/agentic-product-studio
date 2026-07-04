@@ -83,6 +83,7 @@
           data-markdown-editor
           data-preview-url="{{ url_for('documents.preview_markdown') }}"
           data-format-url="{{ url_for('documents.format_markdown') }}"
+          data-upload-url="{{ url_for('documents.upload_markdown_image') }}"
         >
           <div class="markdown-editor__toolbar">
             <button type="button" class="toolbar-button" data-md-insert="# {selection}">H1</button>
@@ -90,12 +91,14 @@
             <button type="button" class="toolbar-button" data-md-insert="- {selection}">List</button>
             <button type="button" class="toolbar-button" data-md-insert="**{selection}**">Bold</button>
             <button type="button" class="toolbar-button" data-md-insert="`{selection}`">Code</button>
+            <button type="button" class="toolbar-button" data-md-upload-image>Image</button>
             <button type="button" class="toolbar-button" data-md-insert="```
 {selection}
 ```">Block</button>
             <button type="button" class="toolbar-button toolbar-button--accent" data-md-format>코드 정리</button>
             <span class="markdown-editor__status" data-markdown-status>미리보기 준비 중...</span>
           </div>
+          <input type="file" accept="image/*" hidden data-md-image-input>
           <div class="markdown-editor__panes">
             <div class="markdown-editor__pane">
               <span class="markdown-editor__label">Editor</span>

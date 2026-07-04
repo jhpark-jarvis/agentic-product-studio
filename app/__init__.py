@@ -1,6 +1,8 @@
+import os
 from pathlib import Path
 
 from flask import Flask
+from dotenv import load_dotenv
 
 from .dashboard import bp as dashboard_bp
 from .db import close_db, init_app as init_db_app, init_db
@@ -12,17 +14,26 @@ from .wbs import bp as wbs_bp
 
 
 def create_app(test_config=None):
+    load_dotenv()
     app = Flask(__name__, instance_relative_config=True)
 
     base_dir = Path(app.root_path).parent
     upload_dir = base_dir / "uploads"
 
     app.config.from_mapping(
-        SECRET_KEY="dev",
-        DATABASE=str(Path(app.instance_path) / "app.db"),
-        UPLOAD_FOLDER=str(upload_dir),
-        MAX_CONTENT_LENGTH=20 * 1024 * 1024,
-        DISPLAY_TIMEZONE=DEFAULT_TIMEZONE,
+        SECRET_KEY=os.environ.get("SECRET_KEY", "dev"),
+        DATABASE=os.environ.get("DATABASE", str(Path(app.instance_path) / "app.db")),
+        UPLOAD_FOLDER=os.environ.get("UPLOAD_FOLDER", str(upload_dir)),
+        MAX_CONTENT_LENGTH=int(os.environ.get("MAX_CONTENT_LENGTH", 20 * 1024 * 1024)),
+        DISPLAY_TIMEZONE=os.environ.get("DISPLAY_TIMEZONE", DEFAULT_TIMEZONE),
+        STORAGE_BACKEND=os.environ.get("STORAGE_BACKEND", "local"),
+        R2_BUCKET_NAME=os.environ.get("R2_BUCKET_NAME", "<R2_BUCKET_NAME>"),
+        R2_ACCOUNT_ID=os.environ.get("R2_ACCOUNT_ID", ""),
+        R2_ACCESS_KEY_ID=os.environ.get("R2_ACCESS_KEY_ID", ""),
+        R2_SECRET_ACCESS_KEY=os.environ.get("R2_SECRET_ACCESS_KEY", ""),
+        R2_PUBLIC_BASE_URL=os.environ.get("R2_PUBLIC_BASE_URL", ""),
+        FLASK_ENV=os.environ.get("FLASK_ENV", "development"),
+        FLASK_DEBUG=os.environ.get("FLASK_DEBUG", "0") == "1",
     )
 
     if test_config is None:
@@ -31,7 +42,7 @@ def create_app(test_config=None):
         app.config.update(test_config)
 
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
-    upload_dir.mkdir(parents=True, exist_ok=True)
+    Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(wbs_bp)

@@ -69,7 +69,9 @@ $RECYCLE.BIN/
 
 ####
 .tmp
+.tmp/
 .agents
 *.db-journal
 *.db
 instance/
+database/d1/data.sql

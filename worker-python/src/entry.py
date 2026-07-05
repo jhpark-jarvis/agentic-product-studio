@@ -73,6 +73,10 @@ def _parse_iso_date(value: str | None):
         return None
 
 
+def _has_binding(env, name: str) -> bool:
+    return getattr(env, name, None) is not None
+
+
 async def _resolve_folder_id(env, *, doc_type: str, folder_id: int | None, new_folder_name: str):
     if new_folder_name.strip():
         return await create_document_folder_record(
@@ -108,8 +112,8 @@ async def health(request: Request):
     return {
         "ok": True,
         "service": "agentic-product-studio-python-worker",
-        "has_db_binding": bool(getattr(env, "DB", None)),
-        "has_image_bucket_binding": bool(getattr(env, "DOCUMENT_IMAGES", None)),
+        "has_db_binding": _has_binding(env, "DB"),
+        "has_image_bucket_binding": _has_binding(env, "DOCUMENT_IMAGES"),
     }
 
 
@@ -120,12 +124,12 @@ async def runtime_summary(request: Request):
     summary = {
         "worker_runtime": "python-workers-beta",
         "bindings": {
-            "db": bool(getattr(env, "DB", None)),
-            "document_images": bool(getattr(env, "DOCUMENT_IMAGES", None)),
+            "db": _has_binding(env, "DB"),
+            "document_images": _has_binding(env, "DOCUMENT_IMAGES"),
         },
     }
 
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return summary
 
     try:
@@ -146,7 +150,7 @@ async def runtime_summary(request: Request):
 @app.get("/api/dashboard-summary")
 async def dashboard_summary(request: Request):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     try:
@@ -173,7 +177,7 @@ async def dashboard_summary(request: Request):
 @app.get("/api/dashboard")
 async def dashboard(request: Request):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     try:
@@ -199,7 +203,7 @@ async def documents(
     offset: int = 0,
 ):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     safe_limit = max(1, min(limit, 100))
@@ -228,7 +232,7 @@ async def documents(
 @app.get("/api/documents/{document_id}")
 async def document_detail(document_id: int, request: Request):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     try:
@@ -249,7 +253,7 @@ async def document_detail(document_id: int, request: Request):
 @app.get("/api/document-folders")
 async def document_folders(request: Request, doc_type: str | None = None):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     try:
@@ -267,7 +271,7 @@ async def document_folders(request: Request, doc_type: str | None = None):
 @app.get("/api/documents/{document_id}/assets")
 async def document_assets(document_id: int, request: Request):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     document = await fetch_document_detail_payload(env, document_id)
@@ -295,7 +299,7 @@ async def wbs(
     platform: str = "",
 ):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     try:
@@ -319,7 +323,7 @@ async def wbs(
 @app.get("/api/members")
 async def members(request: Request):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     try:
@@ -337,7 +341,7 @@ async def members(request: Request):
 @app.get("/api/members/{member_id}")
 async def member_detail(member_id: int, request: Request):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     try:
@@ -358,7 +362,7 @@ async def member_detail(member_id: int, request: Request):
 @app.get("/api/schedules")
 async def schedules(request: Request):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     try:
@@ -376,7 +380,7 @@ async def schedules(request: Request):
 @app.get("/api/schedules/{schedule_id}")
 async def schedule_detail(schedule_id: int, request: Request):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     try:
@@ -397,7 +401,7 @@ async def schedule_detail(schedule_id: int, request: Request):
 @app.get("/api/common/options")
 async def common_options(request: Request, exclude_task_id: int | None = None):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     try:
@@ -527,7 +531,7 @@ async def delete_schedule(schedule_id: int, request: Request):
 @app.post("/api/document-folders")
 async def create_document_folder(request: Request, payload: DocumentFolderPayload):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     if payload.doc_type not in DOCUMENT_TYPES:
@@ -550,7 +554,7 @@ async def create_document_folder(request: Request, payload: DocumentFolderPayloa
 @app.post("/api/documents")
 async def create_document(request: Request, payload: DocumentPayload):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     if payload.doc_type not in DOCUMENT_TYPES:
@@ -587,7 +591,7 @@ async def create_document(request: Request, payload: DocumentPayload):
 @app.put("/api/documents/{document_id}")
 async def update_document(document_id: int, request: Request, payload: DocumentPayload):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     if payload.doc_type not in DOCUMENT_TYPES:
@@ -626,7 +630,7 @@ async def update_document(document_id: int, request: Request, payload: DocumentP
 @app.put("/api/documents/{document_id}/folder")
 async def update_document_folder(document_id: int, request: Request, payload: DocumentFolderPayload):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     if payload.doc_type not in DOCUMENT_TYPES:
@@ -657,7 +661,7 @@ async def update_document_folder(document_id: int, request: Request, payload: Do
 @app.delete("/api/documents/{document_id}")
 async def delete_document(document_id: int, request: Request):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     existing = await fetch_document_detail_payload(env, document_id)

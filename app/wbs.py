@@ -48,8 +48,6 @@ def _fetch_flattened_tasks(filters: dict[str, str]):
     def walk(parent_id: int | None, depth: int):
         for task in children.get(parent_id, []):
             due = parse_date(task["due_date"])
-            is_delayed = bool(due and due < today and task["status"] != "?꾨즺")
-            is_due_soon = bool(due and 0 <= (due - today).days <= 3 and task["status"] != "?꾨즺")
             completed = _is_completed_task(task)
             is_delayed = bool(due and due < today and not completed)
             is_due_soon = bool(due and 0 <= (due - today).days <= 3 and not completed)
@@ -75,8 +73,8 @@ def _task_form_data():
         "description": request.form.get("description", "").strip(),
         "assignee_id": request.form.get("assignee_id") or None,
         "platform": request.form.get("platform", WBS_PLATFORM_OPTIONS[0]).strip(),
-        "status": request.form.get("status", "?덉젙"),
-        "priority": request.form.get("priority", "蹂댄넻"),
+        "status": request.form.get("status", "예정"),
+        "priority": request.form.get("priority", "보통"),
         "start_date": request.form.get("start_date") or None,
         "due_date": request.form.get("due_date") or None,
         "completed_date": request.form.get("completed_date") or None,

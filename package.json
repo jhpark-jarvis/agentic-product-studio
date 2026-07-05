@@ -6,6 +6,8 @@
   "scripts": {
     "cf:deploy": "wrangler deploy",
     "cf:deploy:dry": "wrangler deploy --dry-run",
+    "cf:deploy:python:dry": "wrangler deploy --dry-run --config worker-python/wrangler.toml",
+    "cf:tail:python": "wrangler tail --config worker-python/wrangler.toml",
     "cf:tail": "wrangler tail",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

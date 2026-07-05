@@ -88,22 +88,22 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "workers-runtime-sdk" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "workers-py" },
-    { name = "workers-runtime-sdk" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "fastapi" }]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "workers-py" },
+requires-dist = [
+    { name = "fastapi" },
     { name = "workers-runtime-sdk" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "workers-py" }]
 
 [[package]]
 name = "markdown-it-py"

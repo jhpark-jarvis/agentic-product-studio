@@ -8,6 +8,17 @@ from . import documents as document_queries
 from . import members as member_queries
 from . import schedules as schedule_queries
 from . import wbs as wbs_queries
+from ..db import (
+    assign_draft_assets_to_document,
+    create_document_asset,
+    delete_document_asset,
+    ensure_document_folder,
+    fetch_document_asset,
+    fetch_document_assets,
+    sync_document_tags,
+    sync_task_documents,
+    sync_task_documents_for_document,
+)
 from .provider import RepositoryProvider
 
 
@@ -38,6 +49,9 @@ class SQLiteDocumentsRepository:
     def fetch_folder(self, folder_id: int):
         return document_queries.fetch_folder(self.db, folder_id)
 
+    def ensure_folder(self, doc_type: str, folder_name: str):
+        return ensure_document_folder(self.db, doc_type, folder_name)
+
     def fetch_document_with_relations(self, document_id: int):
         return document_queries.fetch_document_with_relations(self.db, document_id)
 
@@ -57,6 +71,46 @@ class SQLiteDocumentsRepository:
 
     def create_document(self, data, folder_id):
         return document_queries.create_document(self.db, data, folder_id)
+
+    def create_document_asset(
+        self,
+        *,
+        document_id: int | None,
+        draft_key: str | None,
+        object_key: str,
+        url: str,
+        original_filename: str,
+        content_type: str,
+        size: int,
+    ):
+        return create_document_asset(
+            self.db,
+            document_id=document_id,
+            draft_key=draft_key,
+            object_key=object_key,
+            url=url,
+            original_filename=original_filename,
+            content_type=content_type,
+            size=size,
+        )
+
+    def fetch_document_assets(self, document_id: int):
+        return fetch_document_assets(self.db, document_id)
+
+    def fetch_document_asset(self, asset_id: int):
+        return fetch_document_asset(self.db, asset_id)
+
+    def delete_document_asset(self, asset_id: int):
+        delete_document_asset(self.db, asset_id)
+
+    def assign_draft_assets(self, document_id: int, draft_key: str):
+        assign_draft_assets_to_document(self.db, document_id, draft_key)
+
+    def sync_document_tags(self, document_id: int, tags_text: str):
+        sync_document_tags(self.db, document_id, tags_text)
+
+    def sync_task_documents(self, document_id: int, task_ids: list[int]):
+        sync_task_documents_for_document(self.db, document_id, task_ids)
 
     def update_document(self, document_id, data, folder_id):
         return document_queries.update_document(self.db, document_id, data, folder_id)
@@ -80,6 +134,9 @@ class SQLiteWbsRepository:
 
     def create_task(self, data):
         return wbs_queries.create_task(self.db, data)
+
+    def sync_task_documents(self, task_id: int, document_ids: list[int]):
+        sync_task_documents(self.db, task_id, document_ids)
 
     def update_task(self, task_id: int, data):
         return wbs_queries.update_task(self.db, task_id, data)

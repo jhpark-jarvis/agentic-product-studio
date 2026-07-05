@@ -6,17 +6,7 @@ from uuid import uuid4
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 
 from .constants import DOCUMENT_TYPES
-from .db import (
-    assign_draft_assets_to_document,
-    create_document_asset,
-    delete_document_asset as delete_document_asset_record,
-    ensure_document_folder,
-    fetch_document_asset,
-    fetch_document_assets,
-    get_db,
-    sync_document_tags,
-    sync_task_documents_for_document,
-)
+from .db import get_db
 from .repositories.provider import get_repository_provider
 from .storage import delete_object, is_allowed_image, upload_image
 from .utils import build_pagination, format_markdown_code_blocks, markdown_to_html, parse_int
@@ -73,20 +63,21 @@ def _validate_document_form(data):
 
 def _resolve_folder_id(db, data):
     if data["new_folder_name"]:
-        return ensure_document_folder(db, data["doc_type"], data["new_folder_name"])
+        return get_repository_provider().documents.ensure_folder(
+            data["doc_type"], data["new_folder_name"]
+        )
     if data["folder_id"]:
         return int(data["folder_id"])
     return None
 
 
 def _fetch_document(document_id: int):
-    db = get_db()
     document, related_tasks, tags = get_repository_provider().documents.fetch_document_with_relations(
         document_id
     )
     if not document:
         return None, [], [], []
-    assets = fetch_document_assets(db, document_id)
+    assets = get_repository_provider().documents.fetch_document_assets(document_id)
     return document, related_tasks, tags, assets
 
 
@@ -144,17 +135,20 @@ def list_documents():
 
 @bp.route("/new", methods=("GET", "POST"))
 def create_document():
-    db = get_db()
     if request.method == "POST":
         data = _document_form_data()
         errors = _validate_document_form(data)
         if not errors:
-            folder_id = _resolve_folder_id(db, data)
+            folder_id = _resolve_folder_id(get_db(), data)
             document_id = get_repository_provider().documents.create_document(data, folder_id)
-            assign_draft_assets_to_document(db, document_id, data["asset_draft_key"])
-            sync_document_tags(db, document_id, data["tags"])
-            sync_task_documents_for_document(db, document_id, data["related_task_ids"])
-            db.commit()
+            get_repository_provider().documents.assign_draft_assets(
+                document_id, data["asset_draft_key"]
+            )
+            get_repository_provider().documents.sync_document_tags(document_id, data["tags"])
+            get_repository_provider().documents.sync_task_documents(
+                document_id, data["related_task_ids"]
+            )
+            get_db().commit()
             flash("문서가 생성되었습니다.", "success")
             return redirect(url_for("documents.list_documents"))
         for error in errors:
@@ -204,7 +198,6 @@ def detail(document_id: int):
 
 @bp.route("/<int:document_id>/edit", methods=("GET", "POST"))
 def edit_document(document_id: int):
-    db = get_db()
     document, related_tasks, tags, _assets = _fetch_document(document_id)
     if not document:
         flash("문서를 찾을 수 없습니다.", "error")
@@ -215,11 +208,13 @@ def edit_document(document_id: int):
         data = _document_form_data()
         errors = _validate_document_form(data)
         if not errors:
-            folder_id = _resolve_folder_id(db, data)
+            folder_id = _resolve_folder_id(get_db(), data)
             get_repository_provider().documents.update_document(document_id, data, folder_id)
-            sync_document_tags(db, document_id, data["tags"])
-            sync_task_documents_for_document(db, document_id, data["related_task_ids"])
-            db.commit()
+            get_repository_provider().documents.sync_document_tags(document_id, data["tags"])
+            get_repository_provider().documents.sync_task_documents(
+                document_id, data["related_task_ids"]
+            )
+            get_db().commit()
             flash("문서가 수정되었습니다.", "success")
             return redirect(url_for("documents.detail", document_id=document_id))
         for error in errors:
@@ -249,7 +244,7 @@ def edit_document(document_id: int):
 @bp.route("/<int:document_id>/delete", methods=("POST",))
 def delete_document(document_id: int):
     db = get_db()
-    assets = fetch_document_assets(db, document_id)
+    assets = get_repository_provider().documents.fetch_document_assets(document_id)
     for asset in assets:
         delete_object(asset["object_key"])
     get_repository_provider().documents.delete_document(document_id)
@@ -260,7 +255,6 @@ def delete_document(document_id: int):
 
 @bp.route("/folders", methods=("POST",))
 def create_folder():
-    db = get_db()
     doc_type = request.form.get("doc_type", "").strip()
     folder_name = request.form.get("folder_name", "").strip()
     redirect_url = request.form.get("redirect_to") or url_for("documents.list_documents")
@@ -272,8 +266,8 @@ def create_folder():
         flash("폴더 이름을 입력해주세요.", "error")
         return redirect(redirect_url)
 
-    ensure_document_folder(db, doc_type, folder_name)
-    db.commit()
+    get_repository_provider().documents.ensure_folder(doc_type, folder_name)
+    get_db().commit()
     flash("폴더가 생성되었습니다.", "success")
     return redirect(redirect_url)
 
@@ -338,8 +332,7 @@ def upload_markdown_image():
     document_id = int(document_id_raw) if document_id_raw.isdigit() else None
     draft_key = request.form.get("draft_key", "").strip() or None
     uploaded = upload_image(image, folder="documents")
-    asset_id = create_document_asset(
-        db,
+    asset_id = get_repository_provider().documents.create_document_asset(
         document_id=document_id,
         draft_key=draft_key,
         object_key=uploaded["object_key"],
@@ -363,13 +356,13 @@ def upload_markdown_image():
 @bp.route("/<int:document_id>/assets/<int:asset_id>/delete", methods=("POST",))
 def delete_document_asset(document_id: int, asset_id: int):
     db = get_db()
-    asset = fetch_document_asset(db, asset_id)
+    asset = get_repository_provider().documents.fetch_document_asset(asset_id)
     if not asset or asset["document_id"] != document_id:
         flash("이미지 자산을 찾을 수 없습니다.", "error")
         return redirect(url_for("documents.detail", document_id=document_id))
 
     delete_object(asset["object_key"])
-    delete_document_asset_record(db, asset_id)
+    get_repository_provider().documents.delete_document_asset(asset_id)
     db.commit()
     flash("문서 이미지가 삭제되었습니다.", "success")
     return redirect(url_for("documents.detail", document_id=document_id))

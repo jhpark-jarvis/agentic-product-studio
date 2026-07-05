@@ -5,7 +5,7 @@ from collections import defaultdict
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from .constants import TASK_PRIORITIES, TASK_STATUSES
-from .db import get_db, sync_task_documents
+from .db import get_db
 from .repositories.provider import get_repository_provider
 from .utils import WBS_PLATFORM_OPTIONS, parse_date, today_local
 
@@ -158,7 +158,7 @@ def create_task():
         errors = _validate_task_form(data)
         if not errors:
             task_id = get_repository_provider().wbs.create_task(data)
-            sync_task_documents(db, task_id, data["document_ids"])
+            get_repository_provider().wbs.sync_task_documents(task_id, data["document_ids"])
             db.commit()
             flash("WBS 작업이 생성되었습니다.", "success")
             return redirect(url_for("wbs.list_tasks"))
@@ -197,7 +197,7 @@ def edit_task(task_id: int):
         errors = _validate_task_form(data, task_id=task_id)
         if not errors:
             get_repository_provider().wbs.update_task(task_id, data)
-            sync_task_documents(db, task_id, data["document_ids"])
+            get_repository_provider().wbs.sync_task_documents(task_id, data["document_ids"])
             db.commit()
             flash("WBS 작업이 수정되었습니다.", "success")
             return redirect(url_for("wbs.list_tasks"))

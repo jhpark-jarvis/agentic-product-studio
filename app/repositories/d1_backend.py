@@ -9,6 +9,14 @@ from urllib.request import Request, urlopen
 
 from flask import current_app
 
+from ..db import (
+    assign_draft_assets_to_document,
+    ensure_document_folder,
+    get_db,
+    sync_document_tags as sync_document_tags_local,
+    sync_task_documents as sync_task_documents_for_task_local,
+    sync_task_documents_for_document as sync_task_documents_for_document_local,
+)
 from .provider import RepositoryProvider
 
 
@@ -103,6 +111,315 @@ def _raise_write_not_supported():
     )
 
 
+def _normalize_folder_name(folder_name: str):
+    return (folder_name or "").strip()
+
+
+def _normalize_tags(tags_text: str):
+    tags = []
+    for raw in (tags_text or "").split(","):
+        tag = raw.strip()
+        if tag and tag not in tags:
+            tags.append(tag)
+    return tags
+
+
+def _shadow_upsert_folder(folder_id: int, doc_type: str, folder_name: str):
+    local_db = get_db()
+    normalized_name = _normalize_folder_name(folder_name)
+    existing = local_db.execute(
+        "SELECT id FROM document_folders WHERE id = ?",
+        (folder_id,),
+    ).fetchone()
+    if existing:
+        local_db.execute(
+            """
+            UPDATE document_folders
+            SET doc_type = ?, name = ?
+            WHERE id = ?
+            """,
+            (doc_type, normalized_name, folder_id),
+        )
+        return
+    local_db.execute(
+        """
+        INSERT INTO document_folders (id, doc_type, name)
+        VALUES (?, ?, ?)
+        """,
+        (folder_id, doc_type, normalized_name),
+    )
+
+
+def _shadow_upsert_document(document_id: int, data, folder_id):
+    local_db = get_db()
+    existing = local_db.execute(
+        "SELECT id FROM documents WHERE id = ?",
+        (document_id,),
+    ).fetchone()
+    params = (
+        data["title"],
+        data["doc_type"],
+        folder_id,
+        data["is_hidden"],
+        data["content"],
+        data["author_id"],
+        data["tags"],
+        document_id,
+    )
+    if existing:
+        local_db.execute(
+            """
+            UPDATE documents
+            SET title = ?, doc_type = ?, folder_id = ?, is_hidden = ?,
+                content = ?, author_id = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            params,
+        )
+        return
+    local_db.execute(
+        """
+        INSERT INTO documents (
+            id, title, doc_type, folder_id, is_hidden, content, author_id, tags, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """,
+        (
+            document_id,
+            data["title"],
+            data["doc_type"],
+            folder_id,
+            data["is_hidden"],
+            data["content"],
+            data["author_id"],
+            data["tags"],
+        ),
+    )
+
+
+def _shadow_delete_document(document_id: int):
+    local_db = get_db()
+    local_db.execute("DELETE FROM document_assets WHERE document_id = ?", (document_id,))
+    local_db.execute("DELETE FROM task_documents WHERE document_id = ?", (document_id,))
+    local_db.execute("DELETE FROM document_tags WHERE document_id = ?", (document_id,))
+    local_db.execute("DELETE FROM documents WHERE id = ?", (document_id,))
+
+
+def _shadow_upsert_document_asset(
+    asset_id: int,
+    *,
+    document_id: int | None,
+    draft_key: str | None,
+    object_key: str,
+    url: str,
+    original_filename: str,
+    content_type: str,
+    size: int,
+):
+    local_db = get_db()
+    existing = local_db.execute(
+        "SELECT id FROM document_assets WHERE id = ?",
+        (asset_id,),
+    ).fetchone()
+    params = (
+        document_id,
+        draft_key,
+        object_key,
+        url,
+        original_filename,
+        content_type,
+        size,
+        asset_id,
+    )
+    if existing:
+        local_db.execute(
+            """
+            UPDATE document_assets
+            SET document_id = ?, draft_key = ?, object_key = ?, url = ?,
+                original_filename = ?, content_type = ?, size = ?
+            WHERE id = ?
+            """,
+            params,
+        )
+        return
+    local_db.execute(
+        """
+        INSERT INTO document_assets (
+            id, document_id, draft_key, object_key, url, original_filename, content_type, size, created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """,
+        (
+            asset_id,
+            document_id,
+            draft_key,
+            object_key,
+            url,
+            original_filename,
+            content_type,
+            size,
+        ),
+    )
+
+
+def _shadow_delete_document_asset(asset_id: int):
+    get_db().execute("DELETE FROM document_assets WHERE id = ?", (asset_id,))
+
+
+def _shadow_upsert_member(member_id: int, data):
+    local_db = get_db()
+    existing = local_db.execute("SELECT id FROM members WHERE id = ?", (member_id,)).fetchone()
+    if existing:
+        local_db.execute(
+            """
+            UPDATE members
+            SET name = ?, role = ?, part = ?, contact = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (data["name"], data["role"], data["part"], data["contact"], data["is_active"], member_id),
+        )
+        return
+    local_db.execute(
+        """
+        INSERT INTO members (id, name, role, part, contact, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """,
+        (member_id, data["name"], data["role"], data["part"], data["contact"], data["is_active"]),
+    )
+
+
+def _shadow_delete_member(member_id: int):
+    local_db = get_db()
+    local_db.execute(
+        "UPDATE wbs_tasks SET assignee_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE assignee_id = ?",
+        (member_id,),
+    )
+    local_db.execute(
+        "UPDATE schedules SET assignee_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE assignee_id = ?",
+        (member_id,),
+    )
+    local_db.execute(
+        "UPDATE documents SET author_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE author_id = ?",
+        (member_id,),
+    )
+    local_db.execute("DELETE FROM members WHERE id = ?", (member_id,))
+
+
+def _shadow_upsert_schedule(schedule_id: int, data):
+    local_db = get_db()
+    existing = local_db.execute("SELECT id FROM schedules WHERE id = ?", (schedule_id,)).fetchone()
+    params = (
+        data["title"],
+        data["description"],
+        data["start_date"],
+        data["end_date"],
+        data["assignee_id"],
+        data["wbs_task_id"],
+        data["schedule_type"],
+        schedule_id,
+    )
+    if existing:
+        local_db.execute(
+            """
+            UPDATE schedules
+            SET title = ?, description = ?, start_date = ?, end_date = ?,
+                assignee_id = ?, wbs_task_id = ?, schedule_type = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            params,
+        )
+        return
+    local_db.execute(
+        """
+        INSERT INTO schedules (
+            id, title, description, start_date, end_date, assignee_id, wbs_task_id, schedule_type, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """,
+        (
+            schedule_id,
+            data["title"],
+            data["description"],
+            data["start_date"],
+            data["end_date"],
+            data["assignee_id"],
+            data["wbs_task_id"],
+            data["schedule_type"],
+        ),
+    )
+
+
+def _shadow_delete_schedule(schedule_id: int):
+    get_db().execute("DELETE FROM schedules WHERE id = ?", (schedule_id,))
+
+
+def _shadow_upsert_wbs_task(task_id: int, data):
+    local_db = get_db()
+    existing = local_db.execute("SELECT id FROM wbs_tasks WHERE id = ?", (task_id,)).fetchone()
+    params = (
+        data["parent_id"],
+        data["title"],
+        data["description"],
+        data["assignee_id"],
+        data["platform"],
+        data["status"],
+        data["priority"],
+        data["start_date"],
+        data["due_date"],
+        data["completed_date"],
+        data["progress"],
+        data["notes"],
+        task_id,
+    )
+    if existing:
+        local_db.execute(
+            """
+            UPDATE wbs_tasks
+            SET parent_id = ?, title = ?, description = ?, assignee_id = ?, platform = ?,
+                status = ?, priority = ?, start_date = ?, due_date = ?,
+                completed_date = ?, progress = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            params,
+        )
+        return
+    local_db.execute(
+        """
+        INSERT INTO wbs_tasks (
+            id, parent_id, title, description, assignee_id, platform, status, priority,
+            start_date, due_date, completed_date, progress, notes, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """,
+        (
+            task_id,
+            data["parent_id"],
+            data["title"],
+            data["description"],
+            data["assignee_id"],
+            data["platform"],
+            data["status"],
+            data["priority"],
+            data["start_date"],
+            data["due_date"],
+            data["completed_date"],
+            data["progress"],
+            data["notes"],
+        ),
+    )
+
+
+def _shadow_delete_wbs_task(task_id: int):
+    local_db = get_db()
+    local_db.execute("DELETE FROM task_documents WHERE task_id = ?", (task_id,))
+    local_db.execute(
+        "UPDATE schedules SET wbs_task_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE wbs_task_id = ?",
+        (task_id,),
+    )
+    local_db.execute("UPDATE wbs_tasks SET parent_id = NULL WHERE parent_id = ?", (task_id,))
+    local_db.execute("DELETE FROM wbs_tasks WHERE id = ?", (task_id,))
+
+
 @dataclass
 class D1CommonRepository:
     client: D1RestClient
@@ -183,6 +500,48 @@ class D1DocumentsRepository:
             """,
             [folder_id],
         )
+
+    def ensure_folder(self, doc_type: str, folder_name: str):
+        normalized_name = _normalize_folder_name(folder_name)
+        existing = self.client.query_first(
+            """
+            SELECT id, doc_type, name
+            FROM document_folders
+            WHERE doc_type = ? AND lower(name) = lower(?)
+            """,
+            [doc_type, normalized_name],
+        )
+        if existing:
+            _shadow_upsert_folder(existing["id"], existing["doc_type"], existing["name"])
+            return existing["id"]
+
+        result = self.client.query(
+            """
+            INSERT INTO document_folders (doc_type, name, created_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            """,
+            [doc_type, normalized_name],
+        )
+        folder_id = result.get("meta", {}).get("last_row_id")
+        if folder_id is None:
+            created = self.client.query_first(
+                """
+                SELECT id, doc_type, name
+                FROM document_folders
+                WHERE doc_type = ? AND lower(name) = lower(?)
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                [doc_type, normalized_name],
+            )
+            if not created:
+                raise D1RepositoryError("Failed to create or resolve document folder in D1.")
+            folder_id = created["id"]
+            _shadow_upsert_folder(folder_id, created["doc_type"], created["name"])
+            return folder_id
+
+        _shadow_upsert_folder(folder_id, doc_type, normalized_name)
+        return folder_id
 
     def fetch_document_with_relations(self, document_id: int):
         document = self.client.query_first(
@@ -285,16 +644,168 @@ class D1DocumentsRepository:
         )
 
     def create_document(self, data, folder_id):
-        _raise_write_not_supported()
+        result = self.client.query(
+            """
+            INSERT INTO documents (
+                title, doc_type, folder_id, is_hidden, content, author_id, tags, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+            [
+                data["title"],
+                data["doc_type"],
+                folder_id,
+                data["is_hidden"],
+                data["content"],
+                data["author_id"],
+                data["tags"],
+            ],
+        )
+        document_id = result.get("meta", {}).get("last_row_id")
+        if document_id is None:
+            raise D1RepositoryError("Failed to create document in D1.")
+        _shadow_upsert_document(document_id, data, folder_id)
+        return document_id
+
+    def create_document_asset(
+        self,
+        *,
+        document_id: int | None,
+        draft_key: str | None,
+        object_key: str,
+        url: str,
+        original_filename: str,
+        content_type: str,
+        size: int,
+    ):
+        result = self.client.query(
+            """
+            INSERT INTO document_assets (
+                document_id, draft_key, object_key, url, original_filename, content_type, size, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            [document_id, draft_key, object_key, url, original_filename, content_type, size],
+        )
+        asset_id = result.get("meta", {}).get("last_row_id")
+        if asset_id is None:
+            raise D1RepositoryError("Failed to create document asset in D1.")
+        _shadow_upsert_document_asset(
+            asset_id,
+            document_id=document_id,
+            draft_key=draft_key,
+            object_key=object_key,
+            url=url,
+            original_filename=original_filename,
+            content_type=content_type,
+            size=size,
+        )
+        return asset_id
+
+    def fetch_document_assets(self, document_id: int):
+        return self.client.query_rows(
+            """
+            SELECT id, document_id, object_key, url, original_filename, content_type, size, created_at
+            FROM document_assets
+            WHERE document_id = ?
+            ORDER BY created_at DESC, id DESC
+            """,
+            [document_id],
+        )
+
+    def fetch_document_asset(self, asset_id: int):
+        return self.client.query_first(
+            """
+            SELECT id, document_id, draft_key, object_key, url, original_filename, content_type, size, created_at
+            FROM document_assets
+            WHERE id = ?
+            """,
+            [asset_id],
+        )
+
+    def assign_draft_assets(self, document_id: int, draft_key: str):
+        if not draft_key:
+            return
+        self.client.query(
+            """
+            UPDATE document_assets
+            SET document_id = ?, draft_key = NULL
+            WHERE draft_key = ? AND document_id IS NULL
+            """,
+            [document_id, draft_key],
+        )
+        assign_draft_assets_to_document(get_db(), document_id, draft_key)
+
+    def sync_document_tags(self, document_id: int, tags_text: str):
+        self.client.query("DELETE FROM document_tags WHERE document_id = ?", [document_id])
+        tags = _normalize_tags(tags_text)
+        for tag in tags:
+            self.client.query(
+                "INSERT INTO document_tags (document_id, tag) VALUES (?, ?)",
+                [document_id, tag],
+            )
+        sync_document_tags_local(get_db(), document_id, tags_text)
+
+    def sync_task_documents(self, document_id: int, task_ids: list[int]):
+        self.client.query("DELETE FROM task_documents WHERE document_id = ?", [document_id])
+        for task_id in sorted(set(task_ids)):
+            self.client.query(
+                "INSERT OR IGNORE INTO task_documents (task_id, document_id) VALUES (?, ?)",
+                [task_id, document_id],
+            )
+        sync_task_documents_for_document_local(get_db(), document_id, task_ids)
 
     def update_document(self, document_id, data, folder_id):
-        _raise_write_not_supported()
+        self.client.query(
+            """
+            UPDATE documents
+            SET title = ?, doc_type = ?, folder_id = ?, is_hidden = ?,
+                content = ?, author_id = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            [
+                data["title"],
+                data["doc_type"],
+                folder_id,
+                data["is_hidden"],
+                data["content"],
+                data["author_id"],
+                data["tags"],
+                document_id,
+            ],
+        )
+        _shadow_upsert_document(document_id, data, folder_id)
 
     def delete_document(self, document_id):
-        _raise_write_not_supported()
+        self.client.query("DELETE FROM document_assets WHERE document_id = ?", [document_id])
+        self.client.query("DELETE FROM task_documents WHERE document_id = ?", [document_id])
+        self.client.query("DELETE FROM document_tags WHERE document_id = ?", [document_id])
+        self.client.query("DELETE FROM documents WHERE id = ?", [document_id])
+        _shadow_delete_document(document_id)
+
+    def delete_document_asset(self, asset_id: int):
+        self.client.query("DELETE FROM document_assets WHERE id = ?", [asset_id])
+        _shadow_delete_document_asset(asset_id)
 
     def update_document_folder(self, document_id, doc_type, folder_id):
-        _raise_write_not_supported()
+        self.client.query(
+            """
+            UPDATE documents
+            SET doc_type = ?, folder_id = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            [doc_type, folder_id, document_id],
+        )
+        document = self.client.query_first(
+            """
+            SELECT title, content, author_id, tags, is_hidden, doc_type
+            FROM documents
+            WHERE id = ?
+            """,
+            [document_id],
+        )
+        if document:
+            _shadow_upsert_document(document_id, document, folder_id)
 
 
 @dataclass
@@ -357,13 +868,80 @@ class D1WbsRepository:
         )
 
     def create_task(self, data):
-        _raise_write_not_supported()
+        result = self.client.query(
+            """
+            INSERT INTO wbs_tasks (
+                parent_id, title, description, assignee_id, platform, status, priority,
+                start_date, due_date, completed_date, progress, notes, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+            [
+                data["parent_id"],
+                data["title"],
+                data["description"],
+                data["assignee_id"],
+                data["platform"],
+                data["status"],
+                data["priority"],
+                data["start_date"],
+                data["due_date"],
+                data["completed_date"],
+                data["progress"],
+                data["notes"],
+            ],
+        )
+        task_id = result.get("meta", {}).get("last_row_id")
+        if task_id is None:
+            raise D1RepositoryError("Failed to create WBS task in D1.")
+        _shadow_upsert_wbs_task(task_id, data)
+        return task_id
+
+    def sync_task_documents(self, task_id: int, document_ids: list[int]):
+        self.client.query("DELETE FROM task_documents WHERE task_id = ?", [task_id])
+        for document_id in sorted(set(document_ids)):
+            self.client.query(
+                "INSERT OR IGNORE INTO task_documents (task_id, document_id) VALUES (?, ?)",
+                [task_id, document_id],
+            )
+        sync_task_documents_for_task_local(get_db(), task_id, document_ids)
 
     def update_task(self, task_id: int, data):
-        _raise_write_not_supported()
+        self.client.query(
+            """
+            UPDATE wbs_tasks
+            SET parent_id = ?, title = ?, description = ?, assignee_id = ?, platform = ?,
+                status = ?, priority = ?, start_date = ?, due_date = ?,
+                completed_date = ?, progress = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            [
+                data["parent_id"],
+                data["title"],
+                data["description"],
+                data["assignee_id"],
+                data["platform"],
+                data["status"],
+                data["priority"],
+                data["start_date"],
+                data["due_date"],
+                data["completed_date"],
+                data["progress"],
+                data["notes"],
+                task_id,
+            ],
+        )
+        _shadow_upsert_wbs_task(task_id, data)
 
     def delete_task(self, task_id: int):
-        _raise_write_not_supported()
+        self.client.query("DELETE FROM task_documents WHERE task_id = ?", [task_id])
+        self.client.query(
+            "UPDATE schedules SET wbs_task_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE wbs_task_id = ?",
+            [task_id],
+        )
+        self.client.query("UPDATE wbs_tasks SET parent_id = NULL WHERE parent_id = ?", [task_id])
+        self.client.query("DELETE FROM wbs_tasks WHERE id = ?", [task_id])
+        _shadow_delete_wbs_task(task_id)
 
 
 @dataclass
@@ -386,13 +964,45 @@ class D1MembersRepository:
         )
 
     def create_member(self, data):
-        _raise_write_not_supported()
+        result = self.client.query(
+            """
+            INSERT INTO members (name, role, part, contact, is_active, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+            [data["name"], data["role"], data["part"], data["contact"], data["is_active"]],
+        )
+        member_id = result.get("meta", {}).get("last_row_id")
+        if member_id is None:
+            raise D1RepositoryError("Failed to create member in D1.")
+        _shadow_upsert_member(member_id, data)
+        return member_id
 
     def update_member(self, member_id: int, data):
-        _raise_write_not_supported()
+        self.client.query(
+            """
+            UPDATE members
+            SET name = ?, role = ?, part = ?, contact = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            [data["name"], data["role"], data["part"], data["contact"], data["is_active"], member_id],
+        )
+        _shadow_upsert_member(member_id, data)
 
     def delete_member(self, member_id: int):
-        _raise_write_not_supported()
+        self.client.query(
+            "UPDATE wbs_tasks SET assignee_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE assignee_id = ?",
+            [member_id],
+        )
+        self.client.query(
+            "UPDATE schedules SET assignee_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE assignee_id = ?",
+            [member_id],
+        )
+        self.client.query(
+            "UPDATE documents SET author_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE author_id = ?",
+            [member_id],
+        )
+        self.client.query("DELETE FROM members WHERE id = ?", [member_id])
+        _shadow_delete_member(member_id)
 
 
 @dataclass
@@ -423,13 +1033,53 @@ class D1SchedulesRepository:
         )
 
     def create_schedule(self, data):
-        _raise_write_not_supported()
+        result = self.client.query(
+            """
+            INSERT INTO schedules (
+                title, description, start_date, end_date, assignee_id, wbs_task_id, schedule_type, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+            [
+                data["title"],
+                data["description"],
+                data["start_date"],
+                data["end_date"],
+                data["assignee_id"],
+                data["wbs_task_id"],
+                data["schedule_type"],
+            ],
+        )
+        schedule_id = result.get("meta", {}).get("last_row_id")
+        if schedule_id is None:
+            raise D1RepositoryError("Failed to create schedule in D1.")
+        _shadow_upsert_schedule(schedule_id, data)
+        return schedule_id
 
     def update_schedule(self, schedule_id: int, data):
-        _raise_write_not_supported()
+        self.client.query(
+            """
+            UPDATE schedules
+            SET title = ?, description = ?, start_date = ?, end_date = ?,
+                assignee_id = ?, wbs_task_id = ?, schedule_type = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            [
+                data["title"],
+                data["description"],
+                data["start_date"],
+                data["end_date"],
+                data["assignee_id"],
+                data["wbs_task_id"],
+                data["schedule_type"],
+                schedule_id,
+            ],
+        )
+        _shadow_upsert_schedule(schedule_id, data)
 
     def delete_schedule(self, schedule_id: int):
-        _raise_write_not_supported()
+        self.client.query("DELETE FROM schedules WHERE id = ?", [schedule_id])
+        _shadow_delete_schedule(schedule_id)
 
 
 @dataclass

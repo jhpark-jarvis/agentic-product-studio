@@ -76,3 +76,4 @@ $RECYCLE.BIN/
 instance/
 database/d1/data.sql
 wrangler.toml
+.wrangler/

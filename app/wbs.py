@@ -6,6 +6,18 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from .constants import TASK_PRIORITIES, TASK_STATUSES
 from .db import get_db, sync_task_documents
+from .repositories.common import (
+    fetch_active_members,
+    fetch_document_link_options,
+    fetch_parent_task_options,
+)
+from .repositories.wbs import (
+    create_task as create_task_record,
+    delete_task as delete_task_record,
+    fetch_task_with_links,
+    fetch_tasks_for_filters,
+    update_task as update_task_record,
+)
 from .utils import WBS_PLATFORM_OPTIONS, parse_date, today_local
 
 
@@ -13,49 +25,15 @@ bp = Blueprint("wbs", __name__, url_prefix="/wbs")
 
 
 def _fetch_members():
-    return get_db().execute(
-        """
-        SELECT id, name, role, part
-        FROM members
-        WHERE is_active = 1
-        ORDER BY name COLLATE NOCASE ASC
-        """
-    ).fetchall()
+    return fetch_active_members(get_db())
 
 
 def _fetch_documents():
-    return get_db().execute(
-        """
-        SELECT id, title, doc_type, is_hidden
-        FROM documents
-        ORDER BY is_hidden ASC, updated_at DESC, title COLLATE NOCASE ASC
-        """
-    ).fetchall()
+    return fetch_document_link_options(get_db())
 
 
 def _fetch_task_with_links(task_id: int):
-    db = get_db()
-    task = db.execute(
-        """
-        SELECT t.*, m.name AS assignee_name, p.title AS parent_title
-        FROM wbs_tasks t
-        LEFT JOIN members m ON m.id = t.assignee_id
-        LEFT JOIN wbs_tasks p ON p.id = t.parent_id
-        WHERE t.id = ?
-        """,
-        (task_id,),
-    ).fetchone()
-    if not task:
-        return None, []
-
-    document_ids = [
-        row["document_id"]
-        for row in db.execute(
-            "SELECT document_id FROM task_documents WHERE task_id = ? ORDER BY document_id ASC",
-            (task_id,),
-        ).fetchall()
-    ]
-    return task, document_ids
+    return fetch_task_with_links(get_db(), task_id)
 
 
 def _is_completed_task(task) -> bool:
@@ -67,42 +45,7 @@ def _is_completed_task(task) -> bool:
 
 
 def _fetch_flattened_tasks(filters: dict[str, str]):
-    db = get_db()
-    clauses = []
-    params: list[str] = []
-
-    if filters.get("status"):
-        clauses.append("t.status = ?")
-        params.append(filters["status"])
-    if filters.get("assignee_id"):
-        clauses.append("t.assignee_id = ?")
-        params.append(filters["assignee_id"])
-    if filters.get("priority"):
-        clauses.append("t.priority = ?")
-        params.append(filters["priority"])
-    if filters.get("platform"):
-        clauses.append("COALESCE(t.platform, 'Agentic Product Studio') = ?")
-        params.append(filters["platform"])
-
-    where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-    tasks = db.execute(
-        f"""
-        SELECT
-            t.*,
-            m.name AS assignee_name,
-            p.title AS parent_title
-        FROM wbs_tasks t
-        LEFT JOIN members m ON m.id = t.assignee_id
-        LEFT JOIN wbs_tasks p ON p.id = t.parent_id
-        {where_sql}
-        ORDER BY
-            COALESCE(t.start_date, '9999-12-31') ASC,
-            COALESCE(t.due_date, '9999-12-31') ASC,
-            t.created_at ASC,
-            t.id ASC
-        """,
-        params,
-    ).fetchall()
+    tasks = fetch_tasks_for_filters(get_db(), filters)
 
     children: dict[int | None, list] = defaultdict(list)
     by_id = {task["id"]: task for task in tasks}
@@ -225,30 +168,7 @@ def create_task():
         data = _task_form_data()
         errors = _validate_task_form(data)
         if not errors:
-            cursor = db.execute(
-                """
-                INSERT INTO wbs_tasks (
-                    parent_id, title, description, assignee_id, platform, status, priority,
-                    start_date, due_date, completed_date, progress, notes
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    data["parent_id"],
-                    data["title"],
-                    data["description"],
-                    data["assignee_id"],
-                    data["platform"],
-                    data["status"],
-                    data["priority"],
-                    data["start_date"],
-                    data["due_date"],
-                    data["completed_date"],
-                    data["progress"],
-                    data["notes"],
-                ),
-            )
-            task_id = cursor.lastrowid
+            task_id = create_task_record(db, data)
             sync_task_documents(db, task_id, data["document_ids"])
             db.commit()
             flash("WBS 작업이 생성되었습니다.", "success")
@@ -266,9 +186,7 @@ def create_task():
         task=None,
         selected_document_ids=[] if form_data is None else form_data["document_ids"],
         members=_fetch_members(),
-        parent_tasks=db.execute(
-            "SELECT id, title FROM wbs_tasks ORDER BY created_at ASC, id ASC"
-        ).fetchall(),
+        parent_tasks=fetch_parent_task_options(db),
         documents=_fetch_documents(),
         statuses=TASK_STATUSES,
         priorities=TASK_PRIORITIES,
@@ -289,30 +207,7 @@ def edit_task(task_id: int):
         data = _task_form_data()
         errors = _validate_task_form(data, task_id=task_id)
         if not errors:
-            db.execute(
-                """
-                UPDATE wbs_tasks
-                SET parent_id = ?, title = ?, description = ?, assignee_id = ?, platform = ?,
-                    status = ?, priority = ?, start_date = ?, due_date = ?,
-                    completed_date = ?, progress = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                """,
-                (
-                    data["parent_id"],
-                    data["title"],
-                    data["description"],
-                    data["assignee_id"],
-                    data["platform"],
-                    data["status"],
-                    data["priority"],
-                    data["start_date"],
-                    data["due_date"],
-                    data["completed_date"],
-                    data["progress"],
-                    data["notes"],
-                    task_id,
-                ),
-            )
+            update_task_record(db, task_id, data)
             sync_task_documents(db, task_id, data["document_ids"])
             db.commit()
             flash("WBS 작업이 수정되었습니다.", "success")
@@ -331,10 +226,7 @@ def edit_task(task_id: int):
         task=task,
         selected_document_ids=selected_document_ids,
         members=_fetch_members(),
-        parent_tasks=db.execute(
-            "SELECT id, title FROM wbs_tasks WHERE id != ? ORDER BY created_at ASC, id ASC",
-            (task_id,),
-        ).fetchall(),
+        parent_tasks=fetch_parent_task_options(db, exclude_task_id=task_id),
         documents=_fetch_documents(),
         statuses=TASK_STATUSES,
         priorities=TASK_PRIORITIES,
@@ -346,13 +238,7 @@ def edit_task(task_id: int):
 @bp.route("/<int:task_id>/delete", methods=("POST",))
 def delete_task(task_id: int):
     db = get_db()
-    db.execute("DELETE FROM task_documents WHERE task_id = ?", (task_id,))
-    db.execute(
-        "UPDATE schedules SET wbs_task_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE wbs_task_id = ?",
-        (task_id,),
-    )
-    db.execute("UPDATE wbs_tasks SET parent_id = NULL WHERE parent_id = ?", (task_id,))
-    db.execute("DELETE FROM wbs_tasks WHERE id = ?", (task_id,))
+    delete_task_record(db, task_id)
     db.commit()
     flash("WBS 작업이 삭제되었습니다.", "success")
     return redirect(url_for("wbs.list_tasks"))

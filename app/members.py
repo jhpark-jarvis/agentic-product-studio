@@ -1,6 +1,13 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from .db import get_db
+from .repositories.members import (
+    create_member as create_member_record,
+    delete_member as delete_member_record,
+    fetch_member,
+    list_members as list_member_records,
+    update_member as update_member_record,
+)
 
 
 bp = Blueprint("members", __name__, url_prefix="/members")
@@ -24,21 +31,12 @@ def _validate_member_form(data):
 
 
 def _fetch_member(member_id: int):
-    return get_db().execute("SELECT * FROM members WHERE id = ?", (member_id,)).fetchone()
+    return fetch_member(get_db(), member_id)
 
 
 @bp.route("/")
 def list_members():
-    members = get_db().execute(
-        """
-        SELECT
-            m.*,
-            (SELECT COUNT(*) FROM wbs_tasks t WHERE t.assignee_id = m.id) AS task_count,
-            (SELECT COUNT(*) FROM schedules s WHERE s.assignee_id = m.id) AS schedule_count
-        FROM members m
-        ORDER BY m.is_active DESC, m.name COLLATE NOCASE ASC
-        """
-    ).fetchall()
+    members = list_member_records(get_db())
     return render_template("members/list.html", members=members)
 
 
@@ -49,13 +47,7 @@ def create_member():
         data = _member_form_data()
         errors = _validate_member_form(data)
         if not errors:
-            db.execute(
-                """
-                INSERT INTO members (name, role, part, contact, is_active)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (data["name"], data["role"], data["part"], data["contact"], data["is_active"]),
-            )
+            create_member_record(db, data)
             db.commit()
             flash("팀원이 추가되었습니다.", "success")
             return redirect(url_for("members.list_members"))
@@ -86,14 +78,7 @@ def edit_member(member_id: int):
         data = _member_form_data()
         errors = _validate_member_form(data)
         if not errors:
-            db.execute(
-                """
-                UPDATE members
-                SET name = ?, role = ?, part = ?, contact = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                """,
-                (data["name"], data["role"], data["part"], data["contact"], data["is_active"], member_id),
-            )
+            update_member_record(db, member_id, data)
             db.commit()
             flash("팀원 정보가 수정되었습니다.", "success")
             return redirect(url_for("members.list_members"))
@@ -115,10 +100,7 @@ def edit_member(member_id: int):
 @bp.route("/<int:member_id>/delete", methods=("POST",))
 def delete_member(member_id: int):
     db = get_db()
-    db.execute("UPDATE wbs_tasks SET assignee_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE assignee_id = ?", (member_id,))
-    db.execute("UPDATE schedules SET assignee_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE assignee_id = ?", (member_id,))
-    db.execute("UPDATE documents SET author_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE author_id = ?", (member_id,))
-    db.execute("DELETE FROM members WHERE id = ?", (member_id,))
+    delete_member_record(db, member_id)
     db.commit()
     flash("팀원이 삭제되었습니다.", "success")
     return redirect(url_for("members.list_members"))

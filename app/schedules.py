@@ -7,6 +7,14 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from .constants import SCHEDULE_TYPES
 from .db import get_db
+from .repositories.common import fetch_active_members, fetch_task_link_options
+from .repositories.schedules import (
+    create_schedule as create_schedule_record,
+    delete_schedule as delete_schedule_record,
+    fetch_schedule,
+    list_schedules as list_schedule_records,
+    update_schedule as update_schedule_record,
+)
 from .utils import month_bounds, parse_date, today_local, week_bounds
 
 
@@ -14,15 +22,11 @@ bp = Blueprint("schedules", __name__, url_prefix="/schedules")
 
 
 def _fetch_members():
-    return get_db().execute(
-        "SELECT id, name FROM members WHERE is_active = 1 ORDER BY name COLLATE NOCASE ASC"
-    ).fetchall()
+    return fetch_active_members(get_db())
 
 
 def _fetch_tasks():
-    return get_db().execute(
-        "SELECT id, title FROM wbs_tasks ORDER BY updated_at DESC, id DESC"
-    ).fetchall()
+    return fetch_task_link_options(get_db())
 
 
 def _schedule_form_data():
@@ -55,16 +59,7 @@ def _validate_schedule_form(data):
 
 
 def _fetch_schedule(schedule_id: int):
-    return get_db().execute(
-        """
-        SELECT s.*, m.name AS assignee_name, t.title AS task_title
-        FROM schedules s
-        LEFT JOIN members m ON m.id = s.assignee_id
-        LEFT JOIN wbs_tasks t ON t.id = s.wbs_task_id
-        WHERE s.id = ?
-        """,
-        (schedule_id,),
-    ).fetchone()
+    return fetch_schedule(get_db(), schedule_id)
 
 
 def _build_month_days(schedules, month_start, month_end, today):
@@ -131,15 +126,7 @@ def list_schedules():
         month_query = month_reference.strftime("%Y-%m")
 
     month_start, month_end = month_bounds(month_reference)
-    schedules = db.execute(
-        """
-        SELECT s.*, m.name AS assignee_name, t.title AS task_title
-        FROM schedules s
-        LEFT JOIN members m ON m.id = s.assignee_id
-        LEFT JOIN wbs_tasks t ON t.id = s.wbs_task_id
-        ORDER BY s.start_date ASC, s.end_date ASC, s.id ASC
-        """
-    ).fetchall()
+    schedules = list_schedule_records(db)
 
     week_items = []
     for item in schedules:
@@ -169,21 +156,7 @@ def create_schedule():
         data = _schedule_form_data()
         errors = _validate_schedule_form(data)
         if not errors:
-            db.execute(
-                """
-                INSERT INTO schedules (title, description, start_date, end_date, assignee_id, wbs_task_id, schedule_type)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    data["title"],
-                    data["description"],
-                    data["start_date"],
-                    data["end_date"],
-                    data["assignee_id"],
-                    data["wbs_task_id"],
-                    data["schedule_type"],
-                ),
-            )
+            create_schedule_record(db, data)
             db.commit()
             flash("일정이 생성되었습니다.", "success")
             return redirect(url_for("schedules.list_schedules"))
@@ -217,24 +190,7 @@ def edit_schedule(schedule_id: int):
         data = _schedule_form_data()
         errors = _validate_schedule_form(data)
         if not errors:
-            db.execute(
-                """
-                UPDATE schedules
-                SET title = ?, description = ?, start_date = ?, end_date = ?,
-                    assignee_id = ?, wbs_task_id = ?, schedule_type = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                """,
-                (
-                    data["title"],
-                    data["description"],
-                    data["start_date"],
-                    data["end_date"],
-                    data["assignee_id"],
-                    data["wbs_task_id"],
-                    data["schedule_type"],
-                    schedule_id,
-                ),
-            )
+            update_schedule_record(db, schedule_id, data)
             db.commit()
             flash("일정이 수정되었습니다.", "success")
             return redirect(url_for("schedules.list_schedules"))
@@ -259,7 +215,7 @@ def edit_schedule(schedule_id: int):
 @bp.route("/<int:schedule_id>/delete", methods=("POST",))
 def delete_schedule(schedule_id: int):
     db = get_db()
-    db.execute("DELETE FROM schedules WHERE id = ?", (schedule_id,))
+    delete_schedule_record(db, schedule_id)
     db.commit()
     flash("일정이 삭제되었습니다.", "success")
     return redirect(url_for("schedules.list_schedules"))

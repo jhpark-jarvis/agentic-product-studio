@@ -27,6 +27,14 @@ def create_app(test_config=None):
         MAX_CONTENT_LENGTH=int(os.environ.get("MAX_CONTENT_LENGTH", 20 * 1024 * 1024)),
         DISPLAY_TIMEZONE=os.environ.get("DISPLAY_TIMEZONE", DEFAULT_TIMEZONE),
         STORAGE_BACKEND=os.environ.get("STORAGE_BACKEND", "local"),
+        REPOSITORY_BACKEND=os.environ.get("REPOSITORY_BACKEND", "sqlite"),
+        CLOUDFLARE_ACCOUNT_ID=os.environ.get(
+            "CLOUDFLARE_ACCOUNT_ID", os.environ.get("R2_ACCOUNT_ID", "")
+        ),
+        D1_DATABASE_ID=os.environ.get(
+            "D1_DATABASE_ID", "<D1_DATABASE_ID>"
+        ),
+        CLOUDFLARE_API_TOKEN=os.environ.get("CLOUDFLARE_API_TOKEN", ""),
         R2_BUCKET_NAME=os.environ.get("R2_BUCKET_NAME", "<R2_BUCKET_NAME>"),
         R2_ACCOUNT_ID=os.environ.get("R2_ACCOUNT_ID", ""),
         R2_ACCESS_KEY_ID=os.environ.get("R2_ACCESS_KEY_ID", ""),

@@ -1,14 +1,7 @@
 from flask import Blueprint, render_template
 
 from .db import get_db
-from .repositories.dashboard import (
-    fetch_dashboard_summary,
-    fetch_pinned_notice,
-    fetch_recent_documents,
-    fetch_recent_tasks,
-    fetch_upcoming_schedules,
-    fetch_week_due_tasks,
-)
+from .repositories.provider import get_repository_provider
 from .utils import today_local, week_bounds
 
 
@@ -23,12 +16,14 @@ def index():
     today_str = today.isoformat()
     week_end_str = week_end.isoformat()
 
-    summary = fetch_dashboard_summary(db, today_str)
-    week_due_tasks = fetch_week_due_tasks(db, today_str, week_end_str)
-    recent_documents = fetch_recent_documents(db)
-    recent_tasks = fetch_recent_tasks(db)
-    pinned_notice = fetch_pinned_notice(db)
-    upcoming_schedules = fetch_upcoming_schedules(db, today_str)
+    summary = get_repository_provider().dashboard.fetch_dashboard_summary(today_str)
+    week_due_tasks = get_repository_provider().dashboard.fetch_week_due_tasks(
+        today_str, week_end_str
+    )
+    recent_documents = get_repository_provider().dashboard.fetch_recent_documents()
+    recent_tasks = get_repository_provider().dashboard.fetch_recent_tasks()
+    pinned_notice = get_repository_provider().dashboard.fetch_pinned_notice()
+    upcoming_schedules = get_repository_provider().dashboard.fetch_upcoming_schedules(today_str)
 
     return render_template(
         "dashboard/index.html",

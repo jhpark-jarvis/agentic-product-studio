@@ -6,18 +6,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from .constants import TASK_PRIORITIES, TASK_STATUSES
 from .db import get_db, sync_task_documents
-from .repositories.common import (
-    fetch_active_members,
-    fetch_document_link_options,
-    fetch_parent_task_options,
-)
-from .repositories.wbs import (
-    create_task as create_task_record,
-    delete_task as delete_task_record,
-    fetch_task_with_links,
-    fetch_tasks_for_filters,
-    update_task as update_task_record,
-)
+from .repositories.provider import get_repository_provider
 from .utils import WBS_PLATFORM_OPTIONS, parse_date, today_local
 
 
@@ -25,15 +14,15 @@ bp = Blueprint("wbs", __name__, url_prefix="/wbs")
 
 
 def _fetch_members():
-    return fetch_active_members(get_db())
+    return get_repository_provider().common.fetch_active_members()
 
 
 def _fetch_documents():
-    return fetch_document_link_options(get_db())
+    return get_repository_provider().common.fetch_document_link_options()
 
 
 def _fetch_task_with_links(task_id: int):
-    return fetch_task_with_links(get_db(), task_id)
+    return get_repository_provider().wbs.fetch_task_with_links(task_id)
 
 
 def _is_completed_task(task) -> bool:
@@ -45,7 +34,7 @@ def _is_completed_task(task) -> bool:
 
 
 def _fetch_flattened_tasks(filters: dict[str, str]):
-    tasks = fetch_tasks_for_filters(get_db(), filters)
+    tasks = get_repository_provider().wbs.fetch_tasks_for_filters(filters)
 
     children: dict[int | None, list] = defaultdict(list)
     by_id = {task["id"]: task for task in tasks}
@@ -168,7 +157,7 @@ def create_task():
         data = _task_form_data()
         errors = _validate_task_form(data)
         if not errors:
-            task_id = create_task_record(db, data)
+            task_id = get_repository_provider().wbs.create_task(data)
             sync_task_documents(db, task_id, data["document_ids"])
             db.commit()
             flash("WBS 작업이 생성되었습니다.", "success")
@@ -186,7 +175,7 @@ def create_task():
         task=None,
         selected_document_ids=[] if form_data is None else form_data["document_ids"],
         members=_fetch_members(),
-        parent_tasks=fetch_parent_task_options(db),
+        parent_tasks=get_repository_provider().common.fetch_parent_task_options(),
         documents=_fetch_documents(),
         statuses=TASK_STATUSES,
         priorities=TASK_PRIORITIES,
@@ -207,7 +196,7 @@ def edit_task(task_id: int):
         data = _task_form_data()
         errors = _validate_task_form(data, task_id=task_id)
         if not errors:
-            update_task_record(db, task_id, data)
+            get_repository_provider().wbs.update_task(task_id, data)
             sync_task_documents(db, task_id, data["document_ids"])
             db.commit()
             flash("WBS 작업이 수정되었습니다.", "success")
@@ -226,7 +215,9 @@ def edit_task(task_id: int):
         task=task,
         selected_document_ids=selected_document_ids,
         members=_fetch_members(),
-        parent_tasks=fetch_parent_task_options(db, exclude_task_id=task_id),
+        parent_tasks=get_repository_provider().common.fetch_parent_task_options(
+            exclude_task_id=task_id
+        ),
         documents=_fetch_documents(),
         statuses=TASK_STATUSES,
         priorities=TASK_PRIORITIES,
@@ -238,7 +229,7 @@ def edit_task(task_id: int):
 @bp.route("/<int:task_id>/delete", methods=("POST",))
 def delete_task(task_id: int):
     db = get_db()
-    delete_task_record(db, task_id)
+    get_repository_provider().wbs.delete_task(task_id)
     db.commit()
     flash("WBS 작업이 삭제되었습니다.", "success")
     return redirect(url_for("wbs.list_tasks"))

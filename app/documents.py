@@ -17,18 +17,7 @@ from .db import (
     sync_document_tags,
     sync_task_documents_for_document,
 )
-from .repositories.common import fetch_active_members, fetch_task_link_options
-from .repositories.documents import (
-    create_document as create_document_record,
-    delete_document as delete_document_record,
-    fetch_document_folders,
-    fetch_document_with_relations,
-    fetch_folder,
-    fetch_tag_options,
-    list_documents as list_document_records,
-    update_document as update_document_record,
-    update_document_folder as update_document_folder_record,
-)
+from .repositories.provider import get_repository_provider
 from .storage import delete_object, is_allowed_image, upload_image
 from .utils import build_pagination, format_markdown_code_blocks, markdown_to_html, parse_int
 
@@ -38,19 +27,19 @@ PER_PAGE_OPTIONS = (10, 20, 50, 100)
 
 
 def _fetch_members():
-    return fetch_active_members(get_db())
+    return get_repository_provider().common.fetch_active_members()
 
 
 def _fetch_tasks():
-    return fetch_task_link_options(get_db())
+    return get_repository_provider().common.fetch_task_link_options()
 
 
 def _fetch_document_folders(doc_type: str | None = None):
-    return fetch_document_folders(get_db(), doc_type)
+    return get_repository_provider().documents.fetch_document_folders(doc_type)
 
 
 def _fetch_folder(folder_id: int):
-    return fetch_folder(get_db(), folder_id)
+    return get_repository_provider().documents.fetch_folder(folder_id)
 
 
 def _document_form_data():
@@ -92,7 +81,9 @@ def _resolve_folder_id(db, data):
 
 def _fetch_document(document_id: int):
     db = get_db()
-    document, related_tasks, tags = fetch_document_with_relations(db, document_id)
+    document, related_tasks, tags = get_repository_provider().documents.fetch_document_with_relations(
+        document_id
+    )
     if not document:
         return None, [], [], []
     assets = fetch_document_assets(db, document_id)
@@ -116,8 +107,7 @@ def list_documents():
     page = parse_int(request.args.get("page"), default=1, minimum=1)
     per_page = parse_int(request.args.get("per_page"), default=20, allowed=set(PER_PAGE_OPTIONS))
 
-    total_count, documents = list_document_records(
-        db,
+    total_count, documents = get_repository_provider().documents.list_documents(
         search=search,
         doc_type=doc_type,
         tag=tag,
@@ -126,8 +116,7 @@ def list_documents():
         offset=0,
     )
     pagination = build_pagination(page, per_page, total_count)
-    _total_count, documents = list_document_records(
-        db,
+    _total_count, documents = get_repository_provider().documents.list_documents(
         search=search,
         doc_type=doc_type,
         tag=tag,
@@ -136,7 +125,7 @@ def list_documents():
         offset=pagination["offset"],
     )
 
-    tag_options = fetch_tag_options(db)
+    tag_options = get_repository_provider().documents.fetch_tag_options()
 
     filters = {"q": search, "doc_type": doc_type, "tag": tag, "folder_id": folder_id}
     return render_template(
@@ -161,7 +150,7 @@ def create_document():
         errors = _validate_document_form(data)
         if not errors:
             folder_id = _resolve_folder_id(db, data)
-            document_id = create_document_record(db, data, folder_id)
+            document_id = get_repository_provider().documents.create_document(data, folder_id)
             assign_draft_assets_to_document(db, document_id, data["asset_draft_key"])
             sync_document_tags(db, document_id, data["tags"])
             sync_task_documents_for_document(db, document_id, data["related_task_ids"])
@@ -227,7 +216,7 @@ def edit_document(document_id: int):
         errors = _validate_document_form(data)
         if not errors:
             folder_id = _resolve_folder_id(db, data)
-            update_document_record(db, document_id, data, folder_id)
+            get_repository_provider().documents.update_document(document_id, data, folder_id)
             sync_document_tags(db, document_id, data["tags"])
             sync_task_documents_for_document(db, document_id, data["related_task_ids"])
             db.commit()
@@ -263,7 +252,7 @@ def delete_document(document_id: int):
     assets = fetch_document_assets(db, document_id)
     for asset in assets:
         delete_object(asset["object_key"])
-    delete_document_record(db, document_id)
+    get_repository_provider().documents.delete_document(document_id)
     db.commit()
     flash("문서가 삭제되었습니다.", "success")
     return redirect(url_for("documents.list_documents"))
@@ -318,7 +307,7 @@ def update_document_folder(document_id: int):
             return redirect(redirect_url)
         folder_id = folder["id"]
 
-    update_document_folder_record(db, document_id, doc_type, folder_id)
+    get_repository_provider().documents.update_document_folder(document_id, doc_type, folder_id)
     db.commit()
     flash("문서 카테고리와 폴더가 변경되었습니다.", "success")
     return redirect(redirect_url)

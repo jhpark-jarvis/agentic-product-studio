@@ -7,14 +7,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from .constants import SCHEDULE_TYPES
 from .db import get_db
-from .repositories.common import fetch_active_members, fetch_task_link_options
-from .repositories.schedules import (
-    create_schedule as create_schedule_record,
-    delete_schedule as delete_schedule_record,
-    fetch_schedule,
-    list_schedules as list_schedule_records,
-    update_schedule as update_schedule_record,
-)
+from .repositories.provider import get_repository_provider
 from .utils import month_bounds, parse_date, today_local, week_bounds
 
 
@@ -22,11 +15,11 @@ bp = Blueprint("schedules", __name__, url_prefix="/schedules")
 
 
 def _fetch_members():
-    return fetch_active_members(get_db())
+    return get_repository_provider().common.fetch_active_members()
 
 
 def _fetch_tasks():
-    return fetch_task_link_options(get_db())
+    return get_repository_provider().common.fetch_task_link_options()
 
 
 def _schedule_form_data():
@@ -59,7 +52,7 @@ def _validate_schedule_form(data):
 
 
 def _fetch_schedule(schedule_id: int):
-    return fetch_schedule(get_db(), schedule_id)
+    return get_repository_provider().schedules.fetch_schedule(schedule_id)
 
 
 def _build_month_days(schedules, month_start, month_end, today):
@@ -126,7 +119,7 @@ def list_schedules():
         month_query = month_reference.strftime("%Y-%m")
 
     month_start, month_end = month_bounds(month_reference)
-    schedules = list_schedule_records(db)
+    schedules = get_repository_provider().schedules.list_schedules()
 
     week_items = []
     for item in schedules:
@@ -156,7 +149,7 @@ def create_schedule():
         data = _schedule_form_data()
         errors = _validate_schedule_form(data)
         if not errors:
-            create_schedule_record(db, data)
+            get_repository_provider().schedules.create_schedule(data)
             db.commit()
             flash("일정이 생성되었습니다.", "success")
             return redirect(url_for("schedules.list_schedules"))
@@ -190,7 +183,7 @@ def edit_schedule(schedule_id: int):
         data = _schedule_form_data()
         errors = _validate_schedule_form(data)
         if not errors:
-            update_schedule_record(db, schedule_id, data)
+            get_repository_provider().schedules.update_schedule(schedule_id, data)
             db.commit()
             flash("일정이 수정되었습니다.", "success")
             return redirect(url_for("schedules.list_schedules"))
@@ -215,7 +208,7 @@ def edit_schedule(schedule_id: int):
 @bp.route("/<int:schedule_id>/delete", methods=("POST",))
 def delete_schedule(schedule_id: int):
     db = get_db()
-    delete_schedule_record(db, schedule_id)
+    get_repository_provider().schedules.delete_schedule(schedule_id)
     db.commit()
     flash("일정이 삭제되었습니다.", "success")
     return redirect(url_for("schedules.list_schedules"))

@@ -1,13 +1,7 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from .db import get_db
-from .repositories.members import (
-    create_member as create_member_record,
-    delete_member as delete_member_record,
-    fetch_member,
-    list_members as list_member_records,
-    update_member as update_member_record,
-)
+from .repositories.provider import get_repository_provider
 
 
 bp = Blueprint("members", __name__, url_prefix="/members")
@@ -31,12 +25,12 @@ def _validate_member_form(data):
 
 
 def _fetch_member(member_id: int):
-    return fetch_member(get_db(), member_id)
+    return get_repository_provider().members.fetch_member(member_id)
 
 
 @bp.route("/")
 def list_members():
-    members = list_member_records(get_db())
+    members = get_repository_provider().members.list_members()
     return render_template("members/list.html", members=members)
 
 
@@ -47,7 +41,7 @@ def create_member():
         data = _member_form_data()
         errors = _validate_member_form(data)
         if not errors:
-            create_member_record(db, data)
+            get_repository_provider().members.create_member(data)
             db.commit()
             flash("팀원이 추가되었습니다.", "success")
             return redirect(url_for("members.list_members"))
@@ -78,7 +72,7 @@ def edit_member(member_id: int):
         data = _member_form_data()
         errors = _validate_member_form(data)
         if not errors:
-            update_member_record(db, member_id, data)
+            get_repository_provider().members.update_member(member_id, data)
             db.commit()
             flash("팀원 정보가 수정되었습니다.", "success")
             return redirect(url_for("members.list_members"))
@@ -100,7 +94,7 @@ def edit_member(member_id: int):
 @bp.route("/<int:member_id>/delete", methods=("POST",))
 def delete_member(member_id: int):
     db = get_db()
-    delete_member_record(db, member_id)
+    get_repository_provider().members.delete_member(member_id)
     db.commit()
     flash("팀원이 삭제되었습니다.", "success")
     return redirect(url_for("members.list_members"))

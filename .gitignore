@@ -75,3 +75,4 @@ $RECYCLE.BIN/
 *.db
 instance/
 database/d1/data.sql
+wrangler.toml

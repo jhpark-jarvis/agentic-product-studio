@@ -80,17 +80,12 @@ def build_export_sql(database_path: Path) -> str:
             "-- SQLite to Cloudflare D1 data export",
             f"-- Source database: {database_path.as_posix()}",
             "",
-            "PRAGMA defer_foreign_keys = on;",
-            "BEGIN TRANSACTION;",
-            "",
         ]
 
         for table_name in TABLE_EXPORT_ORDER:
             chunks.extend(export_table(connection, table_name))
             chunks.append("")
 
-        chunks.append("COMMIT;")
-        chunks.append("")
         return "\n".join(chunks)
     finally:
         connection.close()

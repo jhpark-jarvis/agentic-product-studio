@@ -115,6 +115,7 @@ CREATE INDEX idx_wbs_tasks_due_date ON wbs_tasks(due_date);
 CREATE INDEX idx_wbs_tasks_updated_at ON wbs_tasks(updated_at);
 
 CREATE INDEX idx_documents_updated_at ON documents(updated_at);
+CREATE INDEX idx_documents_hidden_updated_at ON documents(is_hidden, updated_at DESC, id DESC);
 CREATE INDEX idx_documents_doc_type_folder_id ON documents(doc_type, folder_id);
 CREATE INDEX idx_documents_author_id ON documents(author_id);
 

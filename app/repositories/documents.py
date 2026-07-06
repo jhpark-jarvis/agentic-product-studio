@@ -94,10 +94,8 @@ def search_documents_for_link(db, *, keyword: str, limit: int = 10):
 def list_documents(db, *, search: str, doc_type: str, tag: str, folder_id: str, limit: int, offset: int):
     clauses = ["d.is_hidden = 0"]
     params: list[str] = []
-    joins = [
-        "LEFT JOIN members m ON m.id = d.author_id",
-        "LEFT JOIN document_folders f ON f.id = d.folder_id",
-    ]
+    joins = ["LEFT JOIN members m ON m.id = d.author_id", "LEFT JOIN document_folders f ON f.id = d.folder_id"]
+    count_joins: list[str] = []
 
     if search:
         clauses.append("(d.title LIKE ? OR d.content LIKE ?)")
@@ -107,6 +105,7 @@ def list_documents(db, *, search: str, doc_type: str, tag: str, folder_id: str, 
         params.append(doc_type)
     if tag:
         joins.append("JOIN document_tags dt_filter ON dt_filter.document_id = d.id")
+        count_joins.append("JOIN document_tags dt_filter ON dt_filter.document_id = d.id")
         clauses.append("dt_filter.tag = ?")
         params.append(tag)
     if folder_id and folder_id.isdigit():
@@ -114,15 +113,20 @@ def list_documents(db, *, search: str, doc_type: str, tag: str, folder_id: str, 
         params.append(folder_id)
 
     where_sql = f"WHERE {' AND '.join(clauses)}"
-    total_count = db.execute(
-        f"""
+    if count_joins:
+        count_sql = f"""
         SELECT COUNT(DISTINCT d.id) AS count
         FROM documents d
-        {' '.join(joins)}
+        {' '.join(count_joins)}
         {where_sql}
-        """,
-        params,
-    ).fetchone()["count"]
+        """
+    else:
+        count_sql = f"""
+        SELECT COUNT(*) AS count
+        FROM documents d
+        {where_sql}
+        """
+    total_count = db.execute(count_sql, params).fetchone()["count"]
 
     rows = db.execute(
         f"""

@@ -90,7 +90,6 @@ def _pager_query(filters, page, per_page):
 
 @bp.route("/")
 def list_documents():
-    db = get_db()
     search = request.args.get("q", "").strip()
     doc_type = request.args.get("doc_type", "").strip()
     tag = request.args.get("tag", "").strip()
@@ -104,18 +103,13 @@ def list_documents():
         tag=tag,
         folder_id=folder_id,
         limit=per_page,
-        offset=0,
+        offset=max((page - 1) * per_page, 0),
     )
     pagination = build_pagination(page, per_page, total_count)
-    _total_count, documents = get_repository_provider().documents.list_documents(
-        search=search,
-        doc_type=doc_type,
-        tag=tag,
-        folder_id=folder_id,
-        limit=pagination["per_page"],
-        offset=pagination["offset"],
-    )
-
+    all_folder_options = _fetch_document_folders()
+    folder_options = [
+        folder for folder in all_folder_options if not doc_type or folder["doc_type"] == doc_type
+    ]
     tag_options = get_repository_provider().documents.fetch_tag_options()
 
     filters = {"q": search, "doc_type": doc_type, "tag": tag, "folder_id": folder_id}
@@ -123,8 +117,8 @@ def list_documents():
         "documents/list.html",
         documents=documents,
         document_types=DOCUMENT_TYPES,
-        folder_options=_fetch_document_folders(doc_type or None),
-        all_folder_options=_fetch_document_folders(),
+        folder_options=folder_options,
+        all_folder_options=all_folder_options,
         tag_options=tag_options,
         filters=filters,
         per_page_options=PER_PAGE_OPTIONS,

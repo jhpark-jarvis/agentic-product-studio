@@ -10,9 +10,21 @@ def list_members(db):
         """
         SELECT
             m.*,
-            (SELECT COUNT(*) FROM wbs_tasks t WHERE t.assignee_id = m.id) AS task_count,
-            (SELECT COUNT(*) FROM schedules s WHERE s.assignee_id = m.id) AS schedule_count
+            COALESCE(task_counts.task_count, 0) AS task_count,
+            COALESCE(schedule_counts.schedule_count, 0) AS schedule_count
         FROM members m
+        LEFT JOIN (
+            SELECT assignee_id, COUNT(*) AS task_count
+            FROM wbs_tasks
+            WHERE assignee_id IS NOT NULL
+            GROUP BY assignee_id
+        ) task_counts ON task_counts.assignee_id = m.id
+        LEFT JOIN (
+            SELECT assignee_id, COUNT(*) AS schedule_count
+            FROM schedules
+            WHERE assignee_id IS NOT NULL
+            GROUP BY assignee_id
+        ) schedule_counts ON schedule_counts.assignee_id = m.id
         ORDER BY m.is_active DESC, m.name COLLATE NOCASE ASC
         """
     ).fetchall()

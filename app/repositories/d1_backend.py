@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from time import monotonic
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -26,6 +27,34 @@ class D1RepositoryError(RuntimeError):
 
 class D1WriteNotSupportedError(NotImplementedError):
     pass
+
+
+_READ_CACHE: dict[str, tuple[float, Any]] = {}
+
+
+def _cache_get(key: str):
+    cached = _READ_CACHE.get(key)
+    if not cached:
+        return None
+    expires_at, value = cached
+    if expires_at < monotonic():
+        _READ_CACHE.pop(key, None)
+        return None
+    return value
+
+
+def _cache_set(key: str, value, ttl_seconds: float = 30.0):
+    _READ_CACHE[key] = (monotonic() + ttl_seconds, value)
+    return value
+
+
+def _cache_invalidate(*prefixes: str):
+    if not prefixes:
+        _READ_CACHE.clear()
+        return
+    for key in list(_READ_CACHE.keys()):
+        if any(key.startswith(prefix) for prefix in prefixes):
+            _READ_CACHE.pop(key, None)
 
 
 class D1RestClient:
@@ -425,39 +454,69 @@ class D1CommonRepository:
     client: D1RestClient
 
     def fetch_active_members(self):
-        return self.client.query_rows(
+        cache_key = "common:active_members"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+        return _cache_set(
+            cache_key,
+            self.client.query_rows(
             """
             SELECT id, name, role, part
             FROM members
             WHERE is_active = 1
             ORDER BY name COLLATE NOCASE ASC
             """
+            ),
         )
 
     def fetch_document_link_options(self):
-        return self.client.query_rows(
+        cache_key = "common:document_link_options"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+        return _cache_set(
+            cache_key,
+            self.client.query_rows(
             """
             SELECT id, title, doc_type, is_hidden
             FROM documents
             ORDER BY is_hidden ASC, updated_at DESC, title COLLATE NOCASE ASC
             """
+            ),
         )
 
     def fetch_task_link_options(self):
-        return self.client.query_rows(
+        cache_key = "common:task_link_options"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+        return _cache_set(
+            cache_key,
+            self.client.query_rows(
             """
             SELECT id, title, status
             FROM wbs_tasks
             ORDER BY updated_at DESC, id DESC
             """
+            ),
         )
 
     def fetch_parent_task_options(self, exclude_task_id: int | None = None):
+        cache_key = f"common:parent_task_options:{exclude_task_id if exclude_task_id is not None else 'all'}"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
         if exclude_task_id is None:
-            return self.client.query_rows(
-                "SELECT id, title FROM wbs_tasks ORDER BY created_at ASC, id ASC"
+            return _cache_set(
+                cache_key,
+                self.client.query_rows(
+                    "SELECT id, title FROM wbs_tasks ORDER BY created_at ASC, id ASC"
+                ),
             )
-        return self.client.query_rows(
+        return _cache_set(
+            cache_key,
+            self.client.query_rows(
             """
             SELECT id, title
             FROM wbs_tasks
@@ -465,6 +524,7 @@ class D1CommonRepository:
             ORDER BY created_at ASC, id ASC
             """,
             [exclude_task_id],
+            ),
         )
 
 
@@ -473,8 +533,14 @@ class D1DocumentsRepository:
     client: D1RestClient
 
     def fetch_document_folders(self, doc_type: str | None = None):
+        cache_key = f"documents:folders:{doc_type or '*'}"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
         if doc_type:
-            return self.client.query_rows(
+            return _cache_set(
+                cache_key,
+                self.client.query_rows(
                 """
                 SELECT id, doc_type, name
                 FROM document_folders
@@ -482,13 +548,17 @@ class D1DocumentsRepository:
                 ORDER BY name COLLATE NOCASE ASC
                 """,
                 [doc_type],
+                ),
             )
-        return self.client.query_rows(
+        return _cache_set(
+            cache_key,
+            self.client.query_rows(
             """
             SELECT id, doc_type, name
             FROM document_folders
             ORDER BY doc_type COLLATE NOCASE ASC, name COLLATE NOCASE ASC
             """
+            ),
         )
 
     def fetch_folder(self, folder_id: int):
@@ -538,9 +608,11 @@ class D1DocumentsRepository:
                 raise D1RepositoryError("Failed to create or resolve document folder in D1.")
             folder_id = created["id"]
             _shadow_upsert_folder(folder_id, created["doc_type"], created["name"])
+            _cache_invalidate("documents:")
             return folder_id
 
         _shadow_upsert_folder(folder_id, doc_type, normalized_name)
+        _cache_invalidate("documents:")
         return folder_id
 
     def fetch_document_with_relations(self, document_id: int):
@@ -609,10 +681,8 @@ class D1DocumentsRepository:
     ):
         clauses = ["d.is_hidden = 0"]
         params: list[Any] = []
-        joins = [
-            "LEFT JOIN members m ON m.id = d.author_id",
-            "LEFT JOIN document_folders f ON f.id = d.folder_id",
-        ]
+        joins = ["LEFT JOIN members m ON m.id = d.author_id", "LEFT JOIN document_folders f ON f.id = d.folder_id"]
+        count_joins: list[str] = []
 
         if search:
             clauses.append("(d.title LIKE ? OR d.content LIKE ?)")
@@ -622,6 +692,7 @@ class D1DocumentsRepository:
             params.append(doc_type)
         if tag:
             joins.append("JOIN document_tags dt_filter ON dt_filter.document_id = d.id")
+            count_joins.append("JOIN document_tags dt_filter ON dt_filter.document_id = d.id")
             clauses.append("dt_filter.tag = ?")
             params.append(tag)
         if folder_id and folder_id.isdigit():
@@ -629,15 +700,20 @@ class D1DocumentsRepository:
             params.append(int(folder_id))
 
         where_sql = f"WHERE {' AND '.join(clauses)}"
-        total_count_row = self.client.query_first(
-            f"""
+        if count_joins:
+            count_sql = f"""
             SELECT COUNT(DISTINCT d.id) AS count
             FROM documents d
-            {' '.join(joins)}
+            {' '.join(count_joins)}
             {where_sql}
-            """,
-            params,
-        )
+            """
+        else:
+            count_sql = f"""
+            SELECT COUNT(*) AS count
+            FROM documents d
+            {where_sql}
+            """
+        total_count_row = self.client.query_first(count_sql, params)
         rows = self.client.query_rows(
             f"""
             SELECT DISTINCT
@@ -660,13 +736,20 @@ class D1DocumentsRepository:
         return (total_count_row or {}).get("count", 0), rows
 
     def fetch_tag_options(self):
-        return self.client.query_rows(
+        cache_key = "documents:tag_options"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+        return _cache_set(
+            cache_key,
+            self.client.query_rows(
             """
             SELECT tag, COUNT(*) AS usage_count
             FROM document_tags
             GROUP BY tag
             ORDER BY tag COLLATE NOCASE ASC
             """
+            ),
         )
 
     def create_document(self, data, folder_id):
@@ -691,6 +774,7 @@ class D1DocumentsRepository:
         if document_id is None:
             raise D1RepositoryError("Failed to create document in D1.")
         _shadow_upsert_document(document_id, data, folder_id)
+        _cache_invalidate("documents:", "common:document_link_options", "dashboard:")
         return document_id
 
     def create_document_asset(
@@ -726,6 +810,7 @@ class D1DocumentsRepository:
             content_type=content_type,
             size=size,
         )
+        _cache_invalidate("dashboard:")
         return asset_id
 
     def fetch_document_assets(self, document_id: int):
@@ -761,6 +846,7 @@ class D1DocumentsRepository:
             [document_id, draft_key],
         )
         assign_draft_assets_to_document(get_db(), document_id, draft_key)
+        _cache_invalidate("dashboard:")
 
     def sync_document_tags(self, document_id: int, tags_text: str):
         self.client.query("DELETE FROM document_tags WHERE document_id = ?", [document_id])
@@ -771,6 +857,7 @@ class D1DocumentsRepository:
                 [document_id, tag],
             )
         sync_document_tags_local(get_db(), document_id, tags_text)
+        _cache_invalidate("documents:")
 
     def sync_task_documents(self, document_id: int, task_ids: list[int]):
         self.client.query("DELETE FROM task_documents WHERE document_id = ?", [document_id])
@@ -780,6 +867,7 @@ class D1DocumentsRepository:
                 [task_id, document_id],
             )
         sync_task_documents_for_document_local(get_db(), document_id, task_ids)
+        _cache_invalidate("dashboard:")
 
     def update_document(self, document_id, data, folder_id):
         self.client.query(
@@ -801,6 +889,7 @@ class D1DocumentsRepository:
             ],
         )
         _shadow_upsert_document(document_id, data, folder_id)
+        _cache_invalidate("documents:", "common:document_link_options", "dashboard:")
 
     def delete_document(self, document_id):
         self.client.query("DELETE FROM document_assets WHERE document_id = ?", [document_id])
@@ -808,10 +897,12 @@ class D1DocumentsRepository:
         self.client.query("DELETE FROM document_tags WHERE document_id = ?", [document_id])
         self.client.query("DELETE FROM documents WHERE id = ?", [document_id])
         _shadow_delete_document(document_id)
+        _cache_invalidate("documents:", "common:document_link_options", "dashboard:")
 
     def delete_document_asset(self, asset_id: int):
         self.client.query("DELETE FROM document_assets WHERE id = ?", [asset_id])
         _shadow_delete_document_asset(asset_id)
+        _cache_invalidate("dashboard:")
 
     def update_document_folder(self, document_id, doc_type, folder_id):
         self.client.query(
@@ -832,6 +923,7 @@ class D1DocumentsRepository:
         )
         if document:
             _shadow_upsert_document(document_id, document, folder_id)
+        _cache_invalidate("documents:", "common:document_link_options", "dashboard:")
 
 
 @dataclass
@@ -921,6 +1013,7 @@ class D1WbsRepository:
         if task_id is None:
             raise D1RepositoryError("Failed to create WBS task in D1.")
         _shadow_upsert_wbs_task(task_id, data)
+        _cache_invalidate("common:task_link_options", "common:parent_task_options", "dashboard:", "members:")
         return task_id
 
     def sync_task_documents(self, task_id: int, document_ids: list[int]):
@@ -931,6 +1024,7 @@ class D1WbsRepository:
                 [task_id, document_id],
             )
         sync_task_documents_for_task_local(get_db(), task_id, document_ids)
+        _cache_invalidate("dashboard:")
 
     def update_task(self, task_id: int, data):
         self.client.query(
@@ -958,6 +1052,7 @@ class D1WbsRepository:
             ],
         )
         _shadow_upsert_wbs_task(task_id, data)
+        _cache_invalidate("common:task_link_options", "common:parent_task_options", "dashboard:", "members:")
 
     def delete_task(self, task_id: int):
         self.client.query("DELETE FROM task_documents WHERE task_id = ?", [task_id])
@@ -968,6 +1063,7 @@ class D1WbsRepository:
         self.client.query("UPDATE wbs_tasks SET parent_id = NULL WHERE parent_id = ?", [task_id])
         self.client.query("DELETE FROM wbs_tasks WHERE id = ?", [task_id])
         _shadow_delete_wbs_task(task_id)
+        _cache_invalidate("common:task_link_options", "common:parent_task_options", "dashboard:", "members:")
 
 
 @dataclass
@@ -978,15 +1074,34 @@ class D1MembersRepository:
         return self.client.query_first("SELECT * FROM members WHERE id = ?", [member_id])
 
     def list_members(self):
-        return self.client.query_rows(
+        cache_key = "members:list"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+        return _cache_set(
+            cache_key,
+            self.client.query_rows(
             """
             SELECT
                 m.*,
-                (SELECT COUNT(*) FROM wbs_tasks t WHERE t.assignee_id = m.id) AS task_count,
-                (SELECT COUNT(*) FROM schedules s WHERE s.assignee_id = m.id) AS schedule_count
+                COALESCE(task_counts.task_count, 0) AS task_count,
+                COALESCE(schedule_counts.schedule_count, 0) AS schedule_count
             FROM members m
+            LEFT JOIN (
+                SELECT assignee_id, COUNT(*) AS task_count
+                FROM wbs_tasks
+                WHERE assignee_id IS NOT NULL
+                GROUP BY assignee_id
+            ) task_counts ON task_counts.assignee_id = m.id
+            LEFT JOIN (
+                SELECT assignee_id, COUNT(*) AS schedule_count
+                FROM schedules
+                WHERE assignee_id IS NOT NULL
+                GROUP BY assignee_id
+            ) schedule_counts ON schedule_counts.assignee_id = m.id
             ORDER BY m.is_active DESC, m.name COLLATE NOCASE ASC
             """
+            ),
         )
 
     def create_member(self, data):
@@ -1001,6 +1116,7 @@ class D1MembersRepository:
         if member_id is None:
             raise D1RepositoryError("Failed to create member in D1.")
         _shadow_upsert_member(member_id, data)
+        _cache_invalidate("members:", "common:active_members", "dashboard:")
         return member_id
 
     def update_member(self, member_id: int, data):
@@ -1013,6 +1129,7 @@ class D1MembersRepository:
             [data["name"], data["role"], data["part"], data["contact"], data["is_active"], member_id],
         )
         _shadow_upsert_member(member_id, data)
+        _cache_invalidate("members:", "common:active_members", "dashboard:")
 
     def delete_member(self, member_id: int):
         self.client.query(
@@ -1029,6 +1146,7 @@ class D1MembersRepository:
         )
         self.client.query("DELETE FROM members WHERE id = ?", [member_id])
         _shadow_delete_member(member_id)
+        _cache_invalidate("members:", "common:active_members", "dashboard:")
 
 
 @dataclass
@@ -1048,7 +1166,13 @@ class D1SchedulesRepository:
         )
 
     def list_schedules(self):
-        return self.client.query_rows(
+        cache_key = "schedules:list"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+        return _cache_set(
+            cache_key,
+            self.client.query_rows(
             """
             SELECT s.*, m.name AS assignee_name, t.title AS task_title
             FROM schedules s
@@ -1056,6 +1180,7 @@ class D1SchedulesRepository:
             LEFT JOIN wbs_tasks t ON t.id = s.wbs_task_id
             ORDER BY s.start_date ASC, s.end_date ASC, s.id ASC
             """
+            ),
         )
 
     def create_schedule(self, data):
@@ -1080,6 +1205,7 @@ class D1SchedulesRepository:
         if schedule_id is None:
             raise D1RepositoryError("Failed to create schedule in D1.")
         _shadow_upsert_schedule(schedule_id, data)
+        _cache_invalidate("schedules:", "dashboard:", "members:")
         return schedule_id
 
     def update_schedule(self, schedule_id: int, data):
@@ -1102,10 +1228,12 @@ class D1SchedulesRepository:
             ],
         )
         _shadow_upsert_schedule(schedule_id, data)
+        _cache_invalidate("schedules:", "dashboard:", "members:")
 
     def delete_schedule(self, schedule_id: int):
         self.client.query("DELETE FROM schedules WHERE id = ?", [schedule_id])
         _shadow_delete_schedule(schedule_id)
+        _cache_invalidate("schedules:", "dashboard:", "members:")
 
 
 @dataclass
@@ -1113,7 +1241,13 @@ class D1DashboardRepository:
     client: D1RestClient
 
     def fetch_dashboard_summary(self, today_str: str):
-        return self.client.query_first(
+        cache_key = f"dashboard:summary:{today_str}"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+        return _cache_set(
+            cache_key,
+            self.client.query_first(
             """
             SELECT
                 COUNT(*) AS total_tasks,
@@ -1130,10 +1264,17 @@ class D1DashboardRepository:
             FROM wbs_tasks
             """,
             [today_str],
+            ),
         )
 
     def fetch_week_due_tasks(self, today_str: str, week_end_str: str):
-        return self.client.query_rows(
+        cache_key = f"dashboard:week_due:{today_str}:{week_end_str}"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+        return _cache_set(
+            cache_key,
+            self.client.query_rows(
             """
             SELECT t.id, t.title, t.status, t.priority, t.due_date, m.name AS assignee_name
             FROM wbs_tasks t
@@ -1144,10 +1285,17 @@ class D1DashboardRepository:
             LIMIT 8
             """,
             [today_str, week_end_str],
+            ),
         )
 
     def fetch_recent_documents(self):
-        return self.client.query_rows(
+        cache_key = "dashboard:recent_documents"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+        return _cache_set(
+            cache_key,
+            self.client.query_rows(
             """
             SELECT d.id, d.title, d.doc_type, d.updated_at, m.name AS author_name
             FROM documents d
@@ -1156,10 +1304,17 @@ class D1DashboardRepository:
             ORDER BY d.updated_at DESC, d.id DESC
             LIMIT 6
             """
+            ),
         )
 
     def fetch_recent_tasks(self):
-        return self.client.query_rows(
+        cache_key = "dashboard:recent_tasks"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+        return _cache_set(
+            cache_key,
+            self.client.query_rows(
             """
             SELECT t.id, t.title, t.status, t.priority, t.updated_at, m.name AS assignee_name
             FROM wbs_tasks t
@@ -1167,10 +1322,17 @@ class D1DashboardRepository:
             ORDER BY t.updated_at DESC, t.id DESC
             LIMIT 6
             """
+            ),
         )
 
     def fetch_pinned_notice(self):
-        return self.client.query_first(
+        cache_key = "dashboard:pinned_notice"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+        return _cache_set(
+            cache_key,
+            self.client.query_first(
             """
             SELECT id, title, content, updated_at
             FROM notices
@@ -1178,10 +1340,17 @@ class D1DashboardRepository:
             ORDER BY updated_at DESC, id DESC
             LIMIT 1
             """
+            ),
         )
 
     def fetch_upcoming_schedules(self, today_str: str):
-        return self.client.query_rows(
+        cache_key = f"dashboard:upcoming_schedules:{today_str}"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+        return _cache_set(
+            cache_key,
+            self.client.query_rows(
             """
             SELECT
                 s.id,
@@ -1199,6 +1368,7 @@ class D1DashboardRepository:
             LIMIT 6
             """,
             [today_str],
+            ),
         )
 
 

@@ -247,6 +247,12 @@ function setupMarkdownEditor() {
 
   if (linkQueryInput) {
     linkQueryInput.addEventListener("input", searchDocumentLinks);
+    linkQueryInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        searchDocumentLinks();
+      }
+    });
   }
 
   if (linkModal) {

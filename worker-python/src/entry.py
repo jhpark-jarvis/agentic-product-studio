@@ -3,7 +3,7 @@ from workers import WorkerEntrypoint
 from datetime import date
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 import asgi
 
@@ -51,6 +51,7 @@ from models import (
     SchedulePayload,
     WbsPayload,
 )
+from ui import render_homepage
 
 
 class Default(WorkerEntrypoint):
@@ -98,11 +99,16 @@ async def _delete_r2_object_if_present(env, object_key: str | None):
 
 @app.get("/")
 async def root():
+    return HTMLResponse(render_homepage())
+
+
+@app.get("/api/bootstrap-status")
+async def bootstrap_status():
     return {
         "service": "agentic-product-studio-python-worker",
         "status": "bootstrap-ready",
-        "message": "Cloudflare Python Worker scaffold is ready.",
-        "next_step": "Port Flask routes and rendering flow into an ASGI-compatible runtime.",
+        "message": "Cloudflare Python Worker UI is active.",
+        "next_step": "Expand remaining Worker-only features such as image upload and markdown helpers.",
     }
 
 

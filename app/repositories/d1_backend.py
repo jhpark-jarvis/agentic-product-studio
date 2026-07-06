@@ -616,6 +616,11 @@ class D1DocumentsRepository:
         return folder_id
 
     def fetch_document_with_relations(self, document_id: int):
+        cache_key = f"documents:detail:{document_id}:relations"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+
         document = self.client.query_first(
             """
             SELECT d.*, m.name AS author_name, f.name AS folder_name
@@ -648,7 +653,7 @@ class D1DocumentsRepository:
             """,
             [document_id],
         )
-        return document, related_tasks, [row["tag"] for row in tag_rows]
+        return _cache_set(cache_key, (document, related_tasks, [row["tag"] for row in tag_rows]))
 
     def search_documents_for_link(self, *, keyword: str, limit: int = 10):
         normalized = (keyword or "").strip()
@@ -774,7 +779,7 @@ class D1DocumentsRepository:
         if document_id is None:
             raise D1RepositoryError("Failed to create document in D1.")
         _shadow_upsert_document(document_id, data, folder_id)
-        _cache_invalidate("documents:", "common:document_link_options", "dashboard:")
+        _cache_invalidate(f"documents:detail:{document_id}", "documents:", "common:document_link_options", "dashboard:")
         return document_id
 
     def create_document_asset(
@@ -810,11 +815,19 @@ class D1DocumentsRepository:
             content_type=content_type,
             size=size,
         )
+        if document_id is not None:
+            _cache_invalidate(f"documents:detail:{document_id}")
         _cache_invalidate("dashboard:")
         return asset_id
 
     def fetch_document_assets(self, document_id: int):
-        return self.client.query_rows(
+        cache_key = f"documents:detail:{document_id}:assets"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+        return _cache_set(
+            cache_key,
+            self.client.query_rows(
             """
             SELECT id, document_id, object_key, url, original_filename, content_type, size, created_at
             FROM document_assets
@@ -822,6 +835,7 @@ class D1DocumentsRepository:
             ORDER BY created_at DESC, id DESC
             """,
             [document_id],
+            ),
         )
 
     def fetch_document_asset(self, asset_id: int):
@@ -846,6 +860,7 @@ class D1DocumentsRepository:
             [document_id, draft_key],
         )
         assign_draft_assets_to_document(get_db(), document_id, draft_key)
+        _cache_invalidate(f"documents:detail:{document_id}")
         _cache_invalidate("dashboard:")
 
     def sync_document_tags(self, document_id: int, tags_text: str):
@@ -857,7 +872,7 @@ class D1DocumentsRepository:
                 [document_id, tag],
             )
         sync_document_tags_local(get_db(), document_id, tags_text)
-        _cache_invalidate("documents:")
+        _cache_invalidate(f"documents:detail:{document_id}", "documents:")
 
     def sync_task_documents(self, document_id: int, task_ids: list[int]):
         self.client.query("DELETE FROM task_documents WHERE document_id = ?", [document_id])
@@ -867,6 +882,7 @@ class D1DocumentsRepository:
                 [task_id, document_id],
             )
         sync_task_documents_for_document_local(get_db(), document_id, task_ids)
+        _cache_invalidate(f"documents:detail:{document_id}")
         _cache_invalidate("dashboard:")
 
     def update_document(self, document_id, data, folder_id):
@@ -889,7 +905,7 @@ class D1DocumentsRepository:
             ],
         )
         _shadow_upsert_document(document_id, data, folder_id)
-        _cache_invalidate("documents:", "common:document_link_options", "dashboard:")
+        _cache_invalidate(f"documents:detail:{document_id}", "documents:", "common:document_link_options", "dashboard:")
 
     def delete_document(self, document_id):
         self.client.query("DELETE FROM document_assets WHERE document_id = ?", [document_id])
@@ -897,11 +913,14 @@ class D1DocumentsRepository:
         self.client.query("DELETE FROM document_tags WHERE document_id = ?", [document_id])
         self.client.query("DELETE FROM documents WHERE id = ?", [document_id])
         _shadow_delete_document(document_id)
-        _cache_invalidate("documents:", "common:document_link_options", "dashboard:")
+        _cache_invalidate(f"documents:detail:{document_id}", "documents:", "common:document_link_options", "dashboard:")
 
     def delete_document_asset(self, asset_id: int):
+        asset = self.fetch_document_asset(asset_id)
         self.client.query("DELETE FROM document_assets WHERE id = ?", [asset_id])
         _shadow_delete_document_asset(asset_id)
+        if asset and asset.get("document_id") is not None:
+            _cache_invalidate(f"documents:detail:{asset['document_id']}")
         _cache_invalidate("dashboard:")
 
     def update_document_folder(self, document_id, doc_type, folder_id):
@@ -923,7 +942,7 @@ class D1DocumentsRepository:
         )
         if document:
             _shadow_upsert_document(document_id, document, folder_id)
-        _cache_invalidate("documents:", "common:document_link_options", "dashboard:")
+        _cache_invalidate(f"documents:detail:{document_id}", "documents:", "common:document_link_options", "dashboard:")
 
 
 @dataclass

@@ -169,6 +169,13 @@ PythonAnywhere 콘솔에서 빠르게 반영하려면 아래 스크립트를 사
 bash scripts/pythonanywhere_refresh.sh
 ```
 
+기본 virtualenv 이름은 `agentic-product-studio`로 가정합니다.
+다른 이름을 쓰고 있으면 아래처럼 실행하면 됩니다.
+
+```bash
+VENV_NAME=<your_virtualenv_name> bash scripts/pythonanywhere_refresh.sh
+```
+
 ## Cloudflare 참고 문서
 
 - [database/d1/README.md](/D:/dev/git/agentic-product-studio/database/d1/README.md)

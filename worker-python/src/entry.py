@@ -1,11 +1,12 @@
 from workers import WorkerEntrypoint
 
 from datetime import date
+import json
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 import asgi
 
@@ -57,10 +58,30 @@ from models import (
     SchedulePayload,
     WbsPayload,
 )
-from ui import render_homepage
+from web_ui import (
+    APP_CSS,
+    APP_JS,
+    render_dashboard_page,
+    render_document_detail_page,
+    render_document_form_page,
+    render_documents_list_page,
+    render_members_page,
+    render_schedules_page,
+    render_wbs_page,
+)
 
 
 ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
+WORKER_CONSTANTS_JSON = json.dumps(
+    {
+        "documentTypes": DOCUMENT_TYPES,
+        "scheduleTypes": SCHEDULE_TYPES,
+        "taskStatuses": TASK_STATUSES,
+        "taskPriorities": TASK_PRIORITIES,
+        "platforms": WBS_PLATFORM_OPTIONS,
+    },
+    ensure_ascii=False,
+)
 
 
 class Default(WorkerEntrypoint):
@@ -124,7 +145,57 @@ async def _delete_r2_object_if_present(env, object_key: str | None):
 
 @app.get("/")
 async def root():
-    return HTMLResponse(render_homepage())
+    return RedirectResponse(url="/dashboard", status_code=307)
+
+
+@app.get("/static/worker.css")
+async def worker_css():
+    return Response(APP_CSS, media_type="text/css; charset=utf-8")
+
+
+@app.get("/static/worker.js")
+async def worker_js():
+    return Response(APP_JS, media_type="application/javascript; charset=utf-8")
+
+
+@app.get("/dashboard")
+async def dashboard_page():
+    return HTMLResponse(render_dashboard_page(WORKER_CONSTANTS_JSON))
+
+
+@app.get("/documents")
+async def documents_page():
+    return HTMLResponse(render_documents_list_page(WORKER_CONSTANTS_JSON))
+
+
+@app.get("/documents/new")
+async def document_new_page():
+    return HTMLResponse(render_document_form_page(WORKER_CONSTANTS_JSON, None))
+
+
+@app.get("/documents/{document_id}/edit")
+async def document_edit_page(document_id: int):
+    return HTMLResponse(render_document_form_page(WORKER_CONSTANTS_JSON, document_id))
+
+
+@app.get("/documents/{document_id}")
+async def document_view_page(document_id: int):
+    return HTMLResponse(render_document_detail_page(WORKER_CONSTANTS_JSON, document_id))
+
+
+@app.get("/wbs")
+async def wbs_page():
+    return HTMLResponse(render_wbs_page(WORKER_CONSTANTS_JSON))
+
+
+@app.get("/schedules")
+async def schedules_page():
+    return HTMLResponse(render_schedules_page(WORKER_CONSTANTS_JSON))
+
+
+@app.get("/members")
+async def members_page():
+    return HTMLResponse(render_members_page(WORKER_CONSTANTS_JSON))
 
 
 @app.get("/api/bootstrap-status")

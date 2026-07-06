@@ -11,6 +11,7 @@ from .documents import bp as documents_bp
 from .members import bp as members_bp
 from .repositories.provider import get_repository_provider
 from .schedules import bp as schedules_bp
+from .storage import is_r2_enabled, missing_r2_config_fields
 from .utils import (
     DEFAULT_TIMEZONE,
     css_badge_class,
@@ -87,8 +88,9 @@ def create_app(test_config=None):
         click.echo(f"- storage backend: {app.config['STORAGE_BACKEND']}")
         click.echo(f"- dashboard summary loaded: {'yes' if summary is not None else 'no'}")
         click.echo(f"- active members fetched: {len(active_members)}")
-        click.echo(
-            f"- R2 public base url configured: {'yes' if app.config.get('R2_PUBLIC_BASE_URL') else 'no'}"
-        )
+        click.echo(f"- R2 mode enabled: {'yes' if is_r2_enabled() else 'no'}")
+        click.echo(f"- R2 public base url configured: {'yes' if app.config.get('R2_PUBLIC_BASE_URL') else 'no'}")
+        missing_fields = missing_r2_config_fields()
+        click.echo(f"- missing R2 config fields: {', '.join(missing_fields) if missing_fields else 'none'}")
 
     return app

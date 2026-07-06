@@ -11,12 +11,15 @@ from flask import current_app
 ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 
 
+def missing_r2_config_fields() -> list[str]:
+    required = ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY")
+    return [key for key in required if not current_app.config.get(key)]
+
+
 def is_r2_enabled() -> bool:
     return (
         current_app.config.get("STORAGE_BACKEND") == "r2"
-        and bool(current_app.config.get("R2_ACCOUNT_ID"))
-        and bool(current_app.config.get("R2_ACCESS_KEY_ID"))
-        and bool(current_app.config.get("R2_SECRET_ACCESS_KEY"))
+        and not missing_r2_config_fields()
     )
 
 
@@ -38,8 +41,7 @@ def public_asset_url(object_key: str) -> str:
 
     if is_r2_enabled():
         account_id = current_app.config["R2_ACCOUNT_ID"]
-        bucket = current_app.config["R2_BUCKET_NAME"]
-        return f"https://pub-{account_id}.r2.dev/{bucket}/{object_key}"
+        return f"https://pub-{account_id}.r2.dev/{object_key}"
 
     return f"/uploads/{object_key}"
 
@@ -63,6 +65,10 @@ def upload_image(file_storage, folder: str = "documents") -> dict[str, str]:
     file_storage.stream.seek(0, 2)
     size = file_storage.stream.tell()
     file_storage.stream.seek(0)
+
+    if current_app.config.get("STORAGE_BACKEND") == "r2" and not is_r2_enabled():
+        missing = ", ".join(missing_r2_config_fields())
+        raise RuntimeError(f"R2 storage is selected but missing configuration: {missing}")
 
     if is_r2_enabled():
         client = _r2_client()

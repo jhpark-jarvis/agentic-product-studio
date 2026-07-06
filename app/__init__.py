@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import click
 from flask import Flask
 from dotenv import load_dotenv
 
@@ -8,8 +9,15 @@ from .dashboard import bp as dashboard_bp
 from .db import close_db, init_app as init_db_app, init_db
 from .documents import bp as documents_bp
 from .members import bp as members_bp
+from .repositories.provider import get_repository_provider
 from .schedules import bp as schedules_bp
-from .utils import DEFAULT_TIMEZONE, css_badge_class, format_datetime_local, markdown_to_html
+from .utils import (
+    DEFAULT_TIMEZONE,
+    css_badge_class,
+    format_datetime_local,
+    markdown_to_html,
+    today_local,
+)
 from .wbs import bp as wbs_bp
 
 
@@ -66,5 +74,21 @@ def create_app(test_config=None):
     # Initialize the small local SQLite schema on first run.
     with app.app_context():
         init_db()
+
+    @app.cli.command("cloudflare-check")
+    def cloudflare_check():
+        """Validate the Flask frontend + Cloudflare backend connection path."""
+        provider = get_repository_provider()
+        summary = provider.dashboard.fetch_dashboard_summary(today_local().isoformat())
+        active_members = provider.common.fetch_active_members()
+
+        click.echo("Cloudflare backend check")
+        click.echo(f"- repository backend: {app.config['REPOSITORY_BACKEND']}")
+        click.echo(f"- storage backend: {app.config['STORAGE_BACKEND']}")
+        click.echo(f"- dashboard summary loaded: {'yes' if summary is not None else 'no'}")
+        click.echo(f"- active members fetched: {len(active_members)}")
+        click.echo(
+            f"- R2 public base url configured: {'yes' if app.config.get('R2_PUBLIC_BASE_URL') else 'no'}"
+        )
 
     return app

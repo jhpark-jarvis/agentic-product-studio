@@ -23,7 +23,8 @@ from .wbs import bp as wbs_bp
 
 
 def create_app(test_config=None):
-    load_dotenv()
+    project_root = Path(__file__).resolve().parent.parent
+    load_dotenv(project_root / ".env")
     app = Flask(__name__, instance_relative_config=True)
 
     base_dir = Path(app.root_path).parent

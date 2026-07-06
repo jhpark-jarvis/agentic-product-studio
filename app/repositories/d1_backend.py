@@ -578,6 +578,32 @@ class D1DocumentsRepository:
         )
         return document, related_tasks, [row["tag"] for row in tag_rows]
 
+    def search_documents_for_link(self, *, keyword: str, limit: int = 10):
+        normalized = (keyword or "").strip()
+        if not normalized:
+            return []
+
+        return self.client.query_rows(
+            """
+            SELECT
+                d.id,
+                d.title,
+                d.doc_type,
+                d.is_hidden,
+                d.updated_at,
+                f.name AS folder_name
+            FROM documents d
+            LEFT JOIN document_folders f ON f.id = d.folder_id
+            WHERE d.title LIKE ?
+            ORDER BY
+                CASE WHEN d.is_hidden = 1 THEN 0 ELSE 1 END DESC,
+                d.updated_at DESC,
+                d.id DESC
+            LIMIT ?
+            """,
+            [f"%{normalized}%", limit],
+        )
+
     def list_documents(
         self, *, search: str, doc_type: str, tag: str, folder_id: str, limit: int, offset: int
     ):

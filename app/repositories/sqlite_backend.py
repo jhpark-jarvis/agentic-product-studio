@@ -55,6 +55,9 @@ class SQLiteDocumentsRepository:
     def fetch_document_with_relations(self, document_id: int):
         return document_queries.fetch_document_with_relations(self.db, document_id)
 
+    def search_documents_for_link(self, *, keyword: str, limit: int = 10):
+        return document_queries.search_documents_for_link(self.db, keyword=keyword, limit=limit)
+
     def list_documents(self, *, search: str, doc_type: str, tag: str, folder_id: str, limit: int, offset: int):
         return document_queries.list_documents(
             self.db,

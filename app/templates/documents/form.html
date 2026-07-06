@@ -12,6 +12,7 @@
   <section class="panel">
     <form method="post" class="form-grid" data-document-form>
       <input type="hidden" name="asset_draft_key" value="{{ asset_draft_key }}">
+
       <div class="field field--full">
         <label for="title">제목</label>
         <input id="title" name="title" type="text" value="{{ form_data.title if form_data else document['title'] if document else '' }}">
@@ -58,18 +59,18 @@
         <span class="field-label">숨김 문서</span>
         <label for="is_hidden">
           <input id="is_hidden" name="is_hidden" type="checkbox" value="1" {% if hidden_value %}checked{% endif %}>
-          하위 연결용 문서로만 사용하고 목록에서는 감추기
+          상위 연결용 문서로만 사용하고 목록에서는 감춥니다
         </label>
       </div>
 
       <div class="field field--full">
         <label for="tags">태그</label>
-        <input id="tags" name="tags" type="text" value="{{ form_data.tags if form_data else existing_tags if existing_tags is defined else document['tags'] if document else '' }}" placeholder="예: 전투, 밸런스, 회의">
+        <input id="tags" name="tags" type="text" value="{{ form_data.tags if form_data else existing_tags if existing_tags is defined else document['tags'] if document else '' }}" placeholder="예: 기획, 백엔드, 배포">
         <p class="field-help">쉼표로 구분해서 입력합니다.</p>
       </div>
 
       <div class="field field--full">
-        <label for="related_task_ids">연관 WBS 작업</label>
+        <label for="related_task_ids">연결 WBS 작업</label>
         <select id="related_task_ids" name="related_task_ids" multiple size="7">
           {% for task in tasks %}
             <option value="{{ task['id'] }}" {% if task['id'] in selected_task_ids %}selected{% endif %}>#{{ task["id"] }} {{ task["title"] }} · {{ task["status"] }}</option>
@@ -87,6 +88,7 @@
           data-preview-url="{{ url_for('documents.preview_markdown') }}"
           data-format-url="{{ url_for('documents.format_markdown') }}"
           data-upload-url="{{ url_for('documents.upload_markdown_image') }}"
+          data-link-search-url="{{ url_for('documents.search_document_links') }}"
         >
           <div class="markdown-editor__toolbar">
             <button type="button" class="toolbar-button" data-md-insert="# {selection}">H1</button>
@@ -95,13 +97,32 @@
             <button type="button" class="toolbar-button" data-md-insert="**{selection}**">Bold</button>
             <button type="button" class="toolbar-button" data-md-insert="`{selection}`">Code</button>
             <button type="button" class="toolbar-button" data-md-upload-image>Image</button>
+            <button type="button" class="toolbar-button" data-md-open-link-search>문서 검색</button>
             <button type="button" class="toolbar-button" data-md-insert="```
 {selection}
 ```">Block</button>
             <button type="button" class="toolbar-button toolbar-button--accent" data-md-format>코드 정리</button>
             <span class="markdown-editor__status" data-markdown-status>미리보기 준비 중...</span>
           </div>
+
           <input type="file" accept="image/*" hidden data-md-image-input>
+
+          <dialog class="document-link-modal" data-md-link-modal>
+            <div class="document-link-modal__header">
+              <div>
+                <strong>기존 문서 검색</strong>
+                <p>숨김 문서 포함 제목 검색 후 링크를 바로 복사하거나 본문에 삽입할 수 있습니다.</p>
+              </div>
+              <button type="button" class="toolbar-button" data-md-link-close>닫기</button>
+            </div>
+            <div class="document-link-modal__search">
+              <input type="search" class="document-link-modal__input" placeholder="문서 제목을 입력하세요" data-md-link-query>
+            </div>
+            <div class="document-link-modal__results" data-md-link-results>
+              <p class="muted-text">문서 제목을 입력하면 결과가 표시됩니다.</p>
+            </div>
+          </dialog>
+
           <div class="markdown-editor__panes">
             <div class="markdown-editor__pane">
               <span class="markdown-editor__label">Editor</span>

@@ -523,6 +523,107 @@ button, input, select, textarea { font: inherit; }
   background: #fff;
 }
 
+.document-link-modal {
+  width: min(720px, calc(100vw - 32px));
+  padding: 0;
+  border: 0;
+  border-radius: 18px;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.22);
+}
+
+.document-link-modal::backdrop {
+  background: rgba(15, 23, 42, 0.38);
+}
+
+.document-link-modal__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #fbfcfe;
+}
+
+.document-link-modal__header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.document-link-modal__search {
+  padding: 16px 20px 0;
+}
+
+.document-link-modal__input {
+  width: 100%;
+}
+
+.document-link-modal__results {
+  display: grid;
+  gap: 12px;
+  max-height: min(60vh, 520px);
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+}
+
+.document-link-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.document-link-result__body,
+.document-link-result__actions {
+  min-width: 0;
+}
+
+.document-link-result__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.document-link-result__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.document-link-result__path {
+  display: block;
+  margin-top: 10px;
+  color: var(--accent-strong);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.document-link-result__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+}
+
+.document-link-result__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #fff3cd;
+  color: #8a5a00;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .tree-cell {
   display: flex;
   align-items: flex-start;
@@ -999,6 +1100,8 @@ body.modal-open {
   .markdown-editor__panes { grid-template-columns: 1fr; }
   .markdown-editor__pane + .markdown-editor__pane { border-left: 0; border-top: 1px solid var(--line); }
   .markdown-editor__status { width: 100%; margin-left: 0; }
+  .document-link-result { grid-template-columns: 1fr; }
+  .document-link-result__actions { flex-direction: row; justify-content: flex-start; }
   .panel,
   .stat-card {
     padding: 18px;

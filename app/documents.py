@@ -319,6 +319,32 @@ def format_markdown():
     return jsonify({"content": format_markdown_code_blocks(content)})
 
 
+@bp.route("/search-links")
+def search_document_links():
+    keyword = request.args.get("q", "").strip()
+    limit = min(parse_int(request.args.get("limit"), default=10, minimum=1), 20)
+    rows = get_repository_provider().documents.search_documents_for_link(
+        keyword=keyword,
+        limit=limit,
+    )
+    return jsonify(
+        {
+            "items": [
+                {
+                    "id": row["id"],
+                    "title": row["title"],
+                    "doc_type": row["doc_type"],
+                    "is_hidden": bool(row["is_hidden"]),
+                    "folder_name": row["folder_name"],
+                    "updated_at": row["updated_at"],
+                    "path": url_for("documents.detail", document_id=row["id"]),
+                }
+                for row in rows
+            ]
+        }
+    )
+
+
 @bp.route("/upload-image", methods=("POST",))
 def upload_markdown_image():
     db = get_db()

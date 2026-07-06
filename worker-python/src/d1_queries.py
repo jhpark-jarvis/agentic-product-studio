@@ -328,6 +328,52 @@ async def fetch_document_asset_payload(env, asset_id: int):
     )
 
 
+async def create_document_asset_record(
+    env,
+    *,
+    document_id: int | None,
+    draft_key: str | None,
+    object_key: str,
+    url: str,
+    original_filename: str,
+    content_type: str,
+    size: int,
+):
+    result = await execute(
+        env,
+        """
+        INSERT INTO document_assets (
+            document_id, draft_key, object_key, url, original_filename, content_type, size, created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """,
+        document_id,
+        draft_key,
+        object_key,
+        url,
+        original_filename,
+        content_type,
+        size,
+    )
+    meta = result.get("meta", {}) if isinstance(result, dict) else {}
+    return meta.get("last_row_id")
+
+
+async def assign_draft_assets_to_document_record(env, document_id: int, draft_key: str):
+    if not draft_key:
+        return
+    await execute(
+        env,
+        """
+        UPDATE document_assets
+        SET document_id = ?, draft_key = NULL
+        WHERE draft_key = ? AND document_id IS NULL
+        """,
+        document_id,
+        draft_key,
+    )
+
+
 async def fetch_wbs_payload(env, *, status: str, assignee_id: str, priority: str, platform: str):
     clauses = []
     params: list[Any] = []
@@ -375,6 +421,43 @@ async def fetch_wbs_payload(env, *, status: str, assignee_id: str, priority: str
             "priority": priority,
             "platform": platform,
         },
+    }
+
+
+async def fetch_wbs_detail_payload(env, task_id: int):
+    task = await query_first(
+        env,
+        """
+        SELECT
+            t.*,
+            m.name AS assignee_name,
+            p.title AS parent_title
+        FROM wbs_tasks t
+        LEFT JOIN members m ON m.id = t.assignee_id
+        LEFT JOIN wbs_tasks p ON p.id = t.parent_id
+        WHERE t.id = ?
+        """,
+        task_id,
+    )
+    if not task:
+        return None
+
+    linked_documents = await query_all(
+        env,
+        """
+        SELECT d.id, d.title, d.doc_type, d.updated_at
+        FROM task_documents td
+        JOIN documents d ON d.id = td.document_id
+        WHERE td.task_id = ?
+        ORDER BY d.updated_at DESC, d.id DESC
+        """,
+        task_id,
+    )
+
+    return {
+        "task": task,
+        "linked_documents": linked_documents,
+        "document_ids": [item["id"] for item in linked_documents],
     }
 
 

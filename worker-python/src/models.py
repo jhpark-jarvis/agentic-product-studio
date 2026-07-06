@@ -35,6 +35,7 @@ class DocumentPayload(BaseModel):
     doc_type: str = DOCUMENT_TYPES[-1]
     folder_id: int | None = None
     new_folder_name: str = ""
+    asset_draft_key: str = ""
     content: str = ""
     author_id: int | None = None
     tags: str = ""

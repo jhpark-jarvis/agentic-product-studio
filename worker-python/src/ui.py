@@ -442,6 +442,104 @@ def render_homepage() -> str:
         line-height: 1.7;
       }
 
+      .detail-shell {
+        display: grid;
+        gap: 14px;
+      }
+
+      .detail-content {
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.8;
+      }
+
+      .detail-content h1,
+      .detail-content h2,
+      .detail-content h3,
+      .detail-content h4 {
+        margin: 0 0 12px;
+      }
+
+      .detail-content p,
+      .detail-content ul,
+      .detail-content ol,
+      .detail-content pre {
+        margin: 0 0 12px;
+      }
+
+      .detail-content pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        padding: 14px;
+        border-radius: 14px;
+        background: rgba(28, 36, 64, 0.05);
+      }
+
+      .detail-content img,
+      .markdown-preview img {
+        max-width: 100%;
+        border-radius: 14px;
+      }
+
+      .markdown-editor {
+        display: grid;
+        gap: 12px;
+      }
+
+      .markdown-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .toolbar-button {
+        border: 1px solid rgba(28, 36, 64, 0.1);
+        border-radius: 12px;
+        padding: 9px 12px;
+        background: rgba(28, 36, 64, 0.04);
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .toolbar-button.primary {
+        background: var(--primary-soft);
+        color: var(--primary);
+      }
+
+      .markdown-status {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .markdown-panes {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .markdown-pane {
+        display: grid;
+        gap: 8px;
+      }
+
+      .markdown-pane-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .markdown-preview {
+        min-height: 260px;
+        padding: 14px;
+        border-radius: 14px;
+        border: 1px solid rgba(28, 36, 64, 0.12);
+        background: rgba(28, 36, 64, 0.03);
+        overflow: auto;
+      }
+
       .empty, .error {
         padding: 20px 14px;
         text-align: center;
@@ -509,7 +607,8 @@ def render_homepage() -> str:
 
         .form-grid,
         .summary-grid,
-        .status-grid {
+        .status-grid,
+        .markdown-panes {
           grid-template-columns: 1fr;
         }
 
@@ -621,6 +720,7 @@ def render_homepage() -> str:
                 <div class="panel-body">
                   <form id="documentsForm">
                     <input type="hidden" id="document_id" />
+                    <input type="hidden" id="document_asset_draft_key" />
                     <div class="form-grid">
                       <div class="field"><label for="document_title">제목</label><input id="document_title" required /></div>
                       <div class="field"><label for="document_doc_type">문서 유형</label><select id="document_doc_type"></select></div>
@@ -629,7 +729,33 @@ def render_homepage() -> str:
                       <div class="field"><label for="document_author_id">작성자</label><select id="document_author_id"></select></div>
                       <div class="field"><label for="document_tags">태그</label><input id="document_tags" placeholder="쉼표로 구분" /></div>
                       <div class="field full"><label for="document_related_task_ids">연결 작업</label><select id="document_related_task_ids" multiple size="6"></select></div>
-                      <div class="field full"><label for="document_content">본문</label><textarea id="document_content" placeholder="Markdown 본문 입력"></textarea></div>
+                      <div class="field full">
+                        <label for="document_content">본문</label>
+                        <div class="markdown-editor">
+                          <div class="markdown-toolbar">
+                            <button class="toolbar-button" type="button" onclick="insertDocumentMarkdown('# 제목')">H1</button>
+                            <button class="toolbar-button" type="button" onclick="insertDocumentMarkdown('## 소제목')">H2</button>
+                            <button class="toolbar-button" type="button" onclick="insertDocumentMarkdown('- 목록 항목')">List</button>
+                            <button class="toolbar-button" type="button" onclick="insertDocumentMarkdown('**강조**')">Bold</button>
+                            <button class="toolbar-button" type="button" onclick="insertDocumentMarkdown('`code`')">Code</button>
+                            <button class="toolbar-button" type="button" onclick="insertDocumentMarkdown('```\ncode\n```')">Block</button>
+                            <button class="toolbar-button primary" type="button" onclick="formatDocumentMarkdown()">코드 정리</button>
+                            <button class="toolbar-button primary" type="button" onclick="triggerDocumentImageUpload()">이미지 업로드</button>
+                            <span class="markdown-status" id="documentMarkdownStatus">미리보기 준비 중...</span>
+                          </div>
+                          <input id="document_image_input" type="file" accept="image/*" hidden />
+                          <div class="markdown-panes">
+                            <div class="markdown-pane">
+                              <span class="markdown-pane-label">Editor</span>
+                              <textarea id="document_content" placeholder="Markdown 본문 입력"></textarea>
+                            </div>
+                            <div class="markdown-pane">
+                              <span class="markdown-pane-label">Preview</span>
+                              <div id="document_preview" class="markdown-preview"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                       <div class="field full">
                         <label class="checkbox"><input type="checkbox" id="document_is_hidden" /> 숨김 문서로 저장</label>
                       </div>
@@ -638,7 +764,7 @@ def render_homepage() -> str:
                       <button class="button" type="submit">저장</button>
                       <button class="button secondary" type="button" onclick="resetDocumentForm()">초기화</button>
                     </div>
-                    <div class="helper">이미지 업로드와 Markdown 미리보기는 다음 단계에서 Worker 전용 흐름으로 추가 확장합니다.</div>
+                    <div class="helper">클립보드 붙여넣기, 드래그 앤 드롭, 업로드 버튼 모두 같은 Worker 이미지 업로드 API를 사용합니다.</div>
                   </form>
                 </div>
               </div>
@@ -650,6 +776,15 @@ def render_homepage() -> str:
                     <thead><tr><th>제목</th><th>유형</th><th>작성자</th><th>작업</th></tr></thead>
                     <tbody id="documentsTable"></tbody>
                   </table>
+                </div>
+              </div>
+
+              <div class="panel" style="grid-column: 1 / -1;">
+                <div class="panel-head"><h3>문서 상세</h3><span id="documentsDetailMeta">문서를 선택하세요</span></div>
+                <div class="panel-body">
+                  <div id="documentsDetail" class="detail-shell">
+                    <div class="empty">문서 목록에서 항목을 선택하면 본문과 연결 정보를 여기서 확인할 수 있습니다.</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -704,6 +839,15 @@ def render_homepage() -> str:
                   </table>
                 </div>
               </div>
+
+              <div class="panel" style="grid-column: 1 / -1;">
+                <div class="panel-head"><h3>WBS 상세</h3><span id="wbsDetailMeta">작업을 선택하세요</span></div>
+                <div class="panel-body">
+                  <div id="wbsDetail" class="detail-shell">
+                    <div class="empty">작업 목록에서 항목을 선택하면 설명, 일정, 연결 문서를 여기서 확인할 수 있습니다.</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -748,6 +892,15 @@ def render_homepage() -> str:
                     <thead><tr><th>제목</th><th>유형</th><th>담당자</th><th>작업</th></tr></thead>
                     <tbody id="schedulesTable"></tbody>
                   </table>
+                </div>
+              </div>
+
+              <div class="panel" style="grid-column: 1 / -1;">
+                <div class="panel-head"><h3>일정 상세</h3><span id="schedulesDetailMeta">일정을 선택하세요</span></div>
+                <div class="panel-body">
+                  <div id="schedulesDetail" class="detail-shell">
+                    <div class="empty">일정 목록에서 항목을 선택하면 설명과 연결 작업 정보를 여기서 확인할 수 있습니다.</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -796,6 +949,15 @@ def render_homepage() -> str:
                   </table>
                 </div>
               </div>
+
+              <div class="panel" style="grid-column: 1 / -1;">
+                <div class="panel-head"><h3>멤버 상세</h3><span id="membersDetailMeta">멤버를 선택하세요</span></div>
+                <div class="panel-body">
+                  <div id="membersDetail" class="detail-shell">
+                    <div class="empty">멤버 목록에서 항목을 선택하면 담당 작업과 문서 작성 이력을 여기서 확인할 수 있습니다.</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
         </main>
@@ -823,6 +985,8 @@ def render_homepage() -> str:
         wbs: null,
         folders: null
       };
+
+      let documentPreviewTimer = null;
 
       function escapeHtml(value) {
         return String(value ?? "")
@@ -891,6 +1055,125 @@ def render_homepage() -> str:
         toast.style.background = isError ? "rgba(180, 35, 24, 0.92)" : "rgba(28, 36, 64, 0.92)";
         toast.classList.add("show");
         setTimeout(() => toast.classList.remove("show"), 2400);
+      }
+
+      function setDocumentMarkdownStatus(message) {
+        document.getElementById("documentMarkdownStatus").textContent = message;
+      }
+
+      function ensureDocumentDraftKey() {
+        const input = document.getElementById("document_asset_draft_key");
+        if (!input.value) {
+          input.value = (globalThis.crypto && crypto.randomUUID)
+            ? crypto.randomUUID().replaceAll("-", "")
+            : `draft-${Date.now()}`;
+        }
+        return input.value;
+      }
+
+      function insertDocumentMarkdown(snippet) {
+        const textarea = document.getElementById("document_content");
+        const start = textarea.selectionStart ?? textarea.value.length;
+        const end = textarea.selectionEnd ?? textarea.value.length;
+        const selected = textarea.value.slice(start, end);
+        const text = snippet.includes("{selection}")
+          ? snippet.replace("{selection}", selected || "text")
+          : snippet;
+        textarea.setRangeText(text, start, end, "end");
+        textarea.focus();
+        scheduleDocumentPreview();
+      }
+
+      async function syncDocumentPreview() {
+        const content = document.getElementById("document_content").value;
+        const body = new URLSearchParams();
+        body.set("content", content);
+        setDocumentMarkdownStatus("미리보기 반영 중...");
+        try {
+          const response = await fetch("/api/documents/preview-markdown", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: body.toString()
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || "Preview failed");
+          }
+          document.getElementById("document_preview").innerHTML = payload.html || '<div class="empty">미리보기가 없습니다.</div>';
+          setDocumentMarkdownStatus("미리보기 동기화됨");
+        } catch (error) {
+          setDocumentMarkdownStatus(error.message || "미리보기 실패");
+        }
+      }
+
+      function scheduleDocumentPreview() {
+        if (documentPreviewTimer) {
+          clearTimeout(documentPreviewTimer);
+        }
+        documentPreviewTimer = setTimeout(syncDocumentPreview, 180);
+      }
+
+      async function formatDocumentMarkdown() {
+        const textarea = document.getElementById("document_content");
+        const body = new URLSearchParams();
+        body.set("content", textarea.value);
+        setDocumentMarkdownStatus("코드 블록 정리 중...");
+        try {
+          const response = await fetch("/api/documents/format-markdown", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: body.toString()
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || "Format failed");
+          }
+          textarea.value = payload.content || textarea.value;
+          scheduleDocumentPreview();
+          setDocumentMarkdownStatus("코드 블록 정리 완료");
+        } catch (error) {
+          setDocumentMarkdownStatus(error.message || "코드 정리 실패");
+        }
+      }
+
+      function triggerDocumentImageUpload() {
+        ensureDocumentDraftKey();
+        document.getElementById("document_image_input").click();
+      }
+
+      async function uploadDocumentImage(file) {
+        if (!file) return;
+        const form = new FormData();
+        const documentId = document.getElementById("document_id").value;
+        form.set("image", file);
+        form.set("alt", file.name.replace(/\\.[^.]+$/, ""));
+        form.set("draft_key", ensureDocumentDraftKey());
+        if (documentId) {
+          form.set("document_id", documentId);
+        }
+
+        setDocumentMarkdownStatus("이미지 업로드 중...");
+        try {
+          const response = await fetch("/api/documents/upload-image", {
+            method: "POST",
+            body: form
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || "Upload failed");
+          }
+          if (payload.draft_key) {
+            document.getElementById("document_asset_draft_key").value = payload.draft_key;
+          }
+          insertDocumentMarkdown(`\n${payload.markdown}\n`);
+          setDocumentMarkdownStatus("이미지 업로드 완료");
+          showToast("이미지를 업로드했습니다.");
+        } catch (error) {
+          setDocumentMarkdownStatus(error.message || "이미지 업로드 실패");
+          showToast(error.message || "이미지 업로드 실패", true);
+        } finally {
+          document.getElementById("document_image_input").value = "";
+        }
       }
 
       async function fetchJson(url, options = {}) {
@@ -1043,6 +1326,7 @@ def render_homepage() -> str:
             <td>${escapeHtml(item.author_name || "-")}</td>
             <td>
               <div class="actions">
+                <button class="text-button" type="button" onclick="viewDocument(${item.id})">보기</button>
                 <button class="text-button" type="button" onclick="editDocument(${item.id})">수정</button>
                 <button class="text-button danger" type="button" onclick="deleteDocument(${item.id})">삭제</button>
               </div>
@@ -1051,10 +1335,64 @@ def render_homepage() -> str:
         `).join("");
       }
 
+      async function viewDocument(documentId) {
+        const detail = await fetchJson(`/api/documents/${documentId}`);
+        document.getElementById("documentsDetailMeta").textContent = `${detail.document.doc_type || "-"} · ${detail.document.author_name || "-"} · ${formatDateTime(detail.document.updated_at)}`;
+        const tags = (detail.tags || []).length
+          ? detail.tags.map((tag) => `<span class="pill">${escapeHtml(tag)}</span>`).join("")
+          : '<span class="muted-text">태그 없음</span>';
+        const assets = (detail.assets || []).length
+          ? detail.assets.map((asset) => `
+              <div class="feed-item">
+                <strong><a href="${escapeHtml(asset.url)}" target="_blank" rel="noreferrer">${escapeHtml(asset.original_filename)}</a></strong>
+                <div class="meta">${escapeHtml(asset.content_type || "image/*")} · ${escapeHtml(asset.size)} bytes</div>
+                <div class="actions" style="margin-top:8px;">
+                  <button class="text-button danger" type="button" onclick="deleteDocumentAsset(${detail.document.id}, ${asset.id})">이미지 삭제</button>
+                </div>
+              </div>
+            `).join("")
+          : '<div class="empty">첨부 이미지가 없습니다.</div>';
+        const relatedTasks = (detail.related_tasks || []).length
+          ? detail.related_tasks.map((task) => `
+              <div class="feed-item">
+                <strong>${escapeHtml(task.title)}</strong>
+                <div class="meta">${escapeHtml(task.status || "-")} · ${escapeHtml(task.priority || "-")}</div>
+              </div>
+            `).join("")
+          : '<div class="empty">연결된 WBS 작업이 없습니다.</div>';
+
+        document.getElementById("documentsDetail").innerHTML = `
+          <div>
+            <h3 style="margin:0 0 10px;">${escapeHtml(detail.document.title)}</h3>
+            <div class="meta-row">${tags}</div>
+          </div>
+          <div class="detail-content">${detail.rendered_content || '<div class="empty">본문이 없습니다.</div>'}</div>
+          <div class="grid">
+            <div class="panel">
+              <div class="panel-head"><h3>연결 작업</h3><span>${(detail.related_tasks || []).length}건</span></div>
+              <div class="panel-body"><div class="stack">${relatedTasks}</div></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h3>이미지 자산</h3><span>${(detail.assets || []).length}건</span></div>
+              <div class="panel-body"><div class="stack">${assets}</div></div>
+            </div>
+          </div>
+        `;
+        switchTab("documents");
+      }
+
+      async function deleteDocumentAsset(documentId, assetId) {
+        if (!confirm(`이미지 자산 #${assetId}를 삭제할까요?`)) return;
+        await fetchJson(`/api/documents/${documentId}/assets/${assetId}`, { method: "DELETE" });
+        showToast("문서 이미지를 삭제했습니다.");
+        await viewDocument(documentId);
+      }
+
       async function editDocument(documentId) {
         const detail = await fetchJson(`/api/documents/${documentId}`);
         const doc = detail.document;
         document.getElementById("document_id").value = doc.id;
+        document.getElementById("document_asset_draft_key").value = "";
         document.getElementById("document_title").value = doc.title || "";
         setSelectValue("document_doc_type", doc.doc_type || "");
         setSelectValue("document_folder_id", doc.folder_id || "");
@@ -1065,14 +1403,19 @@ def render_homepage() -> str:
         document.getElementById("document_is_hidden").checked = Boolean(doc.is_hidden);
         setMultiSelectValues("document_related_task_ids", (detail.related_tasks || []).map((item) => item.id));
         document.getElementById("documentsFormState").textContent = `문서 #${doc.id} 수정`;
+        await syncDocumentPreview();
         switchTab("documents");
       }
 
       function resetDocumentForm() {
         document.getElementById("documentsForm").reset();
         document.getElementById("document_id").value = "";
+        document.getElementById("document_asset_draft_key").value = "";
         document.getElementById("documentsFormState").textContent = "새 문서";
         setMultiSelectValues("document_related_task_ids", []);
+        document.getElementById("document_preview").innerHTML = '<div class="empty">미리보기가 없습니다.</div>';
+        setDocumentMarkdownStatus("미리보기 준비 중...");
+        ensureDocumentDraftKey();
       }
 
       async function saveDocument(event) {
@@ -1083,6 +1426,7 @@ def render_homepage() -> str:
           doc_type: document.getElementById("document_doc_type").value || DOC_TYPES[DOC_TYPES.length - 1],
           folder_id: document.getElementById("document_folder_id").value ? Number(document.getElementById("document_folder_id").value) : null,
           new_folder_name: document.getElementById("document_new_folder_name").value.trim(),
+          asset_draft_key: document.getElementById("document_asset_draft_key").value.trim(),
           content: document.getElementById("document_content").value,
           author_id: document.getElementById("document_author_id").value ? Number(document.getElementById("document_author_id").value) : null,
           tags: document.getElementById("document_tags").value.trim(),
@@ -1131,6 +1475,7 @@ def render_homepage() -> str:
             <td>${escapeHtml(item.priority || "-")}</td>
             <td>
               <div class="actions">
+                <button class="text-button" type="button" onclick="viewWbs(${item.id})">보기</button>
                 <button class="text-button" type="button" onclick="editWbs(${item.id})">수정</button>
                 <button class="text-button danger" type="button" onclick="deleteWbs(${item.id})">삭제</button>
               </div>
@@ -1139,9 +1484,42 @@ def render_homepage() -> str:
         `).join("");
       }
 
+      async function viewWbs(taskId) {
+        const detail = await fetchJson(`/api/wbs/${taskId}`);
+        const task = detail.task;
+        document.getElementById("wbsDetailMeta").textContent = `${escapeHtml(task.status || "-")} · ${escapeHtml(task.priority || "-")} · ${escapeHtml(task.assignee_name || "-")}`;
+        const linkedDocuments = (detail.linked_documents || []).length
+          ? detail.linked_documents.map((doc) => `
+              <div class="feed-item">
+                <strong>${escapeHtml(doc.title)}</strong>
+                <div class="meta">${escapeHtml(doc.doc_type || "-")} · ${escapeHtml(formatDateTime(doc.updated_at))}</div>
+              </div>
+            `).join("")
+          : '<div class="empty">연결된 문서가 없습니다.</div>';
+        document.getElementById("wbsDetail").innerHTML = `
+          <div class="panel">
+            <div class="panel-body">
+              <div class="stack">
+                <div><strong>${escapeHtml(task.title)}</strong></div>
+                <div class="meta">상위 작업: ${escapeHtml(task.parent_title || "-")}</div>
+                <div class="meta">플랫폼: ${escapeHtml(task.platform || "-")} · 진행률: ${escapeHtml(task.progress ?? 0)}%</div>
+                <div class="meta">기간: ${escapeHtml(task.start_date || "-")} ~ ${escapeHtml(task.due_date || "-")}</div>
+                <div class="detail-content">${escapeHtml(task.description || "설명이 없습니다.")}</div>
+                <div class="detail-content">${escapeHtml(task.notes || "메모가 없습니다.")}</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>연결 문서</h3><span>${(detail.linked_documents || []).length}건</span></div>
+            <div class="panel-body"><div class="stack">${linkedDocuments}</div></div>
+          </div>
+        `;
+        switchTab("wbs");
+      }
+
       async function editWbs(taskId) {
-        const row = (state.wbs.tasks || []).find((item) => item.id === taskId);
-        if (!row) return;
+        const detail = await fetchJson(`/api/wbs/${taskId}`);
+        const row = detail.task;
         document.getElementById("wbs_id").value = row.id;
         setSelectValue("wbs_parent_id", row.parent_id || "");
         document.getElementById("wbs_title").value = row.title || "";
@@ -1158,9 +1536,7 @@ def render_homepage() -> str:
         const options = await fetchJson(`/api/common/options?exclude_task_id=${taskId}`);
         fillSelect("wbs_parent_id", options.parent_task_options || [], "id", (item) => item.title);
         setSelectValue("wbs_parent_id", row.parent_id || "");
-        const detail = await fetchJson(`/api/wbs?status=&assignee_id=&priority=&platform=`);
-        const exact = (detail.tasks || []).find((item) => item.id === taskId);
-        setMultiSelectValues("wbs_document_ids", exact?.document_ids || []);
+        setMultiSelectValues("wbs_document_ids", detail.document_ids || []);
         document.getElementById("wbsFormState").textContent = `작업 #${taskId} 수정`;
         switchTab("wbs");
       }
@@ -1232,12 +1608,32 @@ def render_homepage() -> str:
             <td>${escapeHtml(item.assignee_name || "-")}</td>
             <td>
               <div class="actions">
+                <button class="text-button" type="button" onclick="viewSchedule(${item.id})">보기</button>
                 <button class="text-button" type="button" onclick="editSchedule(${item.id})">수정</button>
                 <button class="text-button danger" type="button" onclick="deleteSchedule(${item.id})">삭제</button>
               </div>
             </td>
           </tr>
         `).join("");
+      }
+
+      async function viewSchedule(scheduleId) {
+        const detail = await fetchJson(`/api/schedules/${scheduleId}`);
+        document.getElementById("schedulesDetailMeta").textContent = `${escapeHtml(detail.schedule_type || "-")} · ${escapeHtml(detail.assignee_name || "-")}`;
+        document.getElementById("schedulesDetail").innerHTML = `
+          <div class="panel">
+            <div class="panel-body">
+              <div class="stack">
+                <div><strong>${escapeHtml(detail.title)}</strong></div>
+                <div class="meta">담당자: ${escapeHtml(detail.assignee_name || "-")}</div>
+                <div class="meta">연결 작업: ${escapeHtml(detail.task_title || "-")}</div>
+                <div class="meta">기간: ${escapeHtml(detail.start_date || "-")} ~ ${escapeHtml(detail.end_date || "-")}</div>
+                <div class="detail-content">${escapeHtml(detail.description || "설명이 없습니다.")}</div>
+              </div>
+            </div>
+          </div>
+        `;
+        switchTab("schedules");
       }
 
       async function editSchedule(scheduleId) {
@@ -1312,12 +1708,58 @@ def render_homepage() -> str:
             <td>${escapeHtml(item.part || "-")}</td>
             <td>
               <div class="actions">
+                <button class="text-button" type="button" onclick="viewMember(${item.id})">보기</button>
                 <button class="text-button" type="button" onclick="editMember(${item.id})">수정</button>
                 <button class="text-button danger" type="button" onclick="deleteMember(${item.id})">삭제</button>
               </div>
             </td>
           </tr>
         `).join("");
+      }
+
+      async function viewMember(memberId) {
+        const detail = await fetchJson(`/api/members/${memberId}`);
+        const member = detail.member;
+        document.getElementById("membersDetailMeta").textContent = `${escapeHtml(member.role || "-")} · ${escapeHtml(member.part || "-")}`;
+        const tasks = (detail.assigned_tasks || []).length
+          ? detail.assigned_tasks.map((task) => `
+              <div class="feed-item">
+                <strong>${escapeHtml(task.title)}</strong>
+                <div class="meta">${escapeHtml(task.status || "-")} · ${escapeHtml(task.priority || "-")} · ${escapeHtml(task.progress ?? 0)}%</div>
+              </div>
+            `).join("")
+          : '<div class="empty">담당 작업이 없습니다.</div>';
+        const docs = (detail.authored_documents || []).length
+          ? detail.authored_documents.map((doc) => `
+              <div class="feed-item">
+                <strong>${escapeHtml(doc.title)}</strong>
+                <div class="meta">${escapeHtml(doc.doc_type || "-")} · ${escapeHtml(formatDateTime(doc.updated_at))}</div>
+              </div>
+            `).join("")
+          : '<div class="empty">작성 문서가 없습니다.</div>';
+        document.getElementById("membersDetail").innerHTML = `
+          <div class="grid">
+            <div class="panel">
+              <div class="panel-body">
+                <div class="stack">
+                  <div><strong>${escapeHtml(member.name)}</strong></div>
+                  <div class="meta">연락처: ${escapeHtml(member.contact || "-")}</div>
+                  <div class="meta">상태: ${member.is_active ? "활성" : "비활성"}</div>
+                  <div class="meta">작업 ${escapeHtml(member.task_count ?? 0)}건 · 일정 ${escapeHtml(member.schedule_count ?? 0)}건</div>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h3>작성 문서</h3><span>${(detail.authored_documents || []).length}건</span></div>
+              <div class="panel-body"><div class="stack">${docs}</div></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>담당 작업</h3><span>${(detail.assigned_tasks || []).length}건</span></div>
+            <div class="panel-body"><div class="stack">${tasks}</div></div>
+          </div>
+        `;
+        switchTab("members");
       }
 
       async function editMember(memberId) {
@@ -1393,7 +1835,30 @@ def render_homepage() -> str:
       document.getElementById("wbsForm").addEventListener("submit", saveWbs);
       document.getElementById("schedulesForm").addEventListener("submit", saveSchedule);
       document.getElementById("membersForm").addEventListener("submit", saveMember);
+      document.getElementById("document_content").addEventListener("input", scheduleDocumentPreview);
+      document.getElementById("document_image_input").addEventListener("change", async (event) => {
+        const [file] = Array.from(event.target.files || []);
+        await uploadDocumentImage(file);
+      });
+      document.getElementById("document_content").addEventListener("paste", async (event) => {
+        const items = Array.from(event.clipboardData?.items || []);
+        const imageItem = items.find((item) => item.type?.startsWith("image/"));
+        if (!imageItem) return;
+        const file = imageItem.getAsFile();
+        if (!file) return;
+        event.preventDefault();
+        await uploadDocumentImage(file);
+      });
+      document.getElementById("document_content").addEventListener("dragover", (event) => {
+        event.preventDefault();
+      });
+      document.getElementById("document_content").addEventListener("drop", async (event) => {
+        event.preventDefault();
+        const [file] = Array.from(event.dataTransfer?.files || []);
+        await uploadDocumentImage(file);
+      });
 
+      resetDocumentForm();
       refreshAll();
     </script>
   </body>

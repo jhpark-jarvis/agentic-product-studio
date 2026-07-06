@@ -4,7 +4,12 @@ version = "0.1.0"
 description = "Cloudflare Python Worker scaffold for Agentic Product Studio"
 requires-python = ">=3.13"
 dependencies = [
+    "black",
     "fastapi",
+    "markdown",
+    "python-multipart",
+    "PyYAML",
+    "sqlparse",
     "workers-runtime-sdk",
 ]
 

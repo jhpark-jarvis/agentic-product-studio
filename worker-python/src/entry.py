@@ -1,13 +1,17 @@
 from workers import WorkerEntrypoint
 
 from datetime import date
+from pathlib import Path
+from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 
 import asgi
 
 from d1_queries import (
+    assign_draft_assets_to_document_record,
+    create_document_asset_record,
     create_document_folder_record,
     create_document_record,
     create_member_record,
@@ -29,6 +33,7 @@ from d1_queries import (
     fetch_document_assets_payload,
     fetch_schedule_detail_payload,
     fetch_schedules_payload,
+    fetch_wbs_detail_payload,
     fetch_wbs_payload,
     sync_document_tags,
     sync_document_task_links,
@@ -39,6 +44,7 @@ from d1_queries import (
     update_schedule_record,
     update_wbs_record,
 )
+from markdown_tools import format_markdown_code_blocks, render_markdown_html
 from models import (
     DOCUMENT_TYPES,
     SCHEDULE_TYPES,
@@ -52,6 +58,9 @@ from models import (
     WbsPayload,
 )
 from ui import render_homepage
+
+
+ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 
 
 class Default(WorkerEntrypoint):
@@ -76,6 +85,22 @@ def _parse_iso_date(value: str | None):
 
 def _has_binding(env, name: str) -> bool:
     return getattr(env, name, None) is not None
+
+
+def _is_allowed_image(filename: str | None) -> bool:
+    if not filename:
+        return False
+    return Path(filename).suffix.lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+def _build_object_key(filename: str, folder: str = "documents") -> str:
+    suffix = Path(filename).suffix.lower() or ".bin"
+    return f"{folder}/{uuid4().hex}{suffix}"
+
+
+def _public_asset_url(env, object_key: str) -> str:
+    base_url = (getattr(env, "R2_PUBLIC_BASE_URL", "") or "").rstrip("/")
+    return f"{base_url}/{object_key}" if base_url else object_key
 
 
 async def _resolve_folder_id(env, *, doc_type: str, folder_id: int | None, new_folder_name: str):
@@ -245,6 +270,7 @@ async def document_detail(document_id: int, request: Request):
         payload = await fetch_document_detail_payload(env, document_id)
         if payload is None:
             return JSONResponse({"error": "Document not found."}, status_code=404)
+        payload["rendered_content"] = render_markdown_html(payload["document"].get("content", "") or "")
         return payload
     except Exception as exc:  # pragma: no cover - runtime-specific fallback
         return JSONResponse(
@@ -320,6 +346,27 @@ async def wbs(
         return JSONResponse(
             {
                 "error": "Failed to load WBS payload from D1.",
+                "detail": str(exc),
+            },
+            status_code=500,
+        )
+
+
+@app.get("/api/wbs/{task_id}")
+async def wbs_detail(task_id: int, request: Request):
+    env = request.scope["env"]
+    if not _has_binding(env, "DB"):
+        return JSONResponse({"error": "DB binding is not available."}, status_code=503)
+
+    try:
+        payload = await fetch_wbs_detail_payload(env, task_id)
+        if payload is None:
+            return JSONResponse({"error": "WBS task not found."}, status_code=404)
+        return payload
+    except Exception as exc:  # pragma: no cover - runtime-specific fallback
+        return JSONResponse(
+            {
+                "error": "Failed to load WBS detail from D1.",
                 "detail": str(exc),
             },
             status_code=500,
@@ -586,6 +633,7 @@ async def create_document(request: Request, payload: DocumentPayload):
         if document_id is None:
             return JSONResponse({"error": "Failed to create document."}, status_code=500)
 
+        await assign_draft_assets_to_document_record(env, document_id, payload.asset_draft_key.strip())
         await sync_document_tags(env, document_id, payload.tags)
         await sync_document_task_links(env, document_id, payload.related_task_ids)
         detail = await fetch_document_detail_payload(env, document_id)
@@ -625,6 +673,7 @@ async def update_document(document_id: int, request: Request, payload: DocumentP
             author_id=payload.author_id,
             tags=payload.tags.strip(),
         )
+        await assign_draft_assets_to_document_record(env, document_id, payload.asset_draft_key.strip())
         await sync_document_tags(env, document_id, payload.tags)
         await sync_document_task_links(env, document_id, payload.related_task_ids)
         detail = await fetch_document_detail_payload(env, document_id)
@@ -675,6 +724,8 @@ async def delete_document(document_id: int, request: Request):
         return JSONResponse({"error": "Document not found."}, status_code=404)
 
     try:
+        for asset in existing.get("assets", []):
+            await _delete_r2_object_if_present(env, asset.get("object_key"))
         await delete_document_record(env, document_id)
         return {"ok": True, "deleted_id": document_id}
     except Exception as exc:  # pragma: no cover - runtime-specific fallback
@@ -684,7 +735,7 @@ async def delete_document(document_id: int, request: Request):
 @app.delete("/api/documents/{document_id}/assets/{asset_id}")
 async def delete_document_asset(document_id: int, asset_id: int, request: Request):
     env = request.scope["env"]
-    if not getattr(env, "DB", None):
+    if not _has_binding(env, "DB"):
         return JSONResponse({"error": "DB binding is not available."}, status_code=503)
 
     asset = await fetch_document_asset_payload(env, asset_id)
@@ -697,6 +748,72 @@ async def delete_document_asset(document_id: int, asset_id: int, request: Reques
         return {"ok": True, "deleted_id": asset_id, "document_id": document_id}
     except Exception as exc:  # pragma: no cover - runtime-specific fallback
         return JSONResponse({"error": "Failed to delete document asset.", "detail": str(exc)}, status_code=500)
+
+
+@app.post("/api/documents/preview-markdown")
+async def preview_markdown(request: Request):
+    form = await request.form()
+    content = str(form.get("content", "") or "")
+    return {"html": render_markdown_html(content)}
+
+
+@app.post("/api/documents/format-markdown")
+async def format_markdown(request: Request):
+    form = await request.form()
+    content = str(form.get("content", "") or "")
+    return {"content": format_markdown_code_blocks(content)}
+
+
+@app.post("/api/documents/upload-image")
+async def upload_document_image(
+    request: Request,
+    image: UploadFile = File(...),
+    alt: str = Form(""),
+    document_id: str = Form(""),
+    draft_key: str = Form(""),
+):
+    env = request.scope["env"]
+    if not _has_binding(env, "DB"):
+        return JSONResponse({"error": "DB binding is not available."}, status_code=503)
+    if not _has_binding(env, "DOCUMENT_IMAGES"):
+        return JSONResponse({"error": "R2 binding is not available."}, status_code=503)
+    if not image.filename:
+        return JSONResponse({"error": "Image file is required."}, status_code=400)
+    if not _is_allowed_image(image.filename):
+        return JSONResponse({"error": "Unsupported image type."}, status_code=400)
+
+    normalized_document_id = int(document_id) if document_id.strip().isdigit() else None
+    normalized_draft_key = draft_key.strip() or None
+    if normalized_document_id is None and not normalized_draft_key:
+        normalized_draft_key = uuid4().hex
+
+    try:
+        content = await image.read()
+        object_key = _build_object_key(image.filename)
+        await env.DOCUMENT_IMAGES.put(object_key, content)
+
+        asset_url = _public_asset_url(env, object_key)
+        asset_id = await create_document_asset_record(
+            env,
+            document_id=normalized_document_id,
+            draft_key=normalized_draft_key,
+            object_key=object_key,
+            url=asset_url,
+            original_filename=image.filename,
+            content_type=image.content_type or "application/octet-stream",
+            size=len(content),
+        )
+        resolved_alt = (alt or "").strip() or Path(image.filename).stem
+        return {
+            "ok": True,
+            "asset_id": asset_id,
+            "draft_key": normalized_draft_key,
+            "url": asset_url,
+            "object_key": object_key,
+            "markdown": f"![{resolved_alt}]({asset_url})",
+        }
+    except Exception as exc:  # pragma: no cover - runtime-specific fallback
+        return JSONResponse({"error": "Failed to upload image.", "detail": str(exc)}, status_code=500)
 
 
 @app.post("/api/wbs")

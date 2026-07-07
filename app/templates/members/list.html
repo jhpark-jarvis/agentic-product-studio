@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}팀원 | Agentic Product Studio{% endblock %}
-{% block page_title %}팀원 관리{% endblock %}
-{% block topbar_eyebrow %}Members{% endblock %}
+{% block title %}멤버 | Agentic Product Studio{% endblock %}
+{% block page_title %}멤버 관리{% endblock %}
+{% block topbar_eyebrow %}MEMBERS{% endblock %}
 
 {% block topbar_actions %}
-  <a href="{{ url_for('members.create_member') }}" class="button button--primary">새 팀원</a>
+  <a href="{{ url_for('members.create_member') }}" class="button button--primary">새 멤버</a>
 {% endblock %}
 
 {% block content %}
   <section class="panel">
     <div class="panel-heading">
-      <h2>팀원 목록</h2>
+      <h2>멤버 목록</h2>
       <p>WBS 담당자와 일정 담당자 선택에 사용됩니다.</p>
     </div>
     {% if members %}
@@ -46,9 +46,9 @@
                 <td data-label="작업 수">{{ member["task_count"] }}</td>
                 <td data-label="일정 수">{{ member["schedule_count"] }}</td>
                 <td data-label="관리" class="table-actions">
-                  <a href="{{ url_for('members.edit_member', member_id=member['id']) }}" class="text-link">수정</a>
-                  <form method="post" action="{{ url_for('members.delete_member', member_id=member['id']) }}" onsubmit="return confirm('이 팀원을 삭제할까요? 연결된 담당자 정보는 해제됩니다.');">
-                    <button type="submit" class="button-link button-link--danger">삭제</button>
+                  <a href="{{ url_for('members.edit_member', member_id=member['id']) }}" class="button button--secondary button--compact">수정</a>
+                  <form method="post" action="{{ url_for('members.delete_member', member_id=member['id']) }}" onsubmit="return confirm('이 멤버를 삭제할까요? 연결된 담당자 정보는 해제됩니다.');">
+                    <button type="submit" class="button button--danger button--compact">삭제</button>
                   </form>
                 </td>
               </tr>
@@ -57,7 +57,7 @@
         </table>
       </div>
     {% else %}
-      <p class="empty-state">등록된 팀원이 없습니다.</p>
+      <p class="empty-state">등록된 멤버가 없습니다.</p>
     {% endif %}
   </section>
 {% endblock %}

@@ -107,9 +107,9 @@
                 <td data-label="시작일">{{ task["start_date"] or "-" }}</td>
                 <td data-label="마감일">{{ task["due_date"] or "-" }}</td>
                 <td data-label="관리" class="table-actions">
-                  <a href="{{ url_for('wbs.edit_task', task_id=task['id']) }}" class="text-link">수정</a>
+                  <a href="{{ url_for('wbs.edit_task', task_id=task['id']) }}" class="button button--secondary button--compact">수정</a>
                   <form method="post" action="{{ url_for('wbs.delete_task', task_id=task['id']) }}" onsubmit="return confirm('이 작업을 삭제할까요? 하위 작업과 연결 상태를 먼저 확인해주세요.');">
-                    <button type="submit" class="button-link button-link--danger">삭제</button>
+                    <button type="submit" class="button button--danger button--compact">삭제</button>
                   </form>
                 </td>
               </tr>

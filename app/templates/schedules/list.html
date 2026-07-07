@@ -109,7 +109,7 @@
               <th>일정명</th>
               <th>유형</th>
               <th>담당자</th>
-              <th>연관 WBS</th>
+              <th>연결 WBS</th>
               <th>시작일</th>
               <th>종료일</th>
               <th>관리</th>
@@ -121,13 +121,13 @@
                 <td data-label="일정명"><a class="table-link" href="{{ url_for('schedules.edit_schedule', schedule_id=item['id']) }}">{{ item["title"] }}</a></td>
                 <td data-label="유형">{{ item["schedule_type"] }}</td>
                 <td data-label="담당자">{{ item["assignee_name"] or "-" }}</td>
-                <td data-label="연관 WBS">{{ item["task_title"] or "-" }}</td>
+                <td data-label="연결 WBS">{{ item["task_title"] or "-" }}</td>
                 <td class="date-cell" data-label="시작일">{{ item["start_date"] }}</td>
                 <td class="date-cell" data-label="종료일">{{ item["end_date"] }}</td>
                 <td class="table-actions" data-label="관리">
-                  <a href="{{ url_for('schedules.edit_schedule', schedule_id=item['id']) }}" class="text-link">수정</a>
+                  <a href="{{ url_for('schedules.edit_schedule', schedule_id=item['id']) }}" class="button button--secondary button--compact">수정</a>
                   <form method="post" action="{{ url_for('schedules.delete_schedule', schedule_id=item['id']) }}" onsubmit="return confirm('이 일정을 삭제할까요?');">
-                    <button type="submit" class="button-link button-link--danger">삭제</button>
+                    <button type="submit" class="button button--danger button--compact">삭제</button>
                   </form>
                 </td>
               </tr>

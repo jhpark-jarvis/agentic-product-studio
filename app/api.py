@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 from flask import Blueprint, jsonify, request
 
 from .constants import DOCUMENT_TYPES, TASK_PRIORITIES, TASK_STATUSES
+from .db import get_db
 from .repositories.provider import get_repository_provider
 from .utils import (
     WBS_PLATFORM_OPTIONS,
@@ -61,6 +64,52 @@ def _flatten_wbs_tasks(filters: dict[str, str]):
 
     walk(None, 0)
     return rows
+
+
+def _document_form_payload(payload: dict):
+    related_task_ids = payload.get("related_task_ids") or []
+    normalized_task_ids = []
+    for value in related_task_ids:
+        if isinstance(value, int):
+            normalized_task_ids.append(value)
+        elif isinstance(value, str) and value.isdigit():
+            normalized_task_ids.append(int(value))
+
+    return {
+        "asset_draft_key": (payload.get("asset_draft_key") or "").strip(),
+        "title": (payload.get("title") or "").strip(),
+        "doc_type": (payload.get("doc_type") or DOCUMENT_TYPES[-1]).strip(),
+        "folder_id": payload.get("folder_id") or None,
+        "new_folder_name": (payload.get("new_folder_name") or "").strip(),
+        "content": (payload.get("content") or "").strip(),
+        "author_id": payload.get("author_id") or None,
+        "tags": (payload.get("tags") or "").strip(),
+        "is_hidden": 1 if payload.get("is_hidden") else 0,
+        "related_task_ids": normalized_task_ids,
+    }
+
+
+def _validate_document_payload(data):
+    errors = []
+    if not data["title"]:
+        errors.append("문서 제목은 필수입니다.")
+    if data["doc_type"] not in DOCUMENT_TYPES:
+        errors.append("유효하지 않은 문서 유형입니다.")
+    if not data["content"]:
+        errors.append("문서 내용을 입력해주세요.")
+    if data["folder_id"] and not str(data["folder_id"]).isdigit():
+        errors.append("유효하지 않은 폴더입니다.")
+    return errors
+
+
+def _resolve_document_folder_id(data):
+    if data["new_folder_name"]:
+        return get_repository_provider().documents.ensure_folder(
+            data["doc_type"], data["new_folder_name"]
+        )
+    if data["folder_id"]:
+        return int(data["folder_id"])
+    return None
 
 
 @bp.route("/documents")
@@ -124,6 +173,106 @@ def document_detail(document_id: int):
             "heading_count": sum(
                 1 for line in content.splitlines() if line.lstrip().startswith("#")
             ),
+        }
+    )
+
+
+@bp.route("/documents/editor")
+def document_editor_bootstrap():
+    document_id = parse_int(request.args.get("document_id"), default=0, minimum=0)
+    document = None
+    related_tasks = []
+    tags = []
+    assets = []
+
+    if document_id:
+        document, related_tasks, tags = (
+            get_repository_provider().documents.fetch_document_with_relations(document_id)
+        )
+        if not document:
+            return jsonify({"error": "Document not found"}), 404
+        assets = get_repository_provider().documents.fetch_document_assets(document_id)
+
+    selected_type = (
+        document["doc_type"] if document else DOCUMENT_TYPES[0]
+    )
+
+    return jsonify(
+        {
+            "document": dict(document) if document else None,
+            "document_types": list(DOCUMENT_TYPES),
+            "document_folders": _serialize_rows(
+                get_repository_provider().documents.fetch_document_folders()
+            ),
+            "members": _serialize_rows(
+                get_repository_provider().common.fetch_active_members()
+            ),
+            "tasks": _serialize_rows(
+                get_repository_provider().common.fetch_task_link_options()
+            ),
+            "related_task_ids": [task["id"] for task in related_tasks],
+            "tags": list(tags),
+            "assets": _serialize_rows(assets),
+            "selected_type": selected_type,
+            "asset_draft_key": "" if document else uuid4().hex,
+        }
+    )
+
+
+@bp.route("/documents", methods=["POST"])
+def create_document_api():
+    data = _document_form_payload(request.get_json(silent=True) or {})
+    errors = _validate_document_payload(data)
+    if errors:
+        return jsonify({"error": errors[0], "errors": errors}), 400
+
+    db = get_db()
+    folder_id = _resolve_document_folder_id(data)
+    document_id = get_repository_provider().documents.create_document(data, folder_id)
+    if data["asset_draft_key"]:
+        get_repository_provider().documents.assign_draft_assets(
+            document_id, data["asset_draft_key"]
+        )
+    get_repository_provider().documents.sync_document_tags(document_id, data["tags"])
+    get_repository_provider().documents.sync_task_documents(
+        document_id, data["related_task_ids"]
+    )
+    db.commit()
+
+    return jsonify(
+        {
+            "document_id": document_id,
+            "redirect_path": f"/app/documents/{document_id}",
+        }
+    )
+
+
+@bp.route("/documents/<int:document_id>", methods=["POST"])
+def update_document_api(document_id: int):
+    existing_document, _related_tasks, _tags = (
+        get_repository_provider().documents.fetch_document_with_relations(document_id)
+    )
+    if not existing_document:
+        return jsonify({"error": "Document not found"}), 404
+
+    data = _document_form_payload(request.get_json(silent=True) or {})
+    errors = _validate_document_payload(data)
+    if errors:
+        return jsonify({"error": errors[0], "errors": errors}), 400
+
+    db = get_db()
+    folder_id = _resolve_document_folder_id(data)
+    get_repository_provider().documents.update_document(document_id, data, folder_id)
+    get_repository_provider().documents.sync_document_tags(document_id, data["tags"])
+    get_repository_provider().documents.sync_task_documents(
+        document_id, data["related_task_ids"]
+    )
+    db.commit()
+
+    return jsonify(
+        {
+            "document_id": document_id,
+            "redirect_path": f"/app/documents/{document_id}",
         }
     )
 

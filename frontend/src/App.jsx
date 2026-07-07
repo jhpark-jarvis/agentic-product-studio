@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { DashboardPage } from './pages/DashboardPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
+import { DocumentEditorPage } from './pages/DocumentEditorPage'
 import { DocumentsPage } from './pages/DocumentsPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { WbsPage } from './pages/WbsPage'
@@ -13,7 +14,9 @@ function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/documents" element={<DocumentsPage />} />
+        <Route path="/documents/new" element={<DocumentEditorPage />} />
         <Route path="/documents/:documentId" element={<DocumentDetailPage />} />
+        <Route path="/documents/:documentId/edit" element={<DocumentEditorPage />} />
         <Route path="/wbs" element={<WbsPage />} />
         <Route
           path="/schedules"

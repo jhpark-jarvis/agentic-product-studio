@@ -137,7 +137,16 @@
       </div>
 
       <div class="form-actions">
-        <button type="submit" class="button button--primary">{{ submit_label }}</button>
+        <button
+          type="submit"
+          class="button button--primary"
+          data-submit-button
+          data-submit-label="{{ submit_label }}"
+          data-submitting-label="저장 중..."
+        >
+          <span class="button__label">{{ submit_label }}</span>
+          <span class="button__spinner" aria-hidden="true"></span>
+        </button>
         <a href="{{ url_for('documents.list_documents') }}" class="button button--secondary">취소</a>
       </div>
     </form>

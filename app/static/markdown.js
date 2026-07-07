@@ -394,6 +394,46 @@ function setupMarkdownEditor() {
   renderPreview();
 }
 
+function setupDocumentFormSubmitLock() {
+  const form = document.querySelector("[data-document-form]");
+  if (!form) {
+    return;
+  }
+
+  const submitButton = form.querySelector("[data-submit-button]");
+  const buttonLabel = submitButton?.querySelector(".button__label");
+  let isSubmitting = false;
+
+  form.addEventListener("submit", (event) => {
+    if (isSubmitting) {
+      event.preventDefault();
+      return;
+    }
+
+    isSubmitting = true;
+    form.dataset.submitting = "true";
+
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.classList.add("is-loading");
+      submitButton.setAttribute("aria-busy", "true");
+    }
+
+    if (buttonLabel) {
+      buttonLabel.textContent =
+        submitButton?.dataset.submittingLabel || "저장 중...";
+    }
+
+    const interactiveElements = form.querySelectorAll(
+      'button:not([data-submit-button]), input[type="submit"], input[type="button"]'
+    );
+
+    interactiveElements.forEach((element) => {
+      element.disabled = true;
+    });
+  });
+}
+
 function setupMarkdownReader() {
   const readerRoot = document.querySelector("[data-markdown-reader]");
   if (!readerRoot) {
@@ -436,5 +476,6 @@ function setupMarkdownReader() {
 
 document.addEventListener("DOMContentLoaded", () => {
   setupMarkdownEditor();
+  setupDocumentFormSubmitLock();
   setupMarkdownReader();
 });

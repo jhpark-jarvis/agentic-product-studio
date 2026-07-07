@@ -103,9 +103,10 @@ export function DocumentDetailPage() {
         <Button
           variant="contained"
           startIcon={<EditRoundedIcon />}
-          href={`/documents/${document.id}/edit`}
+          component={RouterLink}
+          to={`/documents/${document.id}/edit`}
         >
-          기존 에디터에서 편집
+          React 에디터에서 편집
         </Button>
       </Stack>
 
@@ -131,6 +132,7 @@ export function DocumentDetailPage() {
             <Divider />
 
             <Box
+              className="markdown-body"
               sx={{
                 '& h1, & h2, & h3': {
                   fontWeight: 800,

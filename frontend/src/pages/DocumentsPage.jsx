@@ -80,7 +80,7 @@ export function DocumentsPage() {
       <PageHeader
         eyebrow="DOCUMENTS"
         title="문서 관리"
-        description="기존 Flask 문서 목록을 React + MUI 화면으로 옮긴 상태입니다. 상세는 React에서 보고, 작성 및 편집은 당분간 기존 에디터를 함께 사용합니다."
+        description="문서 조회와 편집 진입 흐름을 React 기준으로 정리한 상태입니다. 이제 목록, 상세, 작성, 편집을 같은 라우팅 체계 안에서 사용할 수 있습니다."
       />
 
       <Paper component="form" onSubmit={applyFilters} sx={{ p: 3 }}>
@@ -102,9 +102,10 @@ export function DocumentsPage() {
                 variant="outlined"
                 color="secondary"
                 startIcon={<CreateRoundedIcon />}
-                href="/documents/new"
+                component={RouterLink}
+                to="/documents/new"
               >
-                기존 에디터 열기
+                새 문서 작성
               </Button>
             </Stack>
           </Stack>
@@ -228,11 +229,11 @@ export function DocumentsPage() {
                 <TableBody>
                   {(data?.documents || []).map((document) => (
                     <TableRow key={document.id} hover>
-                      <TableCell sx={{ minWidth: 260 }}>
+                      <TableCell sx={{ minWidth: 280 }}>
                         <Stack spacing={0.5}>
                           <Typography fontWeight={700}>{document.title}</Typography>
                           <Typography variant="body2" color="text.secondary">
-                            문서 상세는 React 화면으로 이동하며, 작성과 편집은 기존 Markdown 에디터를 계속 사용합니다.
+                            상세는 React 상세 화면에서 확인하고, 편집은 React 에디터로 바로 이어집니다.
                           </Typography>
                         </Stack>
                       </TableCell>
@@ -254,7 +255,12 @@ export function DocumentsPage() {
                           >
                             상세
                           </Button>
-                          <Button size="small" variant="contained" href={`/documents/${document.id}/edit`}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            component={RouterLink}
+                            to={`/documents/${document.id}/edit`}
+                          >
                             편집
                           </Button>
                         </Stack>

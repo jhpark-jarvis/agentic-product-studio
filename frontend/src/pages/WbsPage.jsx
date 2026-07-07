@@ -115,7 +115,7 @@ export function WbsPage() {
       <PageHeader
         eyebrow="WORK BREAKDOWN STRUCTURE"
         title="WBS 작업 관리"
-        description="필터, 계층 구조, 진행률, 지연 상태를 React 테이블로 먼저 이관했습니다. 생성 및 수정은 기존 폼을 당분간 함께 사용합니다."
+        description="필터, 계층 구조, 진행률, 지연 상태를 React 테이블로 먼저 이관했습니다. 생성과 수정은 당분간 기존 폼을 함께 사용합니다."
       />
 
       <Paper component="form" onSubmit={applyFilters} sx={{ p: 3 }}>

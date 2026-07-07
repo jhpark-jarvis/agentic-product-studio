@@ -9,7 +9,6 @@ import {
   Paper,
   Stack,
   TextField,
-  Typography,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
@@ -28,19 +27,27 @@ const initialForm = {
 
 function DateField({ label, value, onChange }) {
   return (
-    <Stack spacing={0.75}>
-      <Typography variant="subtitle2">{label}</Typography>
-      <TextField
-        type="date"
-        value={value}
-        onChange={onChange}
-        slotProps={{
-          htmlInput: {
-            'aria-label': label,
-          },
-        }}
-      />
-    </Stack>
+    <TextField
+      type="date"
+      label={label}
+      value={value}
+      onChange={onChange}
+      InputLabelProps={{ shrink: true }}
+      slotProps={{
+        htmlInput: {
+          'aria-label': label,
+          className: value ? '' : 'date-input-empty',
+        },
+      }}
+      sx={{
+        '& input.date-input-empty::-webkit-datetime-edit': {
+          color: 'transparent',
+        },
+        '& input.date-input-empty:focus::-webkit-datetime-edit': {
+          color: 'inherit',
+        },
+      }}
+    />
   )
 }
 

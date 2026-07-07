@@ -16,6 +16,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
+import { Link as RouterLink } from 'react-router-dom'
 import { apiGet } from '../api/client'
 import { PageHeader } from '../components/PageHeader'
 
@@ -46,7 +47,7 @@ export function MembersPage() {
       <PageHeader
         eyebrow="MEMBERS"
         title="멤버 관리"
-        description="담당자 정보와 작업/일정 연결 현황을 React 화면으로 먼저 정리했습니다. 생성과 수정은 당분간 기존 폼을 함께 사용합니다."
+        description="담당자 정보와 작업/일정 연결 현황을 React 화면으로 정리했습니다. 이제 생성과 수정도 같은 라우팅 안에서 이어집니다."
       />
 
       <Paper sx={{ p: 0, overflow: 'hidden' }}>
@@ -61,7 +62,7 @@ export function MembersPage() {
               WBS 담당자와 일정 담당자 선택에 사용하는 멤버 정보입니다.
             </Typography>
           </Box>
-          <Button variant="outlined" color="secondary" startIcon={<AddRoundedIcon />} href="/members/new">
+          <Button component={RouterLink} to="/members/new" variant="outlined" color="secondary" startIcon={<AddRoundedIcon />}>
             멤버 추가
           </Button>
         </Stack>
@@ -112,7 +113,7 @@ export function MembersPage() {
                       <TableCell>{member.schedule_count}</TableCell>
                       <TableCell align="right">
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
-                          <Button size="small" variant="outlined" href={`/members/${member.id}/edit`}>
+                          <Button size="small" variant="outlined" component={RouterLink} to={`/members/${member.id}/edit`}>
                             수정
                           </Button>
                         </Stack>

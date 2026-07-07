@@ -19,6 +19,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
+import { Link as RouterLink } from 'react-router-dom'
 import { apiGet } from '../api/client'
 import { PageHeader } from '../components/PageHeader'
 
@@ -115,7 +116,7 @@ export function WbsPage() {
       <PageHeader
         eyebrow="WORK BREAKDOWN STRUCTURE"
         title="WBS 작업 관리"
-        description="필터, 계층 구조, 진행률, 지연 상태를 React 테이블로 먼저 이관했습니다. 생성과 수정은 당분간 기존 폼을 함께 사용합니다."
+        description="필터, 계층 구조, 진행률, 지연 상태를 React 테이블로 정리했습니다. 이제 생성과 수정도 같은 라우팅 안에서 이어집니다."
       />
 
       <Paper component="form" onSubmit={applyFilters} sx={{ p: 3 }}>
@@ -133,7 +134,7 @@ export function WbsPage() {
               <Button variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={resetFilters}>
                 초기화
               </Button>
-              <Button variant="outlined" color="secondary" startIcon={<AddRoundedIcon />} href="/wbs/new">
+              <Button component={RouterLink} to="/wbs/new" variant="outlined" color="secondary" startIcon={<AddRoundedIcon />}>
                 작업 생성
               </Button>
             </Stack>
@@ -274,7 +275,7 @@ export function WbsPage() {
                       <TableCell>{row.task.due_date || '-'}</TableCell>
                       <TableCell align="right">
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
-                          <Button size="small" variant="outlined" href={`/wbs/${row.task.id}/edit`}>
+                          <Button size="small" variant="outlined" component={RouterLink} to={`/wbs/${row.task.id}/edit`}>
                             수정
                           </Button>
                         </Stack>

@@ -31,13 +31,14 @@ def list_members(db):
 
 
 def create_member(db, data):
-    db.execute(
+    cursor = db.execute(
         """
         INSERT INTO members (name, role, part, contact, is_active)
         VALUES (?, ?, ?, ?, ?)
         """,
         (data["name"], data["role"], data["part"], data["contact"], data["is_active"]),
     )
+    return cursor.lastrowid
 
 
 def update_member(db, member_id: int, data):

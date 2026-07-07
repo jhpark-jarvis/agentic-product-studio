@@ -199,6 +199,98 @@ def _validate_schedule_payload(data):
     return errors
 
 
+def _member_form_payload(payload):
+    return {
+        "name": (payload.get("name") or "").strip(),
+        "role": (payload.get("role") or "").strip(),
+        "part": (payload.get("part") or "").strip(),
+        "contact": (payload.get("contact") or "").strip(),
+        "is_active": 1 if payload.get("is_active") else 0,
+    }
+
+
+def _validate_member_payload(data):
+    errors = []
+    if not data["name"]:
+        errors.append("팀원 이름은 필수입니다.")
+    return errors
+
+
+def _task_form_payload(payload):
+    document_ids = payload.get("document_ids") or []
+    normalized_document_ids = []
+    for value in document_ids:
+        if isinstance(value, int):
+            normalized_document_ids.append(value)
+        elif isinstance(value, str) and value.isdigit():
+            normalized_document_ids.append(int(value))
+
+    return {
+        "parent_id": payload.get("parent_id") or None,
+        "title": (payload.get("title") or "").strip(),
+        "description": (payload.get("description") or "").strip(),
+        "assignee_id": payload.get("assignee_id") or None,
+        "platform": (payload.get("platform") or WBS_PLATFORM_OPTIONS[0]).strip(),
+        "status": (payload.get("status") or TASK_STATUSES[0]).strip(),
+        "priority": (payload.get("priority") or TASK_PRIORITIES[1]).strip(),
+        "start_date": payload.get("start_date") or None,
+        "due_date": payload.get("due_date") or None,
+        "completed_date": payload.get("completed_date") or None,
+        "progress": str(payload.get("progress") or "0").strip() or "0",
+        "notes": (payload.get("notes") or "").strip(),
+        "document_ids": normalized_document_ids,
+    }
+
+
+def _validate_task_payload(data, task_id: int | None = None):
+    errors = []
+    if not data["title"]:
+        errors.append("작업명은 필수입니다.")
+    if data["status"] not in TASK_STATUSES:
+        errors.append("유효하지 않은 상태값입니다.")
+    if data["priority"] not in TASK_PRIORITIES:
+        errors.append("유효하지 않은 우선순위입니다.")
+    if data["platform"] not in WBS_PLATFORM_OPTIONS:
+        errors.append("유효하지 않은 플랫폼입니다.")
+
+    try:
+        progress_value = int(data["progress"])
+        if not 0 <= progress_value <= 100:
+            raise ValueError
+    except ValueError:
+        errors.append("진행률은 0에서 100 사이 정수여야 합니다.")
+        progress_value = 0
+
+    completed_status = TASK_STATUSES[3] if len(TASK_STATUSES) > 3 else "완료"
+    if data["status"] == completed_status:
+        progress_value = 100
+        if not data["completed_date"]:
+            data["completed_date"] = today_local().isoformat()
+
+    data["progress"] = progress_value
+
+    if data["parent_id"] and not str(data["parent_id"]).isdigit():
+        errors.append("유효하지 않은 상위 작업입니다.")
+    if data["assignee_id"] and not str(data["assignee_id"]).isdigit():
+        errors.append("유효하지 않은 담당자입니다.")
+    if data["parent_id"] and task_id and int(data["parent_id"]) == task_id:
+        errors.append("상위 작업으로 자기 자신을 선택할 수 없습니다.")
+
+    start = parse_date(data["start_date"])
+    due = parse_date(data["due_date"])
+    done = parse_date(data["completed_date"])
+    if data["start_date"] and not start:
+        errors.append("시작일 형식이 올바르지 않습니다.")
+    if data["due_date"] and not due:
+        errors.append("종료 예정일 형식이 올바르지 않습니다.")
+    if data["completed_date"] and not done:
+        errors.append("실제 완료일 형식이 올바르지 않습니다.")
+    if start and due and start > due:
+        errors.append("시작일은 종료 예정일보다 늦을 수 없습니다.")
+
+    return errors
+
+
 @bp.route("/documents")
 def documents_list():
     search = request.args.get("q", "").strip()
@@ -532,6 +624,81 @@ def wbs_list():
     )
 
 
+@bp.route("/wbs/editor")
+def wbs_editor_bootstrap():
+    task_id = parse_int(request.args.get("task_id"), default=0, minimum=0)
+    task = None
+    selected_document_ids = []
+    if task_id:
+        task, selected_document_ids = get_repository_provider().wbs.fetch_task_with_links(task_id)
+        if not task:
+            return jsonify({"error": "Task not found"}), 404
+
+    return jsonify(
+        {
+            "task": dict(task) if task else None,
+            "selected_document_ids": list(selected_document_ids),
+            "members": _serialize_rows(get_repository_provider().common.fetch_active_members()),
+            "parent_tasks": _serialize_rows(
+                get_repository_provider().common.fetch_parent_task_options(
+                    exclude_task_id=task_id if task_id else None
+                )
+            ),
+            "documents": _serialize_rows(get_repository_provider().common.fetch_document_link_options()),
+            "statuses": list(TASK_STATUSES),
+            "priorities": list(TASK_PRIORITIES),
+            "platforms": list(WBS_PLATFORM_OPTIONS),
+        }
+    )
+
+
+@bp.route("/wbs", methods=["POST"])
+def create_wbs_task_api():
+    data = _task_form_payload(request.get_json(silent=True) or {})
+    errors = _validate_task_payload(data)
+    if errors:
+        return jsonify({"error": errors[0], "errors": errors}), 400
+
+    db = get_db()
+    task_id = get_repository_provider().wbs.create_task(data)
+    get_repository_provider().wbs.sync_task_documents(task_id, data["document_ids"])
+    db.commit()
+
+    return jsonify({"task_id": task_id, "redirect_path": "/app/wbs"})
+
+
+@bp.route("/wbs/<int:task_id>", methods=["POST"])
+def update_wbs_task_api(task_id: int):
+    existing_task, _selected_document_ids = get_repository_provider().wbs.fetch_task_with_links(task_id)
+    if not existing_task:
+        return jsonify({"error": "Task not found"}), 404
+
+    data = _task_form_payload(request.get_json(silent=True) or {})
+    errors = _validate_task_payload(data, task_id=task_id)
+    if errors:
+        return jsonify({"error": errors[0], "errors": errors}), 400
+
+    db = get_db()
+    get_repository_provider().wbs.update_task(task_id, data)
+    get_repository_provider().wbs.sync_task_documents(task_id, data["document_ids"])
+    db.commit()
+
+    return jsonify({"task_id": task_id, "redirect_path": "/app/wbs"})
+
+
+@bp.route("/wbs/<int:task_id>", methods=["DELETE"])
+def delete_wbs_task_api(task_id: int):
+    existing_task, _selected_document_ids = get_repository_provider().wbs.fetch_task_with_links(task_id)
+    if not existing_task:
+        return jsonify({"error": "Task not found"}), 404
+
+    db = get_db()
+    get_repository_provider().wbs.delete_task(task_id)
+    db.commit()
+
+    return jsonify({"deleted": True, "redirect_path": "/app/wbs"})
+
+
 @bp.route("/members")
 def members_list():
     members = get_repository_provider().members.list_members()
@@ -540,3 +707,74 @@ def members_list():
             "members": _serialize_rows(members),
         }
     )
+
+
+@bp.route("/members/editor")
+def member_editor_bootstrap():
+    member_id = parse_int(request.args.get("member_id"), default=0, minimum=0)
+    member = None
+    if member_id:
+        member = get_repository_provider().members.fetch_member(member_id)
+        if not member:
+            return jsonify({"error": "Member not found"}), 404
+
+    return jsonify(
+        {
+            "member": dict(member) if member else None,
+        }
+    )
+
+
+@bp.route("/members", methods=["POST"])
+def create_member_api():
+    data = _member_form_payload(request.get_json(silent=True) or {})
+    errors = _validate_member_payload(data)
+    if errors:
+        return jsonify({"error": errors[0], "errors": errors}), 400
+
+    db = get_db()
+    member_id = get_repository_provider().members.create_member(data)
+    db.commit()
+
+    return jsonify(
+        {
+            "member_id": member_id,
+            "redirect_path": "/app/members",
+        }
+    )
+
+
+@bp.route("/members/<int:member_id>", methods=["POST"])
+def update_member_api(member_id: int):
+    member = get_repository_provider().members.fetch_member(member_id)
+    if not member:
+        return jsonify({"error": "Member not found"}), 404
+
+    data = _member_form_payload(request.get_json(silent=True) or {})
+    errors = _validate_member_payload(data)
+    if errors:
+        return jsonify({"error": errors[0], "errors": errors}), 400
+
+    db = get_db()
+    get_repository_provider().members.update_member(member_id, data)
+    db.commit()
+
+    return jsonify(
+        {
+            "member_id": member_id,
+            "redirect_path": "/app/members",
+        }
+    )
+
+
+@bp.route("/members/<int:member_id>", methods=["DELETE"])
+def delete_member_api(member_id: int):
+    member = get_repository_provider().members.fetch_member(member_id)
+    if not member:
+        return jsonify({"error": "Member not found"}), 404
+
+    db = get_db()
+    get_repository_provider().members.delete_member(member_id)
+    db.commit()
+
+    return jsonify({"deleted": True, "redirect_path": "/app/members"})

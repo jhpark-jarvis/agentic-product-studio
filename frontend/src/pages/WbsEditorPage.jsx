@@ -34,6 +34,24 @@ const initialForm = {
   document_ids: [],
 }
 
+function DateField({ label, value, onChange }) {
+  return (
+    <Stack spacing={0.75}>
+      <Typography variant="subtitle2">{label}</Typography>
+      <TextField
+        type="date"
+        value={value}
+        onChange={onChange}
+        slotProps={{
+          htmlInput: {
+            'aria-label': label,
+          },
+        }}
+      />
+    </Stack>
+  )
+}
+
 export function WbsEditorPage() {
   const { taskId } = useParams()
   const navigate = useNavigate()
@@ -255,26 +273,20 @@ export function WbsEditorPage() {
               onChange={(event) => updateField('progress', event.target.value)}
               inputProps={{ min: 0, max: 100 }}
             />
-            <TextField
-              type="date"
+            <DateField
               label="시작일"
               value={form.start_date}
               onChange={(event) => updateField('start_date', event.target.value)}
-              InputLabelProps={{ shrink: true }}
             />
-            <TextField
-              type="date"
+            <DateField
               label="종료 예정일"
               value={form.due_date}
               onChange={(event) => updateField('due_date', event.target.value)}
-              InputLabelProps={{ shrink: true }}
             />
-            <TextField
-              type="date"
+            <DateField
               label="실제 완료일"
               value={form.completed_date}
               onChange={(event) => updateField('completed_date', event.target.value)}
-              InputLabelProps={{ shrink: true }}
             />
           </Box>
 

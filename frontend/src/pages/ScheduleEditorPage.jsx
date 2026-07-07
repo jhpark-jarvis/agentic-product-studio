@@ -34,7 +34,11 @@ function DateField({ label, value, onChange }) {
         type="date"
         value={value}
         onChange={onChange}
-        inputProps={{ placeholder: '' }}
+        slotProps={{
+          htmlInput: {
+            'aria-label': label,
+          },
+        }}
       />
     </Stack>
   )

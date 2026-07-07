@@ -5,9 +5,11 @@ import click
 from flask import Flask
 from dotenv import load_dotenv
 
+from .api import bp as api_bp
 from .dashboard import bp as dashboard_bp
 from .db import close_db, init_app as init_db_app, init_db
 from .documents import bp as documents_bp
+from .frontend import bp as frontend_bp
 from .members import bp as members_bp
 from .repositories.provider import get_repository_provider
 from .schedules import bp as schedules_bp
@@ -67,6 +69,8 @@ def create_app(test_config=None):
     app.register_blueprint(documents_bp)
     app.register_blueprint(schedules_bp)
     app.register_blueprint(members_bp)
+    app.register_blueprint(api_bp)
+    app.register_blueprint(frontend_bp)
     app.teardown_appcontext(close_db)
     init_db_app(app)
     app.jinja_env.filters["markdown"] = markdown_to_html

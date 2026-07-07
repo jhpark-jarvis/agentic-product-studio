@@ -207,8 +207,9 @@ button, input, select, textarea { font: inherit; }
   display: flex;
   gap: 12px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   min-width: 0;
+  white-space: nowrap;
 }
 
 .table-actions form {
@@ -228,7 +229,7 @@ button, input, select, textarea { font: inherit; }
 
 .table-actions--docs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-start;
   gap: 6px;
@@ -364,9 +365,9 @@ button, input, select, textarea { font: inherit; }
   display: grid;
   gap: 6px;
   justify-items: end;
-  flex: 0 0 clamp(150px, 19vw, 220px);
-  min-width: 150px;
-  max-width: 220px;
+  flex: 0 0 clamp(188px, 22vw, 252px);
+  min-width: 188px;
+  max-width: 252px;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -689,7 +690,7 @@ button, input, select, textarea { font: inherit; }
 .progress-cell {
   display: grid;
   gap: 6px;
-  min-width: 120px;
+  min-width: 108px;
 }
 .progress-bar {
   width: 100%;
@@ -727,20 +728,20 @@ button, input, select, textarea { font: inherit; }
 }
 
 .table--wbs {
-  min-width: 1480px;
+  min-width: 1420px;
   table-layout: fixed;
 }
 
 .table--wbs th:nth-child(1), .table--wbs td:nth-child(1) { width: 72px; }
-.table--wbs th:nth-child(2), .table--wbs td:nth-child(2) { width: 31%; }
-.table--wbs th:nth-child(3), .table--wbs td:nth-child(3) { width: 15%; }
-.table--wbs th:nth-child(4), .table--wbs td:nth-child(4) { width: 11%; }
-.table--wbs th:nth-child(5), .table--wbs td:nth-child(5) { width: 10%; }
-.table--wbs th:nth-child(6), .table--wbs td:nth-child(6) { width: 10%; }
-.table--wbs th:nth-child(7), .table--wbs td:nth-child(7) { width: 132px; }
-.table--wbs th:nth-child(8), .table--wbs td:nth-child(8) { width: 98px; }
-.table--wbs th:nth-child(9), .table--wbs td:nth-child(9) { width: 98px; }
-.table--wbs th:nth-child(10), .table--wbs td:nth-child(10) { width: 88px; }
+.table--wbs th:nth-child(2), .table--wbs td:nth-child(2) { width: 29%; }
+.table--wbs th:nth-child(3), .table--wbs td:nth-child(3) { width: 13%; }
+.table--wbs th:nth-child(4), .table--wbs td:nth-child(4) { width: 9%; }
+.table--wbs th:nth-child(5), .table--wbs td:nth-child(5) { width: 9%; }
+.table--wbs th:nth-child(6), .table--wbs td:nth-child(6) { width: 9%; }
+.table--wbs th:nth-child(7), .table--wbs td:nth-child(7) { width: 120px; }
+.table--wbs th:nth-child(8), .table--wbs td:nth-child(8) { width: 92px; }
+.table--wbs th:nth-child(9), .table--wbs td:nth-child(9) { width: 92px; }
+.table--wbs th:nth-child(10), .table--wbs td:nth-child(10) { width: 144px; }
 
 .table--dashboard-tasks td:nth-child(2),
 .table--dashboard-tasks td:nth-child(5) {
@@ -761,19 +762,19 @@ button, input, select, textarea { font: inherit; }
   overflow-wrap: normal;
 }
 
-.table--docs th:nth-child(1), .table--docs td:nth-child(1) { width: 32%; }
+.table--docs th:nth-child(1), .table--docs td:nth-child(1) { width: 34%; }
 .table--docs th:nth-child(2), .table--docs td:nth-child(2) { width: 14%; }
-.table--docs th:nth-child(3), .table--docs td:nth-child(3) { width: 22%; }
-.table--docs th:nth-child(4), .table--docs td:nth-child(4) { width: 14%; }
-.table--docs th:nth-child(5), .table--docs td:nth-child(5) { width: 17%; }
-.table--docs th:nth-child(6), .table--docs td:nth-child(6) { width: 168px; }
+.table--docs th:nth-child(3), .table--docs td:nth-child(3) { width: 20%; }
+.table--docs th:nth-child(4), .table--docs td:nth-child(4) { width: 10%; }
+.table--docs th:nth-child(5), .table--docs td:nth-child(5) { width: 14%; }
+.table--docs th:nth-child(6), .table--docs td:nth-child(6) { width: 210px; }
 
 .table--docs tbody td {
   vertical-align: middle;
 }
 
-.table--docs-managed th:nth-child(3), .table--docs-managed td:nth-child(3) { width: 26%; }
-.table--docs-managed th:nth-child(6), .table--docs-managed td:nth-child(6) { width: 180px; }
+.table--docs-managed th:nth-child(3), .table--docs-managed td:nth-child(3) { width: 24%; }
+.table--docs-managed th:nth-child(6), .table--docs-managed td:nth-child(6) { width: 220px; }
 
 .inline-folder-form {
   display: flex;
@@ -999,13 +1000,13 @@ body.modal-open {
   overflow-wrap: normal;
 }
 
-.table--schedules th:nth-child(1), .table--schedules td:nth-child(1) { width: 28%; }
-.table--schedules th:nth-child(2), .table--schedules td:nth-child(2) { width: 11%; }
-.table--schedules th:nth-child(3), .table--schedules td:nth-child(3) { width: 13%; }
-.table--schedules th:nth-child(4), .table--schedules td:nth-child(4) { width: 20%; }
+.table--schedules th:nth-child(1), .table--schedules td:nth-child(1) { width: 27%; }
+.table--schedules th:nth-child(2), .table--schedules td:nth-child(2) { width: 10%; }
+.table--schedules th:nth-child(3), .table--schedules td:nth-child(3) { width: 10%; }
+.table--schedules th:nth-child(4), .table--schedules td:nth-child(4) { width: 17%; }
 .table--schedules th:nth-child(5), .table--schedules td:nth-child(5) { width: 12%; }
 .table--schedules th:nth-child(6), .table--schedules td:nth-child(6) { width: 12%; }
-.table--schedules th:nth-child(7), .table--schedules td:nth-child(7) { width: 112px; }
+.table--schedules th:nth-child(7), .table--schedules td:nth-child(7) { width: 168px; }
 
 .markdown-body { max-width: 860px; line-height: 1.8; }
 .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin-top: 1.4em; margin-bottom: 0.5em; }
@@ -1215,6 +1216,7 @@ body.modal-open {
     width: 100%;
     flex-direction: column;
     align-items: stretch;
+    white-space: normal;
   }
   .table-actions form {
     display: flex;

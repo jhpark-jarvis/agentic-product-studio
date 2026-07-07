@@ -9,6 +9,9 @@
     "cf:deploy:python:dry": "wrangler deploy --dry-run --config worker-python/wrangler.toml",
     "cf:tail:python": "wrangler tail --config worker-python/wrangler.toml",
     "cf:tail": "wrangler tail",
+    "frontend:install": "npm --prefix frontend install",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

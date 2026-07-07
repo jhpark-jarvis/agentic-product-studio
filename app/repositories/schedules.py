@@ -27,7 +27,7 @@ def list_schedules(db):
 
 
 def create_schedule(db, data):
-    db.execute(
+    cursor = db.execute(
         """
         INSERT INTO schedules (title, description, start_date, end_date, assignee_id, wbs_task_id, schedule_type)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -42,6 +42,7 @@ def create_schedule(db, data):
             data["schedule_type"],
         ),
     )
+    return cursor.lastrowid
 
 
 def update_schedule(db, schedule_id: int, data):

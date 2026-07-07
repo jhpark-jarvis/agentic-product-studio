@@ -4,7 +4,9 @@ import { DashboardPage } from './pages/DashboardPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
 import { DocumentEditorPage } from './pages/DocumentEditorPage'
 import { DocumentsPage } from './pages/DocumentsPage'
-import { PlaceholderPage } from './pages/PlaceholderPage'
+import { MembersPage } from './pages/MembersPage'
+import { ScheduleEditorPage } from './pages/ScheduleEditorPage'
+import { SchedulesPage } from './pages/SchedulesPage'
 import { WbsPage } from './pages/WbsPage'
 
 function App() {
@@ -18,24 +20,10 @@ function App() {
         <Route path="/documents/:documentId" element={<DocumentDetailPage />} />
         <Route path="/documents/:documentId/edit" element={<DocumentEditorPage />} />
         <Route path="/wbs" element={<WbsPage />} />
-        <Route
-          path="/schedules"
-          element={
-            <PlaceholderPage
-              title="일정"
-              description="주간 및 월간 일정 화면은 다음 단계에서 React 라우트로 이관할 예정입니다."
-            />
-          }
-        />
-        <Route
-          path="/members"
-          element={
-            <PlaceholderPage
-              title="멤버"
-              description="멤버 목록과 담당 현황 화면은 다음 단계에서 React 기반 관리 화면으로 전환할 예정입니다."
-            />
-          }
-        />
+        <Route path="/schedules" element={<SchedulesPage />} />
+        <Route path="/schedules/new" element={<ScheduleEditorPage />} />
+        <Route path="/schedules/:scheduleId/edit" element={<ScheduleEditorPage />} />
+        <Route path="/members" element={<MembersPage />} />
       </Routes>
     </AppShell>
   )

@@ -38,6 +38,7 @@ const initialForm = {
   title: '',
   doc_type: '',
   folder_id: '',
+  new_folder_name: '',
   author_id: '',
   tags: '',
   is_hidden: false,
@@ -89,6 +90,7 @@ export function DocumentEditorPage() {
           title: payload.document?.title || '',
           doc_type: payload.document?.doc_type || payload.selected_type || payload.document_types?.[0] || '',
           folder_id: payload.document?.folder_id || '',
+          new_folder_name: '',
           author_id: payload.document?.author_id || '',
           tags: payload.tags?.join(', ') || '',
           is_hidden: Boolean(payload.document?.is_hidden),
@@ -248,6 +250,7 @@ export function DocumentEditorPage() {
             ...form,
             author_id: form.author_id || null,
             folder_id: form.folder_id || null,
+            new_folder_name: form.new_folder_name,
             related_task_ids: form.related_task_ids,
             is_hidden: form.is_hidden,
           },
@@ -326,6 +329,7 @@ export function DocumentEditorPage() {
               onChange={(event) => {
                 updateField('doc_type', event.target.value)
                 updateField('folder_id', '')
+                updateField('new_folder_name', '')
               }}
             >
               {(bootstrap?.document_types || []).map((option) => (
@@ -338,7 +342,12 @@ export function DocumentEditorPage() {
               select
               label="폴더"
               value={form.folder_id}
-              onChange={(event) => updateField('folder_id', event.target.value)}
+              onChange={(event) => {
+                updateField('folder_id', event.target.value)
+                if (event.target.value) {
+                  updateField('new_folder_name', '')
+                }
+              }}
             >
               <MenuItem value="">미지정</MenuItem>
               {folderOptions.map((option) => (
@@ -347,6 +356,17 @@ export function DocumentEditorPage() {
                 </MenuItem>
               ))}
             </TextField>
+            <TextField
+              label="새 폴더명"
+              value={form.new_folder_name}
+              onChange={(event) => {
+                updateField('new_folder_name', event.target.value)
+                if (event.target.value.trim()) {
+                  updateField('folder_id', '')
+                }
+              }}
+              helperText="없는 폴더면 새 이름을 입력하세요. 입력하면 기존 폴더 선택보다 우선합니다."
+            />
             <TextField
               select
               label="작성자"

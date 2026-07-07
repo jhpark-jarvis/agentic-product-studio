@@ -119,7 +119,7 @@ export function DocumentsPage() {
           >
             <TextField
               label="검색"
-              placeholder="제목 또는 내용 검색"
+              placeholder="문서 제목 검색"
               value={filters.q}
               onChange={(event) => setFilters((prev) => ({ ...prev, q: event.target.value }))}
             />

@@ -98,8 +98,8 @@ def list_documents(db, *, search: str, doc_type: str, tag: str, folder_id: str, 
     count_joins: list[str] = []
 
     if search:
-        clauses.append("(d.title LIKE ? OR d.content LIKE ?)")
-        params.extend([f"%{search}%", f"%{search}%"])
+        clauses.append("d.title LIKE ?")
+        params.append(f"%{search}%")
     if doc_type:
         clauses.append("d.doc_type = ?")
         params.append(doc_type)

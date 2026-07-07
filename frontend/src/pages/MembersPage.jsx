@@ -47,7 +47,7 @@ export function MembersPage() {
       <PageHeader
         eyebrow="MEMBERS"
         title="멤버 관리"
-        description="담당자 정보와 작업/일정 연결 현황을 React 화면으로 정리했습니다. 이제 생성과 수정도 같은 라우팅 안에서 이어집니다."
+        description="담당자 정보와 작업/일정 연결 현황을 한 화면에서 확인하고 생성과 수정으로 이어질 수 있도록 정리했습니다."
       />
 
       <Paper sx={{ p: 0, overflow: 'hidden' }}>
@@ -59,7 +59,7 @@ export function MembersPage() {
           <Box>
             <Typography variant="h6">멤버 목록</Typography>
             <Typography variant="body2" color="text.secondary">
-              WBS 담당자와 일정 담당자 선택에 사용하는 멤버 정보입니다.
+              WBS 담당자와 일정 담당자로 사용하는 멤버 정보입니다.
             </Typography>
           </Box>
           <Button component={RouterLink} to="/members/new" variant="outlined" color="secondary" startIcon={<AddRoundedIcon />}>
@@ -80,27 +80,27 @@ export function MembersPage() {
           </Stack>
         ) : (
           <>
-            <TableContainer sx={{ borderTop: '1px solid #d9e1ec' }}>
-              <Table sx={{ minWidth: 960 }}>
+            <TableContainer sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
+              <Table sx={{ minWidth: { xs: 720, md: 960 } }}>
                 <TableHead>
                   <TableRow>
                     <TableCell>이름</TableCell>
-                    <TableCell>역할</TableCell>
-                    <TableCell>담당 파트</TableCell>
-                    <TableCell>연락처</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>역할</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>담당 파트</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>연락처</TableCell>
                     <TableCell>상태</TableCell>
-                    <TableCell>작업 수</TableCell>
-                    <TableCell>일정 수</TableCell>
-                    <TableCell align="right">관리</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>작업 수</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>일정 수</TableCell>
+                    <TableCell>관리</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {(data?.members || []).map((member) => (
                     <TableRow key={member.id} hover>
                       <TableCell sx={{ fontWeight: 700 }}>{member.name}</TableCell>
-                      <TableCell>{member.role || '-'}</TableCell>
-                      <TableCell>{member.part || '-'}</TableCell>
-                      <TableCell>{member.contact || '-'}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{member.role || '-'}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{member.part || '-'}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>{member.contact || '-'}</TableCell>
                       <TableCell>
                         <Chip
                           size="small"
@@ -109,11 +109,11 @@ export function MembersPage() {
                           variant={member.is_active ? 'filled' : 'outlined'}
                         />
                       </TableCell>
-                      <TableCell>{member.task_count}</TableCell>
-                      <TableCell>{member.schedule_count}</TableCell>
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
-                          <Button size="small" variant="outlined" component={RouterLink} to={`/members/${member.id}/edit`}>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{member.task_count}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{member.schedule_count}</TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} justifyContent="flex-start" sx={{ flexWrap: 'nowrap' }}>
+                          <Button size="small" variant="outlined" component={RouterLink} to={`/members/${member.id}/edit`} sx={{ whiteSpace: 'nowrap', minWidth: 0 }}>
                             수정
                           </Button>
                         </Stack>

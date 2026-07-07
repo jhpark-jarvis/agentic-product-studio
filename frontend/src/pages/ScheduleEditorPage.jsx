@@ -13,7 +13,7 @@ import {
 } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
-import { apiGet, apiJson } from '../api/client'
+import { apiGet, apiJson, normalizeRedirectPath } from '../api/client'
 import { PageHeader } from '../components/PageHeader'
 
 const initialForm = {
@@ -24,6 +24,20 @@ const initialForm = {
   wbs_task_id: '',
   start_date: '',
   end_date: '',
+}
+
+function DateField({ label, value, onChange }) {
+  return (
+    <Stack spacing={0.75}>
+      <Typography variant="subtitle2">{label}</Typography>
+      <TextField
+        type="date"
+        value={value}
+        onChange={onChange}
+        inputProps={{ placeholder: '' }}
+      />
+    </Stack>
+  )
 }
 
 export function ScheduleEditorPage() {
@@ -89,7 +103,7 @@ export function ScheduleEditorPage() {
 
     setSaving(true)
     setError('')
-    setStatus('일정을 저장하는 중입니다...')
+    setStatus('일정 정보를 저장하는 중입니다...')
     try {
       const payload = await apiJson(isEditMode ? `/api/schedules/${scheduleId}` : '/api/schedules', {
         body: {
@@ -98,7 +112,7 @@ export function ScheduleEditorPage() {
           wbs_task_id: form.wbs_task_id || null,
         },
       })
-      navigate(payload.redirect_path)
+      navigate(normalizeRedirectPath(payload.redirect_path))
     } catch (saveError) {
       setError(saveError.message)
       setStatus('일정 저장에 실패했습니다.')
@@ -117,7 +131,7 @@ export function ScheduleEditorPage() {
     setStatus('일정을 삭제하는 중입니다...')
     try {
       const payload = await apiJson(`/api/schedules/${scheduleId}`, { method: 'DELETE' })
-      navigate(payload.redirect_path)
+      navigate(normalizeRedirectPath(payload.redirect_path), { replace: true })
     } catch (deleteError) {
       setError(deleteError.message)
       setStatus('일정 삭제에 실패했습니다.')
@@ -139,18 +153,13 @@ export function ScheduleEditorPage() {
       <PageHeader
         eyebrow="SCHEDULES"
         title={isEditMode ? '일정 수정' : '새 일정'}
-        description="일정 유형, 담당자, 연결 WBS, 기간을 React 화면에서 바로 관리할 수 있게 정리했습니다."
+        description="일정 유형, 담당자, 연결 WBS, 기간 정보를 한 화면에서 관리할 수 있도록 정리했습니다."
       />
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
         <Button component={RouterLink} to="/schedules" variant="outlined">
           목록으로
         </Button>
-        {isEditMode ? (
-          <Button href={`/schedules/${scheduleId}/edit`} variant="text">
-            기존 Flask 편집기 열기
-          </Button>
-        ) : null}
       </Stack>
 
       {error ? <Alert severity="error">{error}</Alert> : null}
@@ -208,19 +217,15 @@ export function ScheduleEditorPage() {
                 </MenuItem>
               ))}
             </TextField>
-            <TextField
-              type="date"
+            <DateField
               label="시작일"
               value={form.start_date}
               onChange={(event) => updateField('start_date', event.target.value)}
-              InputLabelProps={{ shrink: true }}
             />
-            <TextField
-              type="date"
+            <DateField
               label="종료일"
               value={form.end_date}
               onChange={(event) => updateField('end_date', event.target.value)}
-              InputLabelProps={{ shrink: true }}
             />
           </Box>
 
@@ -239,7 +244,7 @@ export function ScheduleEditorPage() {
               startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveRoundedIcon />}
               disabled={saving || deleting}
             >
-              {saving ? '저장 중...' : isEditMode ? '변경 저장' : '일정 저장'}
+              {saving ? '저장 중...' : isEditMode ? '변경 저장' : '일정 생성'}
             </Button>
             <Button component={RouterLink} to="/schedules" variant="outlined" disabled={saving || deleting}>
               취소

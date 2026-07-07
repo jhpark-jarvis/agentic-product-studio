@@ -21,6 +21,19 @@ export async function apiGet(path, searchParams) {
   return payload
 }
 
+export function normalizeRedirectPath(path) {
+  if (!path) {
+    return '/'
+  }
+  const normalized = path.startsWith('/app/') ? path.slice(4) : path
+  return normalized
+    .replace(/^\/dashboard$/, '/')
+    .replace(/^\/document(?=\/|$)/, '/documents')
+    .replace(/^\/task(?=\/|$)/, '/wbs')
+    .replace(/^\/schedule(?=\/|$)/, '/schedules')
+    .replace(/^\/member(?=\/|$)/, '/members')
+}
+
 export async function apiJson(path, { method = 'POST', body } = {}) {
   const response = await fetch(new URL(path, window.location.origin).toString(), {
     method,

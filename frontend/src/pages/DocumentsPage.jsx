@@ -80,7 +80,7 @@ export function DocumentsPage() {
       <PageHeader
         eyebrow="DOCUMENTS"
         title="문서 관리"
-        description="문서 조회와 편집 진입 흐름을 React 기준으로 정리한 상태입니다. 이제 목록, 상세, 작성, 편집을 같은 라우팅 체계 안에서 사용할 수 있습니다."
+        description="문서 검색, 분류, 상세 확인, 편집 진입까지 한 흐름으로 관리할 수 있도록 정리한 화면입니다."
       />
 
       <Paper component="form" onSubmit={applyFilters} sx={{ p: 3 }}>
@@ -118,8 +118,7 @@ export function DocumentsPage() {
             }}
           >
             <TextField
-              label="검색"
-              placeholder="문서 제목 검색"
+              label="문서 제목 검색"
               value={filters.q}
               onChange={(event) => setFilters((prev) => ({ ...prev, q: event.target.value }))}
             />
@@ -166,9 +165,7 @@ export function DocumentsPage() {
               select
               label="표시 수"
               value={filters.per_page}
-              onChange={(event) =>
-                setFilters((prev) => ({ ...prev, per_page: Number(event.target.value) }))
-              }
+              onChange={(event) => setFilters((prev) => ({ ...prev, per_page: Number(event.target.value) }))}
             >
               {(data?.per_page_options || [10, 20, 50, 100]).map((option) => (
                 <MenuItem key={option} value={option}>
@@ -214,16 +211,16 @@ export function DocumentsPage() {
           </Stack>
         ) : (
           <>
-            <TableContainer sx={{ borderTop: '1px solid #d9e1ec' }}>
-              <Table sx={{ minWidth: 960 }}>
+            <TableContainer sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
+              <Table sx={{ minWidth: { xs: 720, md: 960 } }}>
                 <TableHead>
                   <TableRow>
                     <TableCell>제목</TableCell>
-                    <TableCell>유형</TableCell>
-                    <TableCell>폴더</TableCell>
-                    <TableCell>작성자</TableCell>
-                    <TableCell>수정일</TableCell>
-                    <TableCell align="right">관리</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>유형</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>폴더</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>작성자</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>수정일</TableCell>
+                    <TableCell>관리</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -231,27 +228,34 @@ export function DocumentsPage() {
                     <TableRow key={document.id} hover>
                       <TableCell sx={{ minWidth: 280 }}>
                         <Stack spacing={0.5}>
-                          <Typography fontWeight={700}>{document.title}</Typography>
+                          <Button
+                            component={RouterLink}
+                            to={`/documents/${document.id}`}
+                            sx={{ justifyContent: 'flex-start', px: 0, textAlign: 'left' }}
+                          >
+                            {document.title}
+                          </Button>
                           <Typography variant="body2" color="text.secondary">
-                            상세는 React 상세 화면에서 확인하고, 편집은 React 에디터로 바로 이어집니다.
+                            {document.folder_name ? `${document.doc_type} / ${document.folder_name}` : document.doc_type}
                           </Typography>
                         </Stack>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                         <Chip size="small" label={document.doc_type} />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                         {document.folder_name ? `${document.doc_type} / ${document.folder_name}` : '미지정'}
                       </TableCell>
-                      <TableCell>{document.author_name || '-'}</TableCell>
-                      <TableCell>{document.updated_at || '-'}</TableCell>
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>{document.author_name || '-'}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{document.updated_at || '-'}</TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} justifyContent="flex-start" sx={{ flexWrap: 'nowrap' }}>
                           <Button
                             size="small"
                             variant="outlined"
                             component={RouterLink}
                             to={`/documents/${document.id}`}
+                            sx={{ whiteSpace: 'nowrap', minWidth: 0 }}
                           >
                             상세
                           </Button>
@@ -260,6 +264,7 @@ export function DocumentsPage() {
                             variant="contained"
                             component={RouterLink}
                             to={`/documents/${document.id}/edit`}
+                            sx={{ whiteSpace: 'nowrap', minWidth: 0 }}
                           >
                             편집
                           </Button>
@@ -281,16 +286,17 @@ export function DocumentsPage() {
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 spacing={1.25}
-                sx={{ px: 3, py: 2.5, borderTop: '1px solid #d9e1ec', justifyContent: 'space-between' }}
+                sx={{ px: 3, py: 2.5, borderTop: '1px solid', borderColor: 'divider', justifyContent: 'space-between' }}
               >
                 <Typography variant="body2" color="text.secondary">
                   현재 페이지 {data.pagination.page} / {data.pagination.total_pages}
                 </Typography>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+                <Stack direction="row" spacing={1.25} sx={{ justifyContent: { xs: 'stretch', sm: 'flex-end' } }}>
                   <Button
                     variant="outlined"
                     disabled={!data.pagination.has_prev}
                     onClick={() => movePage(data.pagination.prev_page)}
+                    sx={{ flex: { xs: 1, sm: '0 0 auto' } }}
                   >
                     이전
                   </Button>
@@ -298,6 +304,7 @@ export function DocumentsPage() {
                     variant="outlined"
                     disabled={!data.pagination.has_next}
                     onClick={() => movePage(data.pagination.next_page)}
+                    sx={{ flex: { xs: 1, sm: '0 0 auto' } }}
                   >
                     다음
                   </Button>

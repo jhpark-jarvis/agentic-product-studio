@@ -106,7 +106,7 @@ export function DocumentDetailPage() {
           component={RouterLink}
           to={`/documents/${document.id}/edit`}
         >
-          React 에디터에서 편집
+          문서 편집
         </Button>
       </Stack>
 
@@ -146,7 +146,7 @@ export function DocumentDetailPage() {
                   overflowX: 'auto',
                   p: 2,
                   borderRadius: 2,
-                  bgcolor: '#0f172a',
+                  bgcolor: 'secondary.main',
                   color: '#eff6ff',
                 },
                 '& code': {
@@ -157,7 +157,8 @@ export function DocumentDetailPage() {
                   borderCollapse: 'collapse',
                 },
                 '& th, & td': {
-                  border: '1px solid #d9e1ec',
+                  border: '1px solid',
+                  borderColor: 'divider',
                   p: 1.25,
                   textAlign: 'left',
                 },

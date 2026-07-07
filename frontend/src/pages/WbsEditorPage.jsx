@@ -15,7 +15,7 @@ import {
 } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
-import { apiGet, apiJson } from '../api/client'
+import { apiGet, apiJson, normalizeRedirectPath } from '../api/client'
 import { PageHeader } from '../components/PageHeader'
 
 const initialForm = {
@@ -123,7 +123,7 @@ export function WbsEditorPage() {
           progress: Number(form.progress || 0),
         },
       })
-      navigate(payload.redirect_path)
+      navigate(normalizeRedirectPath(payload.redirect_path))
     } catch (saveError) {
       setError(saveError.message)
       setStatusMessage('WBS 작업 저장에 실패했습니다.')
@@ -142,7 +142,7 @@ export function WbsEditorPage() {
     setStatusMessage('WBS 작업을 삭제하는 중입니다...')
     try {
       const payload = await apiJson(`/api/wbs/${taskId}`, { method: 'DELETE' })
-      navigate(payload.redirect_path)
+      navigate(normalizeRedirectPath(payload.redirect_path), { replace: true })
     } catch (deleteError) {
       setError(deleteError.message)
       setStatusMessage('WBS 작업 삭제에 실패했습니다.')
@@ -164,18 +164,13 @@ export function WbsEditorPage() {
       <PageHeader
         eyebrow="WORK BREAKDOWN STRUCTURE"
         title={isEditMode ? 'WBS 작업 수정' : '새 WBS 작업'}
-        description="상위 작업, 담당자, 상태, 우선순위, 연관 문서까지 React 화면에서 바로 관리할 수 있게 정리했습니다."
+        description="상위 작업, 담당자, 상태, 우선순위, 연관 문서까지 한 화면에서 바로 관리할 수 있게 정리했습니다."
       />
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
         <Button component={RouterLink} to="/wbs" variant="outlined">
           목록으로
         </Button>
-        {isEditMode ? (
-          <Button href={`/wbs/${taskId}/edit`} variant="text">
-            기존 Flask 편집기 열기
-          </Button>
-        ) : null}
       </Stack>
 
       {error ? <Alert severity="error">{error}</Alert> : null}

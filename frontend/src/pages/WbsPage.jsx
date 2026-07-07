@@ -37,7 +37,7 @@ function ProgressBar({ value }) {
         sx={{
           height: 8,
           borderRadius: 999,
-          bgcolor: '#e2e8f0',
+          bgcolor: 'action.hover',
           overflow: 'hidden',
         }}
       >
@@ -46,7 +46,7 @@ function ProgressBar({ value }) {
             width: `${value}%`,
             height: '100%',
             borderRadius: 999,
-            bgcolor: '#4f46e5',
+            bgcolor: 'primary.main',
           }}
         />
       </Box>
@@ -69,7 +69,13 @@ function TaskTitleCell({ row }) {
 
   return (
     <Stack spacing={0.4} sx={{ pl: `${row.depth * 18}px` }}>
-      <Typography fontWeight={700}>{task.title}</Typography>
+      <Button
+        component={RouterLink}
+        to={`/wbs/${task.id}`}
+        sx={{ justifyContent: 'flex-start', px: 0, textAlign: 'left', fontWeight: 700 }}
+      >
+        {task.title}
+      </Button>
       <Typography variant="body2" color="text.secondary">
         {subtext}
       </Typography>
@@ -116,7 +122,7 @@ export function WbsPage() {
       <PageHeader
         eyebrow="WORK BREAKDOWN STRUCTURE"
         title="WBS 작업 관리"
-        description="필터, 계층 구조, 진행률, 지연 상태를 React 테이블로 정리했습니다. 이제 생성과 수정도 같은 라우팅 안에서 이어집니다."
+        description="필터, 계층 구조, 진행률, 지연 상태를 한 화면에서 확인하고 작업 상세와 편집으로 이어질 수 있도록 정리했습니다."
       />
 
       <Paper component="form" onSubmit={applyFilters} sx={{ p: 3 }}>
@@ -231,20 +237,20 @@ export function WbsPage() {
           </Stack>
         ) : (
           <>
-            <TableContainer sx={{ borderTop: '1px solid #d9e1ec' }}>
-              <Table sx={{ minWidth: 1240 }}>
+            <TableContainer sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
+              <Table sx={{ minWidth: { xs: 860, md: 1240 } }}>
                 <TableHead>
                   <TableRow>
                     <TableCell>ID</TableCell>
                     <TableCell sx={{ minWidth: 300 }}>작업명</TableCell>
-                    <TableCell>플랫폼</TableCell>
-                    <TableCell>담당자</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>플랫폼</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>담당자</TableCell>
                     <TableCell>상태</TableCell>
-                    <TableCell>우선순위</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>우선순위</TableCell>
                     <TableCell>진행률</TableCell>
-                    <TableCell>시작일</TableCell>
-                    <TableCell>마감일</TableCell>
-                    <TableCell align="right">관리</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>시작일</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>마감일</TableCell>
+                    <TableCell>관리</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -253,29 +259,32 @@ export function WbsPage() {
                       key={row.task.id}
                       hover
                       sx={{
-                        bgcolor: row.is_delayed ? '#fff1f2' : row.is_due_soon ? '#fffdf3' : 'inherit',
+                        bgcolor: row.is_delayed ? 'rgba(177, 75, 47, 0.10)' : row.is_due_soon ? 'rgba(212, 160, 23, 0.10)' : 'inherit',
                       }}
                     >
                       <TableCell>#{row.task.id}</TableCell>
                       <TableCell>
                         <TaskTitleCell row={row} />
                       </TableCell>
-                      <TableCell>{row.task.platform || 'Agentic Product Studio'}</TableCell>
-                      <TableCell>{row.task.assignee_name || '-'}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{row.task.platform || 'Agentic Product Studio'}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>{row.task.assignee_name || '-'}</TableCell>
                       <TableCell>
                         <Chip size="small" label={row.task.status} />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                         <Chip size="small" variant="outlined" label={row.task.priority} />
                       </TableCell>
                       <TableCell>
                         <ProgressBar value={row.task.progress || 0} />
                       </TableCell>
-                      <TableCell>{row.task.start_date || '-'}</TableCell>
-                      <TableCell>{row.task.due_date || '-'}</TableCell>
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
-                          <Button size="small" variant="outlined" component={RouterLink} to={`/wbs/${row.task.id}/edit`}>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{row.task.start_date || '-'}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{row.task.due_date || '-'}</TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} justifyContent="flex-start" sx={{ flexWrap: 'nowrap' }}>
+                          <Button size="small" variant="outlined" component={RouterLink} to={`/wbs/${row.task.id}`} sx={{ whiteSpace: 'nowrap', minWidth: 0 }}>
+                            상세
+                          </Button>
+                          <Button size="small" variant="outlined" component={RouterLink} to={`/wbs/${row.task.id}/edit`} sx={{ whiteSpace: 'nowrap', minWidth: 0 }}>
                             수정
                           </Button>
                         </Stack>

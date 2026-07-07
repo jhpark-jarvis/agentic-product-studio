@@ -1,36 +1,66 @@
+import { Suspense, lazy } from 'react'
+import { CircularProgress, Stack, Typography } from '@mui/material'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
-import { DashboardPage } from './pages/DashboardPage'
-import { DocumentDetailPage } from './pages/DocumentDetailPage'
-import { DocumentEditorPage } from './pages/DocumentEditorPage'
-import { DocumentsPage } from './pages/DocumentsPage'
-import { MemberEditorPage } from './pages/MemberEditorPage'
-import { MembersPage } from './pages/MembersPage'
-import { ScheduleEditorPage } from './pages/ScheduleEditorPage'
-import { WbsEditorPage } from './pages/WbsEditorPage'
-import { SchedulesPage } from './pages/SchedulesPage'
-import { WbsPage } from './pages/WbsPage'
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
+const DocumentsPage = lazy(() => import('./pages/DocumentsPage').then((module) => ({ default: module.DocumentsPage })))
+const DocumentEditorPage = lazy(() =>
+  import('./pages/DocumentEditorPage').then((module) => ({ default: module.DocumentEditorPage })),
+)
+const DocumentDetailPage = lazy(() =>
+  import('./pages/DocumentDetailPage').then((module) => ({ default: module.DocumentDetailPage })),
+)
+const WbsPage = lazy(() => import('./pages/WbsPage').then((module) => ({ default: module.WbsPage })))
+const WbsDetailPage = lazy(() => import('./pages/WbsDetailPage').then((module) => ({ default: module.WbsDetailPage })))
+const WbsEditorPage = lazy(() => import('./pages/WbsEditorPage').then((module) => ({ default: module.WbsEditorPage })))
+const SchedulesPage = lazy(() =>
+  import('./pages/SchedulesPage').then((module) => ({ default: module.SchedulesPage })),
+)
+const ScheduleEditorPage = lazy(() =>
+  import('./pages/ScheduleEditorPage').then((module) => ({ default: module.ScheduleEditorPage })),
+)
+const MembersPage = lazy(() => import('./pages/MembersPage').then((module) => ({ default: module.MembersPage })))
+const MemberEditorPage = lazy(() =>
+  import('./pages/MemberEditorPage').then((module) => ({ default: module.MemberEditorPage })),
+)
+
+function RouteLoading() {
+  return (
+    <Stack spacing={2} sx={{ py: 10, alignItems: 'center' }}>
+      <CircularProgress size={30} />
+      <Typography color="text.secondary">화면을 준비하는 중입니다...</Typography>
+    </Stack>
+  )
+}
 
 function App() {
   return (
     <AppShell>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/documents" element={<DocumentsPage />} />
-        <Route path="/documents/new" element={<DocumentEditorPage />} />
-        <Route path="/documents/:documentId" element={<DocumentDetailPage />} />
-        <Route path="/documents/:documentId/edit" element={<DocumentEditorPage />} />
-        <Route path="/wbs" element={<WbsPage />} />
-        <Route path="/wbs/new" element={<WbsEditorPage />} />
-        <Route path="/wbs/:taskId/edit" element={<WbsEditorPage />} />
-        <Route path="/schedules" element={<SchedulesPage />} />
-        <Route path="/schedules/new" element={<ScheduleEditorPage />} />
-        <Route path="/schedules/:scheduleId/edit" element={<ScheduleEditorPage />} />
-        <Route path="/members" element={<MembersPage />} />
-        <Route path="/members/new" element={<MemberEditorPage />} />
-        <Route path="/members/:memberId/edit" element={<MemberEditorPage />} />
-      </Routes>
+      <Suspense fallback={<RouteLoading />}>
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/dashboard" element={<Navigate to="/" replace />} />
+          <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/documents/new" element={<DocumentEditorPage />} />
+          <Route path="/documents/:documentId" element={<DocumentDetailPage />} />
+          <Route path="/documents/:documentId/edit" element={<DocumentEditorPage />} />
+          <Route path="/wbs" element={<WbsPage />} />
+          <Route path="/wbs/new" element={<WbsEditorPage />} />
+          <Route path="/wbs/:taskId" element={<WbsDetailPage />} />
+          <Route path="/wbs/:taskId/edit" element={<WbsEditorPage />} />
+          <Route path="/schedules" element={<SchedulesPage />} />
+          <Route path="/schedules/new" element={<ScheduleEditorPage />} />
+          <Route path="/schedules/:scheduleId/edit" element={<ScheduleEditorPage />} />
+          <Route path="/members" element={<MembersPage />} />
+          <Route path="/members/new" element={<MemberEditorPage />} />
+          <Route path="/members/:memberId/edit" element={<MemberEditorPage />} />
+          <Route path="/document/*" element={<Navigate to="/documents" replace />} />
+          <Route path="/task/*" element={<Navigate to="/wbs" replace />} />
+          <Route path="/schedule/*" element={<Navigate to="/schedules" replace />} />
+          <Route path="/member/*" element={<Navigate to="/members" replace />} />
+        </Routes>
+      </Suspense>
     </AppShell>
   )
 }

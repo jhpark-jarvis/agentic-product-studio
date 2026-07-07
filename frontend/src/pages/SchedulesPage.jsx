@@ -1,7 +1,7 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
+import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
-import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded'
 import {
   Alert,
   Box,
@@ -142,7 +142,7 @@ export function SchedulesPage() {
       <PageHeader
         eyebrow="SCHEDULES"
         title="일정 관리"
-        description="이번 주 일정, 월간 캘린더, 전체 일정 목록을 React 화면으로 이어서 사용할 수 있게 정리했습니다. 이제 생성과 수정도 같은 라우팅 안에서 이어집니다."
+        description="이번 주 일정, 월간 캘린더, 전체 일정 목록을 한 화면에서 확인하고 생성과 수정으로 이어질 수 있도록 정리했습니다."
       />
 
       <Paper sx={{ p: 3 }}>
@@ -196,97 +196,100 @@ export function SchedulesPage() {
           <Stack spacing={0.5}>
             <Typography variant="h6">월간 일정</Typography>
             <Typography variant="body2" color="text.secondary">
-              날짜를 누르면 해당 일자에 걸린 일정을 확인할 수 있습니다.
+              날짜를 누르면 해당 일자의 등록 일정 목록을 확인할 수 있습니다.
             </Typography>
           </Stack>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Button variant="outlined" onClick={() => loadSchedules(shiftMonth(monthQuery, -1))}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ alignSelf: { xs: 'stretch', md: 'auto' } }}>
+            <Button variant="outlined" onClick={() => loadSchedules(shiftMonth(monthQuery, -1))} sx={{ minWidth: { xs: 44, sm: 64 } }}>
               <ChevronLeftRoundedIcon fontSize="small" />
             </Button>
-            <Chip icon={<CalendarMonthRoundedIcon />} label={formatMonthLabel(monthQuery)} color="primary" />
-            <Button variant="outlined" onClick={() => loadSchedules(shiftMonth(monthQuery, 1))}>
+            <Chip icon={<CalendarMonthRoundedIcon />} label={formatMonthLabel(monthQuery)} color="primary" sx={{ flex: { xs: 1, md: '0 0 auto' } }} />
+            <Button variant="outlined" onClick={() => loadSchedules(shiftMonth(monthQuery, 1))} sx={{ minWidth: { xs: 44, sm: 64 } }}>
               <ChevronRightRoundedIcon fontSize="small" />
             </Button>
           </Stack>
         </Stack>
 
         {loading ? null : (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-              gap: 1.25,
-            }}
-          >
-            {weekdays.map((weekday) => (
-              <Box
-                key={weekday}
-                sx={{
-                  px: 1,
-                  py: 1.25,
-                  textAlign: 'center',
-                  borderRadius: 2,
-                  bgcolor: '#eef4ff',
-                  color: 'text.secondary',
-                  fontWeight: 700,
-                  fontSize: 13,
-                }}
-              >
-                {weekday}
-              </Box>
-            ))}
-            {monthCells.map((day) =>
-              day.empty ? (
-                <Box key={day.key} sx={{ minHeight: 132, borderRadius: 3, bgcolor: '#f8fafc' }} />
-              ) : (
-                <Paper
-                  key={day.key}
-                  variant="outlined"
-                  onClick={() => setSelectedDay(day)}
+          <Box sx={{ overflowX: 'auto' }}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                gap: 1.25,
+                minWidth: 720,
+              }}
+            >
+              {weekdays.map((weekday) => (
+                <Box
+                  key={weekday}
                   sx={{
-                    minHeight: 132,
-                    p: 1.25,
-                    cursor: 'pointer',
-                    borderColor: day.is_today ? 'primary.main' : 'divider',
-                    bgcolor: day.is_today ? '#eef4ff' : 'background.paper',
+                    px: 1,
+                    py: 1.25,
+                    textAlign: 'center',
+                    borderRadius: 2,
+                    bgcolor: 'action.hover',
+                    color: 'text.secondary',
+                    fontWeight: 700,
+                    fontSize: 13,
                   }}
                 >
-                  <Stack spacing={0.8}>
-                    <Typography variant="subtitle2" fontWeight={800}>
-                      {Number(day.date.slice(-2))}
-                    </Typography>
-                    {day.start_items.map((item) => (
-                      <Chip
-                        key={`${day.date}-${item.id}`}
-                        size="small"
-                        label={item.title}
-                        color="primary"
-                        variant="outlined"
-                        sx={{
-                          justifyContent: 'flex-start',
-                          '& .MuiChip-label': {
-                            display: 'block',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          },
-                        }}
-                      />
-                    ))}
-                    {day.hidden_start_count ? (
-                      <Typography variant="caption" color="text.secondary">
-                        + 새 일정 {day.hidden_start_count}건
+                  {weekday}
+                </Box>
+              ))}
+              {monthCells.map((day) =>
+                day.empty ? (
+                  <Box key={day.key} sx={{ minHeight: 132, borderRadius: 3, bgcolor: 'background.default' }} />
+                ) : (
+                  <Paper
+                    key={day.key}
+                    variant="outlined"
+                    onClick={() => setSelectedDay(day)}
+                    sx={{
+                      minHeight: 132,
+                      p: 1.25,
+                      cursor: 'pointer',
+                      borderColor: day.is_today ? 'primary.main' : 'divider',
+                      bgcolor: day.is_today ? 'rgba(192, 107, 43, 0.14)' : 'background.paper',
+                    }}
+                  >
+                    <Stack spacing={0.8}>
+                      <Typography variant="subtitle2" fontWeight={800}>
+                        {Number(day.date.slice(-2))}
                       </Typography>
-                    ) : null}
-                    {day.continuing_count ? (
-                      <Typography variant="caption" color="text.secondary">
-                        이어지는 일정 {day.continuing_count}건
-                      </Typography>
-                    ) : null}
-                  </Stack>
-                </Paper>
-              ),
-            )}
+                      {day.start_items.map((item) => (
+                        <Chip
+                          key={`${day.date}-${item.id}`}
+                          size="small"
+                          label={item.title}
+                          color="primary"
+                          variant="outlined"
+                          sx={{
+                            justifyContent: 'flex-start',
+                            '& .MuiChip-label': {
+                              display: 'block',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            },
+                          }}
+                        />
+                      ))}
+                      {day.hidden_start_count ? (
+                        <Typography variant="caption" color="text.secondary">
+                          + 시작 일정 {day.hidden_start_count}건
+                        </Typography>
+                      ) : null}
+                      {day.continuing_count ? (
+                        <Typography variant="caption" color="text.secondary">
+                          이어지는 일정 {day.continuing_count}건
+                        </Typography>
+                      ) : null}
+                    </Stack>
+                  </Paper>
+                ),
+              )}
+            </Box>
           </Box>
         )}
       </Paper>
@@ -300,23 +303,23 @@ export function SchedulesPage() {
           <Stack spacing={0.5}>
             <Typography variant="h6">전체 일정 목록</Typography>
             <Typography variant="body2" color="text.secondary">
-              WBS와 연결된 전체 일정을 한 번에 확인합니다.
+              WBS와 연결된 전체 일정을 표 형태로 확인합니다.
             </Typography>
           </Stack>
           <Chip label={`${data?.schedules?.length || 0}건`} color="primary" variant="outlined" />
         </Stack>
 
         {loading ? null : (
-          <TableContainer sx={{ borderTop: '1px solid #d9e1ec' }}>
-            <Table sx={{ minWidth: 980 }}>
+          <TableContainer sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
+            <Table sx={{ minWidth: { xs: 760, md: 980 } }}>
               <TableHead>
                 <TableRow>
                   <TableCell>일정명</TableCell>
                   <TableCell>유형</TableCell>
                   <TableCell>기간</TableCell>
-                  <TableCell>담당자</TableCell>
-                  <TableCell>연결 작업</TableCell>
-                  <TableCell align="right">관리</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>담당자</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>연결 작업</TableCell>
+                  <TableCell>관리</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -343,10 +346,10 @@ export function SchedulesPage() {
                       <Chip size="small" label={item.schedule_type} />
                     </TableCell>
                     <TableCell>{formatDateRange(item)}</TableCell>
-                    <TableCell>{item.assignee_name || '-'}</TableCell>
-                    <TableCell>{item.task_title || '-'}</TableCell>
-                    <TableCell align="right">
-                      <Button size="small" variant="outlined" component={RouterLink} to={`/schedules/${item.id}/edit`}>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{item.assignee_name || '-'}</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{item.task_title || '-'}</TableCell>
+                    <TableCell>
+                      <Button size="small" variant="outlined" component={RouterLink} to={`/schedules/${item.id}/edit`} sx={{ whiteSpace: 'nowrap', minWidth: 0 }}>
                         수정
                       </Button>
                     </TableCell>

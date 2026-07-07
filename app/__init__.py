@@ -6,13 +6,10 @@ from flask import Flask
 from dotenv import load_dotenv
 
 from .api import bp as api_bp
-from .dashboard import bp as dashboard_bp
 from .db import close_db, init_app as init_db_app, init_db
 from .documents import bp as documents_bp
 from .frontend import bp as frontend_bp
-from .members import bp as members_bp
 from .repositories.provider import get_repository_provider
-from .schedules import bp as schedules_bp
 from .storage import is_r2_enabled, missing_r2_config_fields
 from .utils import (
     DEFAULT_TIMEZONE,
@@ -21,7 +18,6 @@ from .utils import (
     markdown_to_html,
     today_local,
 )
-from .wbs import bp as wbs_bp
 
 
 def create_app(test_config=None):
@@ -64,11 +60,7 @@ def create_app(test_config=None):
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
 
-    app.register_blueprint(dashboard_bp)
-    app.register_blueprint(wbs_bp)
     app.register_blueprint(documents_bp)
-    app.register_blueprint(schedules_bp)
-    app.register_blueprint(members_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(frontend_bp)
     app.teardown_appcontext(close_db)

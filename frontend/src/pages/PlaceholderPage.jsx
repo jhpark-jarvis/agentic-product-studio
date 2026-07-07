@@ -13,7 +13,7 @@ export function PlaceholderPage({ title, description }) {
           sx={{ alignItems: 'center' }}
         >
           <Typography variant="body1">
-            이 화면은 React + MUI 기준으로 순차 이관 중입니다.
+            이 화면은 현재 순차적으로 정리 중입니다.
           </Typography>
         </Alert>
       </Paper>

@@ -14,7 +14,7 @@ import {
 } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
-import { apiGet, apiJson } from '../api/client'
+import { apiGet, apiJson, normalizeRedirectPath } from '../api/client'
 import { PageHeader } from '../components/PageHeader'
 
 const initialForm = {
@@ -89,7 +89,7 @@ export function MemberEditorPage() {
       const payload = await apiJson(isEditMode ? `/api/members/${memberId}` : '/api/members', {
         body: form,
       })
-      navigate(payload.redirect_path)
+      navigate(normalizeRedirectPath(payload.redirect_path))
     } catch (saveError) {
       setError(saveError.message)
       setStatus('멤버 저장에 실패했습니다.')
@@ -112,7 +112,7 @@ export function MemberEditorPage() {
     setStatus('멤버를 삭제하는 중입니다...')
     try {
       const payload = await apiJson(`/api/members/${memberId}`, { method: 'DELETE' })
-      navigate(payload.redirect_path)
+      navigate(normalizeRedirectPath(payload.redirect_path), { replace: true })
     } catch (deleteError) {
       setError(deleteError.message)
       setStatus('멤버 삭제에 실패했습니다.')
@@ -134,18 +134,13 @@ export function MemberEditorPage() {
       <PageHeader
         eyebrow="MEMBERS"
         title={isEditMode ? '멤버 수정' : '새 멤버'}
-        description="담당자 정보와 활성 상태를 React 화면에서 바로 관리할 수 있게 정리했습니다."
+        description="담당자 정보와 활성 상태를 한 화면에서 바로 관리할 수 있도록 정리했습니다."
       />
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
         <Button component={RouterLink} to="/members" variant="outlined">
           목록으로
         </Button>
-        {isEditMode ? (
-          <Button href={`/members/${memberId}/edit`} variant="text">
-            기존 Flask 편집기 열기
-          </Button>
-        ) : null}
       </Stack>
 
       {error ? <Alert severity="error">{error}</Alert> : null}
@@ -187,7 +182,7 @@ export function MemberEditorPage() {
               startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveRoundedIcon />}
               disabled={saving || deleting}
             >
-              {saving ? '저장 중...' : isEditMode ? '변경 저장' : '멤버 저장'}
+              {saving ? '저장 중...' : isEditMode ? '변경 저장' : '멤버 생성'}
             </Button>
             <Button component={RouterLink} to="/members" variant="outlined" disabled={saving || deleting}>
               취소

@@ -30,7 +30,7 @@ import {
 } from '@mui/material'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
-import { apiForm, apiGet, apiJson } from '../api/client'
+import { apiForm, apiGet, apiJson, normalizeRedirectPath } from '../api/client'
 import { PageHeader } from '../components/PageHeader'
 
 const initialForm = {
@@ -69,6 +69,7 @@ export function DocumentEditorPage() {
   const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState('')
   const [status, setStatus] = useState('미리보기를 준비하는 중입니다...')
+  const [previewPending, setPreviewPending] = useState(false)
   const [linkSearchOpen, setLinkSearchOpen] = useState(false)
   const [linkQuery, setLinkQuery] = useState('')
   const [linkResults, setLinkResults] = useState([])
@@ -113,6 +114,7 @@ export function DocumentEditorPage() {
         return
       }
 
+      setPreviewPending(true)
       setStatus('미리보기를 렌더링하는 중입니다...')
       try {
         const body = new FormData()
@@ -122,6 +124,8 @@ export function DocumentEditorPage() {
         setStatus('미리보기가 동기화되었습니다.')
       } catch (_error) {
         setStatus('미리보기를 불러오지 못했습니다.')
+      } finally {
+        setPreviewPending(false)
       }
     },
     180,
@@ -159,6 +163,13 @@ export function DocumentEditorPage() {
       return !form.doc_type || folder.doc_type === form.doc_type
     })
   }, [bootstrap?.document_folders, form.doc_type])
+
+  const busyFlags = [
+    saving ? '저장 중' : null,
+    uploading ? '이미지 업로드 중' : null,
+    formatting ? '코드 정리 중' : null,
+    previewPending ? '미리보기 동기화 중' : null,
+  ].filter(Boolean)
 
   const updateField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -257,7 +268,7 @@ export function DocumentEditorPage() {
         },
       )
 
-      navigate(payload.redirect_path)
+      navigate(normalizeRedirectPath(payload.redirect_path))
     } catch (saveError) {
       setError(saveError.message)
       setStatus('문서 저장에 실패했습니다.')
@@ -299,11 +310,6 @@ export function DocumentEditorPage() {
         <Button component={RouterLink} to="/documents" variant="outlined" startIcon={<ArrowBackRoundedIcon />}>
           목록으로
         </Button>
-        {isEditMode ? (
-          <Button href={`/documents/${documentId}/edit`} variant="text">
-            기존 Flask 편집기 열기
-          </Button>
-        ) : null}
       </Stack>
 
       {error ? <Alert severity="error">{error}</Alert> : null}
@@ -428,7 +434,7 @@ export function DocumentEditorPage() {
               overflow: 'hidden',
               borderRadius: 3,
               borderColor: dragActive ? 'primary.main' : undefined,
-              boxShadow: dragActive ? '0 0 0 3px rgba(32, 89, 220, 0.12)' : undefined,
+              boxShadow: dragActive ? '0 0 0 3px rgba(30, 58, 95, 0.14)' : undefined,
             }}
             onDragEnter={(event) => {
               event.preventDefault()
@@ -454,7 +460,14 @@ export function DocumentEditorPage() {
             <Stack
               direction={{ xs: 'column', md: 'row' }}
               spacing={1}
-              sx={{ p: 1.5, borderBottom: '1px solid #d9e1ec', bgcolor: '#f8fbff', flexWrap: 'wrap' }}
+              sx={{
+                p: 1.5,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.default',
+                flexWrap: 'wrap',
+                alignItems: { md: 'center' },
+              }}
             >
               <Button size="small" variant="outlined" onClick={() => insertAtCursor('# {selection}', '제목')}>
                 H1
@@ -478,7 +491,7 @@ export function DocumentEditorPage() {
                 size="small"
                 variant="outlined"
                 startIcon={<AddPhotoAlternateRoundedIcon />}
-                disabled={uploading}
+                disabled={uploading || saving}
                 onClick={() => fileInputRef.current?.click()}
               >
                 이미지
@@ -495,12 +508,17 @@ export function DocumentEditorPage() {
                 size="small"
                 variant="outlined"
                 startIcon={<AutoFixHighRoundedIcon />}
-                disabled={formatting}
+                disabled={formatting || saving || uploading}
                 onClick={handleFormat}
               >
                 코드 정리
               </Button>
-              <Chip label={status} variant="outlined" sx={{ ml: { md: 'auto' }, maxWidth: '100%' }} />
+              <Chip
+                label={status}
+                color={error ? 'error' : 'default'}
+                variant="outlined"
+                sx={{ ml: { md: 'auto' }, maxWidth: '100%' }}
+              />
             </Stack>
 
             <input
@@ -514,10 +532,10 @@ export function DocumentEditorPage() {
             <Box
               sx={{
                 display: 'grid',
-                gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) minmax(0, 1fr)' },
+                gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.15fr) minmax(0, 0.85fr)' },
               }}
             >
-              <Box sx={{ borderRight: { xl: '1px solid #d9e1ec' } }}>
+              <Box sx={{ borderRight: { xl: '1px solid' }, borderColor: { xl: 'divider' } }}>
                 <Typography variant="overline" sx={{ display: 'block', px: 2, py: 1.25, color: 'text.secondary' }}>
                   Editor
                 </Typography>
@@ -526,7 +544,7 @@ export function DocumentEditorPage() {
                   inputRef={textareaRef}
                   multiline
                   fullWidth
-                  minRows={24}
+                  minRows={30}
                   value={form.content}
                   onChange={(event) => updateField('content', event.target.value)}
                   onPaste={async (event) => {
@@ -551,15 +569,28 @@ export function DocumentEditorPage() {
                     '& textarea': {
                       fontFamily: 'Consolas, "Courier New", monospace',
                       lineHeight: 1.7,
+                      fontSize: 14,
                     },
                   }}
+                  helperText="클립보드 이미지 붙여넣기, 드래그 앤 드롭, 업로드 버튼을 모두 지원합니다."
                 />
               </Box>
 
               <Box>
-                <Typography variant="overline" sx={{ display: 'block', px: 2, py: 1.25, color: 'text.secondary' }}>
-                  Preview
-                </Typography>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  flexWrap="wrap"
+                  sx={{ px: 2, py: 1.25, alignItems: 'center' }}
+                >
+                  <Typography variant="overline" sx={{ color: 'text.secondary' }}>
+                    Preview
+                  </Typography>
+                  {busyFlags.map((label) => (
+                    <Chip key={label} size="small" label={label} variant="outlined" />
+                  ))}
+                </Stack>
                 <Box
                   className="markdown-body"
                   sx={{
@@ -580,13 +611,19 @@ export function DocumentEditorPage() {
                       borderCollapse: 'collapse',
                     },
                     '& th, & td': {
-                      border: '1px solid #d9e1ec',
+                      border: '1px solid',
+                      borderColor: 'divider',
                       p: 1,
                       textAlign: 'left',
                     },
                   }}
-                  dangerouslySetInnerHTML={{ __html: previewHtml }}
-                />
+                >
+                  {previewHtml ? (
+                    <Box dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                  ) : (
+                    <Alert severity="info">본문을 입력하면 여기에서 Markdown 미리보기를 확인할 수 있습니다.</Alert>
+                  )}
+                </Box>
               </Box>
             </Box>
           </Paper>
@@ -628,11 +665,11 @@ export function DocumentEditorPage() {
               type="submit"
               variant="contained"
               startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveRoundedIcon />}
-              disabled={saving}
+              disabled={saving || uploading}
             >
               {saving ? '저장 중...' : isEditMode ? '변경 저장' : '문서 저장'}
             </Button>
-            <Button component={RouterLink} to="/documents" variant="outlined">
+            <Button component={RouterLink} to="/documents" variant="outlined" disabled={saving || uploading}>
               취소
             </Button>
           </Stack>

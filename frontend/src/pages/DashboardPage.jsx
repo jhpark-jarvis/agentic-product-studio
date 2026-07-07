@@ -24,17 +24,21 @@ function SummaryCard({ label, value, caption, tone = 'default' }) {
     <Paper
       sx={{
         p: 3,
-        borderRadius: 4,
-        background: isAlert
-          ? 'linear-gradient(135deg, #fff1f2, #ffffff)'
-          : 'linear-gradient(135deg, #ffffff, #f8fbff)',
+        borderRadius: 1,
+        borderTop: (theme) => `4px solid ${isAlert ? theme.palette.error.main : theme.palette.primary.main}`,
+        background: (theme) =>
+          isAlert
+            ? theme.palette.mode === 'dark'
+              ? `linear-gradient(135deg, ${theme.palette.background.paper}, rgba(249, 115, 22, 0.16))`
+              : `linear-gradient(135deg, ${theme.palette.background.paper}, #fff5f0)`
+            : `linear-gradient(135deg, ${theme.palette.background.paper}, ${theme.palette.background.default})`,
       }}
     >
       <Stack spacing={1}>
         <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.16em', fontWeight: 800 }}>
           {label}
         </Typography>
-        <Typography variant="h3" sx={{ fontWeight: 800, color: isAlert ? '#be123c' : 'text.primary' }}>
+        <Typography variant="h3" sx={{ fontWeight: 800, color: isAlert ? 'error.main' : 'text.primary' }}>
           {value}
         </Typography>
         <Typography variant="body2" color="text.secondary">
@@ -47,7 +51,7 @@ function SummaryCard({ label, value, caption, tone = 'default' }) {
 
 function SectionCard({ title, description, actionLabel, actionTo, icon, children }) {
   return (
-    <Paper sx={{ p: 3, borderRadius: 4 }}>
+    <Paper sx={{ p: 3, borderRadius: 1 }}>
       <Stack spacing={2.5}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between' }}>
           <Stack spacing={0.75}>
@@ -126,7 +130,7 @@ export function DashboardPage() {
       <PageHeader
         eyebrow="OVERVIEW"
         title="프로젝트 대시보드"
-        description={`오늘 ${data.today} 기준 현황입니다. 이번 주 범위는 ${data.today} ~ ${data.week_end} 입니다.`}
+        description={`오늘은 ${data.today} 기준이며, 이번 주 범위는 ${data.week_start} ~ ${data.week_end} 입니다.`}
       />
 
       <Box
@@ -136,8 +140,8 @@ export function DashboardPage() {
           gap: 2,
         }}
       >
-        <SummaryCard label="전체 작업" value={summary.total_tasks || 0} caption="현재 등록된 전체 WBS 작업 수" />
-        <SummaryCard label="진행 중" value={summary.in_progress_tasks || 0} caption="진행 또는 검토 상태 작업 수" />
+        <SummaryCard label="전체 작업" value={summary.total_tasks || 0} caption="등록된 전체 WBS 작업 수" />
+        <SummaryCard label="진행 중" value={summary.in_progress_tasks || 0} caption="현재 처리 중인 작업 수" />
         <SummaryCard label="완료" value={summary.completed_tasks || 0} caption="완료 처리된 작업 수" />
         <SummaryCard label="지연 작업" value={summary.delayed_tasks || 0} caption="마감일이 지났지만 완료되지 않은 작업" tone="alert" />
       </Box>
@@ -158,7 +162,7 @@ export function DashboardPage() {
         >
           <Stack spacing={1.5}>
             {data.week_due_tasks.length ? data.week_due_tasks.map((task) => (
-              <Paper key={task.id} variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+              <Paper key={task.id} variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
                 <Stack spacing={1}>
                   <Typography fontWeight={700}>{task.title}</Typography>
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
@@ -183,8 +187,8 @@ export function DashboardPage() {
               variant="outlined"
               sx={{
                 p: 2.5,
-                borderRadius: 3,
-                bgcolor: '#fffaf0',
+                borderRadius: 1,
+                bgcolor: 'background.default',
               }}
             >
               <Stack spacing={1}>
@@ -219,7 +223,7 @@ export function DashboardPage() {
         >
           <Stack spacing={1.25}>
             {data.recent_documents.length ? data.recent_documents.map((document) => (
-              <Paper key={document.id} variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+              <Paper key={document.id} variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
                 <Stack spacing={0.75}>
                   <Button
                     component={RouterLink}
@@ -246,9 +250,15 @@ export function DashboardPage() {
         >
           <Stack spacing={1.25}>
             {data.recent_tasks.length ? data.recent_tasks.map((task) => (
-              <Paper key={task.id} variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+              <Paper key={task.id} variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
                 <Stack spacing={0.75}>
-                  <Typography fontWeight={700}>{task.title}</Typography>
+                  <Button
+                    component={RouterLink}
+                    to={`/wbs/${task.id}`}
+                    sx={{ justifyContent: 'flex-start', px: 0, textAlign: 'left', fontWeight: 700 }}
+                  >
+                    {task.title}
+                  </Button>
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                     <Chip size="small" label={task.status} />
                     <Chip size="small" variant="outlined" label={task.priority} />
@@ -268,7 +278,7 @@ export function DashboardPage() {
         >
           <Stack spacing={1.25}>
             {data.upcoming_schedules.length ? data.upcoming_schedules.map((item) => (
-              <Paper key={item.id} variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+              <Paper key={item.id} variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
                 <Stack spacing={0.75}>
                   <Typography fontWeight={700}>{item.title}</Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -281,7 +291,7 @@ export function DashboardPage() {
                   </Stack>
                 </Stack>
               </Paper>
-            )) : <EmptyState message="예정된 일정이 없습니다." />}
+            )) : <EmptyState message="예정 일정이 없습니다." />}
           </Stack>
         </SectionCard>
       </Box>

@@ -421,7 +421,7 @@ def create_document_api():
     return jsonify(
         {
             "document_id": document_id,
-            "redirect_path": f"/app/documents/{document_id}",
+            "redirect_path": f"/documents/{document_id}",
         }
     )
 
@@ -451,7 +451,7 @@ def update_document_api(document_id: int):
     return jsonify(
         {
             "document_id": document_id,
-            "redirect_path": f"/app/documents/{document_id}",
+            "redirect_path": f"/documents/{document_id}",
         }
     )
 
@@ -533,7 +533,7 @@ def create_schedule_api():
     return jsonify(
         {
             "schedule_id": schedule_id,
-            "redirect_path": "/app/schedules",
+            "redirect_path": "/schedules",
         }
     )
 
@@ -556,7 +556,7 @@ def update_schedule_api(schedule_id: int):
     return jsonify(
         {
             "schedule_id": schedule_id,
-            "redirect_path": "/app/schedules",
+            "redirect_path": "/schedules",
         }
     )
 
@@ -571,14 +571,15 @@ def delete_schedule_api(schedule_id: int):
     get_repository_provider().schedules.delete_schedule(schedule_id)
     db.commit()
 
-    return jsonify({"deleted": True, "redirect_path": "/app/schedules"})
+    return jsonify({"deleted": True, "redirect_path": "/schedules"})
 
 
 @bp.route("/dashboard")
 def dashboard_summary():
     today = today_local()
-    _, week_end = week_bounds(today)
+    week_start, week_end = week_bounds(today)
     today_str = today.isoformat()
+    week_start_str = week_start.isoformat()
     week_end_str = week_end.isoformat()
 
     dashboard = get_repository_provider().dashboard
@@ -598,6 +599,7 @@ def dashboard_summary():
             "pinned_notice": dict(pinned_notice) if pinned_notice else None,
             "upcoming_schedules": _serialize_rows(upcoming_schedules),
             "today": today_str,
+            "week_start": week_start_str,
             "week_end": week_end_str,
         }
     )
@@ -620,6 +622,29 @@ def wbs_list():
             "priorities": list(TASK_PRIORITIES),
             "platforms": list(WBS_PLATFORM_OPTIONS),
             "filters": filters,
+        }
+    )
+
+
+@bp.route("/wbs/<int:task_id>")
+def wbs_detail(task_id: int):
+    task, selected_document_ids = get_repository_provider().wbs.fetch_task_with_links(task_id)
+    if not task:
+        return jsonify({"error": "Task not found"}), 404
+
+    document_options = _serialize_rows(
+        get_repository_provider().common.fetch_document_link_options()
+    )
+    linked_documents = [
+        document for document in document_options if document["id"] in set(selected_document_ids)
+    ]
+
+    return jsonify(
+        {
+            "task": dict(task),
+            "linked_documents": linked_documents,
+            "document_ids": list(selected_document_ids),
+            "is_completed": _is_completed_task(task),
         }
     )
 
@@ -664,7 +689,7 @@ def create_wbs_task_api():
     get_repository_provider().wbs.sync_task_documents(task_id, data["document_ids"])
     db.commit()
 
-    return jsonify({"task_id": task_id, "redirect_path": "/app/wbs"})
+    return jsonify({"task_id": task_id, "redirect_path": "/wbs"})
 
 
 @bp.route("/wbs/<int:task_id>", methods=["POST"])
@@ -683,7 +708,7 @@ def update_wbs_task_api(task_id: int):
     get_repository_provider().wbs.sync_task_documents(task_id, data["document_ids"])
     db.commit()
 
-    return jsonify({"task_id": task_id, "redirect_path": "/app/wbs"})
+    return jsonify({"task_id": task_id, "redirect_path": "/wbs"})
 
 
 @bp.route("/wbs/<int:task_id>", methods=["DELETE"])
@@ -696,7 +721,7 @@ def delete_wbs_task_api(task_id: int):
     get_repository_provider().wbs.delete_task(task_id)
     db.commit()
 
-    return jsonify({"deleted": True, "redirect_path": "/app/wbs"})
+    return jsonify({"deleted": True, "redirect_path": "/wbs"})
 
 
 @bp.route("/members")
@@ -739,7 +764,7 @@ def create_member_api():
     return jsonify(
         {
             "member_id": member_id,
-            "redirect_path": "/app/members",
+            "redirect_path": "/members",
         }
     )
 
@@ -762,7 +787,7 @@ def update_member_api(member_id: int):
     return jsonify(
         {
             "member_id": member_id,
-            "redirect_path": "/app/members",
+            "redirect_path": "/members",
         }
     )
 
@@ -777,4 +802,4 @@ def delete_member_api(member_id: int):
     get_repository_provider().members.delete_member(member_id)
     db.commit()
 
-    return jsonify({"deleted": True, "redirect_path": "/app/members"})
+    return jsonify({"deleted": True, "redirect_path": "/members"})

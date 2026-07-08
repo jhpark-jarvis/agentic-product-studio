@@ -17,7 +17,11 @@ def _send_frontend_index():
     index_path = frontend_dir / "index.html"
     if not index_path.exists():
         abort(404, description="React frontend build not found. Run the frontend build first.")
-    return send_from_directory(frontend_dir, "index.html")
+    response = send_from_directory(frontend_dir, "index.html")
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 def _normalize_legacy_path(path: str) -> str:

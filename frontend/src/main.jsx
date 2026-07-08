@@ -6,11 +6,19 @@ import App from './App'
 import { buildAppTheme, DEFAULT_THEME_MODE, THEME_STORAGE_KEY } from './theme'
 import { ThemeModeContext } from './theme-mode'
 
+function resolveRouterBasename() {
+  if (window.location.pathname.startsWith('/static/frontend/')) {
+    return '/static/frontend'
+  }
+  return '/'
+}
+
 function RootApp() {
   const [themeMode, setThemeMode] = useState(() => {
     const saved = window.localStorage.getItem(THEME_STORAGE_KEY)
     return saved || DEFAULT_THEME_MODE
   })
+  const routerBasename = useMemo(() => resolveRouterBasename(), [])
 
   const theme = useMemo(() => buildAppTheme(themeMode), [themeMode])
 
@@ -31,7 +39,7 @@ function RootApp() {
     <ThemeModeContext.Provider value={contextValue}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <BrowserRouter>
+        <BrowserRouter basename={routerBasename}>
           <App />
         </BrowserRouter>
       </ThemeProvider>

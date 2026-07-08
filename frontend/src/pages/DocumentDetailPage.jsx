@@ -33,6 +33,35 @@ function MetaBlock({ label, value }) {
   )
 }
 
+function TagBadge({ label }) {
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        flex: 'none',
+        width: 'auto',
+        minWidth: 'max-content',
+        maxWidth: 'none',
+        padding: '8px 12px',
+        border: '1px solid var(--mui-palette-divider)',
+        borderRadius: '4px',
+        backgroundColor: 'var(--mui-palette-background-default)',
+        color: 'var(--mui-palette-text-primary)',
+        fontSize: '0.875rem',
+        fontWeight: 700,
+        lineHeight: 1.2,
+        whiteSpace: 'nowrap',
+        wordBreak: 'keep-all',
+        overflowWrap: 'normal',
+        writingMode: 'horizontal-tb',
+        verticalAlign: 'top',
+      }}
+    >
+      {label}
+    </span>
+  )
+}
+
 export function DocumentDetailPage() {
   const { documentId } = useParams()
   const [data, setData] = useState(null)
@@ -92,12 +121,7 @@ export function DocumentDetailPage() {
       />
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-        <Button
-          component={RouterLink}
-          to="/documents"
-          variant="outlined"
-          startIcon={<ArrowBackRoundedIcon />}
-        >
+        <Button component={RouterLink} to="/documents" variant="outlined" startIcon={<ArrowBackRoundedIcon />}>
           목록으로
         </Button>
         <Button
@@ -193,28 +217,20 @@ export function DocumentDetailPage() {
                 <LabelRoundedIcon color="primary" fontSize="small" />
                 <Typography variant="h6">태그</Typography>
               </Stack>
-              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ minWidth: 0 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 1,
+                  minWidth: 0,
+                }}
+              >
                 {tags.length ? tags.map((tag) => (
-                  <Chip
-                    key={tag}
-                    label={tag}
-                    variant="outlined"
-                    sx={{
-                      maxWidth: '100%',
-                      height: 'auto',
-                      alignItems: 'flex-start',
-                      '& .MuiChip-label': {
-                        display: 'block',
-                        whiteSpace: 'normal',
-                        overflowWrap: 'anywhere',
-                        py: 0.75,
-                      },
-                    }}
-                  />
+                  <TagBadge key={tag} label={tag} />
                 )) : (
                   <Typography color="text.secondary">태그가 없습니다.</Typography>
                 )}
-              </Stack>
+              </Box>
             </Stack>
           </Paper>
 

@@ -193,8 +193,25 @@ export function DocumentDetailPage() {
                 <LabelRoundedIcon color="primary" fontSize="small" />
                 <Typography variant="h6">태그</Typography>
               </Stack>
-              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                {tags.length ? tags.map((tag) => <Chip key={tag} label={tag} variant="outlined" />) : (
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ minWidth: 0 }}>
+                {tags.length ? tags.map((tag) => (
+                  <Chip
+                    key={tag}
+                    label={tag}
+                    variant="outlined"
+                    sx={{
+                      maxWidth: '100%',
+                      height: 'auto',
+                      alignItems: 'flex-start',
+                      '& .MuiChip-label': {
+                        display: 'block',
+                        whiteSpace: 'normal',
+                        overflowWrap: 'anywhere',
+                        py: 0.75,
+                      },
+                    }}
+                  />
+                )) : (
                   <Typography color="text.secondary">태그가 없습니다.</Typography>
                 )}
               </Stack>

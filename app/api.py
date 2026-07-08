@@ -4,10 +4,11 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 from .constants import DOCUMENT_TYPES, SCHEDULE_TYPES, TASK_PRIORITIES, TASK_STATUSES
 from .db import get_db
+from .page_view_logging import read_page_view_logs, write_page_view_log
 from .repositories.provider import get_repository_provider
 from .utils import (
     WBS_PLATFORM_OPTIONS,
@@ -27,6 +28,13 @@ PER_PAGE_OPTIONS = (10, 20, 50, 100)
 
 def _serialize_rows(rows):
     return [dict(row) for row in rows]
+
+
+def _client_ip() -> str:
+    forwarded_for = (request.headers.get("X-Forwarded-For") or "").strip()
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.headers.get("X-Real-IP") or request.remote_addr or ""
 
 
 def _is_completed_task(task) -> bool:
@@ -601,6 +609,72 @@ def dashboard_summary():
             "today": today_str,
             "week_start": week_start_str,
             "week_end": week_end_str,
+        }
+    )
+
+
+@bp.route("/telemetry/page-view", methods=["POST"])
+def track_page_view():
+    payload = request.get_json(silent=True) or {}
+    path = str(payload.get("path") or "").strip()
+    referrer = str(payload.get("referrer") or "").strip()
+    visitor_id = str(payload.get("visitor_id") or "").strip()
+    session_id = str(payload.get("session_id") or "").strip()
+    identity_type = str(payload.get("identity_type") or "anonymous_browser").strip()
+
+    if not path.startswith("/"):
+        return jsonify({"error": "Invalid path"}), 400
+    if not visitor_id:
+        return jsonify({"error": "Missing visitor_id"}), 400
+    if not session_id:
+        return jsonify({"error": "Missing session_id"}), 400
+
+    write_page_view_log(
+        current_app,
+        {
+            "ts": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "path": path,
+            "referrer": referrer,
+            "visitor_id": visitor_id,
+            "session_id": session_id,
+            "identity_type": identity_type,
+            "ip": _client_ip(),
+            "user_agent": request.headers.get("User-Agent", ""),
+        },
+    )
+    return jsonify({"logged": True})
+
+
+@bp.route("/logs/page-views")
+def page_view_logs():
+    limit = parse_int(request.args.get("limit"), default=200, minimum=1)
+    search = request.args.get("q", "").strip()
+    visitor_id = request.args.get("visitor_id", "").strip()
+    rows = read_page_view_logs(
+        current_app,
+        limit=min(limit, 1000),
+        search=search,
+        visitor_id=visitor_id,
+    )
+
+    unique_visitors = len({row.get("visitor_id") for row in rows if row.get("visitor_id")})
+    unique_sessions = len({row.get("session_id") for row in rows if row.get("session_id")})
+    unique_paths = len({row.get("path") for row in rows if row.get("path")})
+
+    return jsonify(
+        {
+            "logs": rows,
+            "summary": {
+                "total": len(rows),
+                "unique_visitors": unique_visitors,
+                "unique_sessions": unique_sessions,
+                "unique_paths": unique_paths,
+            },
+            "filters": {
+                "q": search,
+                "visitor_id": visitor_id,
+                "limit": min(limit, 1000),
+            },
         }
     )
 

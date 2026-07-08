@@ -29,6 +29,10 @@ import { useThemeMode } from '../theme-mode'
 
 const drawerWidth = 272
 
+const hiddenRouteTitles = {
+  '/log': '접속 로그',
+}
+
 const navigationItems = [
   { label: '대시보드', path: '/', icon: <DashboardOutlinedIcon /> },
   { label: '문서', path: '/documents', icon: <DescriptionOutlinedIcon /> },
@@ -120,7 +124,12 @@ export function AppShell({ children }) {
   const styleSet = shellStyles[themeMode] || shellStyles.studio
 
   const pageTitle = useMemo(() => {
-    return navigationItems.find((item) => location.pathname.startsWith(item.path))?.label ?? 'Agentic Product Studio'
+    return (
+      hiddenRouteTitles[location.pathname] ||
+      navigationItems.find((item) => item.path !== '/' && location.pathname.startsWith(item.path))?.label ||
+      (location.pathname === '/' ? navigationItems[0].label : null) ||
+      'Agentic Product Studio'
+    )
   }, [location.pathname])
 
   const drawerContent = (

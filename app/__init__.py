@@ -9,6 +9,7 @@ from .api import bp as api_bp
 from .db import close_db, init_app as init_db_app, init_db
 from .documents import bp as documents_bp
 from .frontend import bp as frontend_bp
+from .page_view_logging import setup_page_view_logger
 from .repositories.provider import get_repository_provider
 from .storage import is_r2_enabled, missing_r2_config_fields
 from .utils import (
@@ -65,6 +66,7 @@ def create_app(test_config=None):
     app.register_blueprint(frontend_bp)
     app.teardown_appcontext(close_db)
     init_db_app(app)
+    setup_page_view_logger(app)
     app.jinja_env.filters["markdown"] = markdown_to_html
     app.jinja_env.filters["datetime_local"] = format_datetime_local
     app.jinja_env.filters["badge_class"] = css_badge_class

@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react'
 import { CircularProgress, Stack, Typography } from '@mui/material'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
+import { PageViewTracker } from './components/PageViewTracker'
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage').then((module) => ({ default: module.DocumentsPage })))
@@ -24,6 +25,7 @@ const MembersPage = lazy(() => import('./pages/MembersPage').then((module) => ({
 const MemberEditorPage = lazy(() =>
   import('./pages/MemberEditorPage').then((module) => ({ default: module.MemberEditorPage })),
 )
+const LogsPage = lazy(() => import('./pages/LogsPage').then((module) => ({ default: module.LogsPage })))
 
 function RouteLoading() {
   return (
@@ -37,6 +39,7 @@ function RouteLoading() {
 function App() {
   return (
     <AppShell>
+      <PageViewTracker />
       <Suspense fallback={<RouteLoading />}>
         <Routes>
           <Route path="/" element={<DashboardPage />} />
@@ -55,6 +58,7 @@ function App() {
           <Route path="/members" element={<MembersPage />} />
           <Route path="/members/new" element={<MemberEditorPage />} />
           <Route path="/members/:memberId/edit" element={<MemberEditorPage />} />
+          <Route path="/log" element={<LogsPage />} />
           <Route path="/document/*" element={<Navigate to="/documents" replace />} />
           <Route path="/task/*" element={<Navigate to="/wbs" replace />} />
           <Route path="/schedule/*" element={<Navigate to="/schedules" replace />} />

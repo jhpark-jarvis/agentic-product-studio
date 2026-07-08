@@ -142,7 +142,7 @@ export function SchedulesPage() {
       <PageHeader
         eyebrow="SCHEDULES"
         title="일정 관리"
-        description="이번 주 일정, 월간 캘린더, 전체 일정 목록을 한 화면에서 확인하고 생성과 수정으로 이어질 수 있도록 정리했습니다."
+        description="이번 주 일정과 월간 캘린더, 전체 일정 목록을 한 화면에서 확인하고 바로 수정할 수 있도록 정리했습니다."
       />
 
       <Paper sx={{ p: 3 }}>
@@ -157,7 +157,13 @@ export function SchedulesPage() {
               {data?.week_range?.start || '-'} ~ {data?.week_range?.end || '-'}
             </Typography>
           </Stack>
-          <Button component={RouterLink} to="/schedules/new" variant="outlined" color="secondary" startIcon={<AddRoundedIcon />}>
+          <Button
+            component={RouterLink}
+            to="/schedules/new"
+            variant="outlined"
+            color="secondary"
+            startIcon={<AddRoundedIcon />}
+          >
             새 일정
           </Button>
         </Stack>
@@ -196,15 +202,33 @@ export function SchedulesPage() {
           <Stack spacing={0.5}>
             <Typography variant="h6">월간 일정</Typography>
             <Typography variant="body2" color="text.secondary">
-              날짜를 누르면 해당 일자의 등록 일정 목록을 확인할 수 있습니다.
+              날짜를 누르면 해당 일자의 등록 일정 목록을 바로 확인할 수 있습니다.
             </Typography>
           </Stack>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ alignSelf: { xs: 'stretch', md: 'auto' } }}>
-            <Button variant="outlined" onClick={() => loadSchedules(shiftMonth(monthQuery, -1))} sx={{ minWidth: { xs: 44, sm: 64 } }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ alignSelf: { xs: 'stretch', md: 'auto' } }}
+          >
+            <Button
+              variant="outlined"
+              onClick={() => loadSchedules(shiftMonth(monthQuery, -1))}
+              sx={{ minWidth: { xs: 44, sm: 64 } }}
+            >
               <ChevronLeftRoundedIcon fontSize="small" />
             </Button>
-            <Chip icon={<CalendarMonthRoundedIcon />} label={formatMonthLabel(monthQuery)} color="primary" sx={{ flex: { xs: 1, md: '0 0 auto' } }} />
-            <Button variant="outlined" onClick={() => loadSchedules(shiftMonth(monthQuery, 1))} sx={{ minWidth: { xs: 44, sm: 64 } }}>
+            <Chip
+              icon={<CalendarMonthRoundedIcon />}
+              label={formatMonthLabel(monthQuery)}
+              color="primary"
+              sx={{ flex: { xs: 1, md: '0 0 auto' } }}
+            />
+            <Button
+              variant="outlined"
+              onClick={() => loadSchedules(shiftMonth(monthQuery, 1))}
+              sx={{ minWidth: { xs: 44, sm: 64 } }}
+            >
               <ChevronRightRoundedIcon fontSize="small" />
             </Button>
           </Stack>
@@ -239,7 +263,10 @@ export function SchedulesPage() {
               ))}
               {monthCells.map((day) =>
                 day.empty ? (
-                  <Box key={day.key} sx={{ minHeight: 132, borderRadius: 3, bgcolor: 'background.default' }} />
+                  <Box
+                    key={day.key}
+                    sx={{ minHeight: 132, borderRadius: 3, bgcolor: 'background.default' }}
+                  />
                 ) : (
                   <Paper
                     key={day.key}
@@ -303,7 +330,7 @@ export function SchedulesPage() {
           <Stack spacing={0.5}>
             <Typography variant="h6">전체 일정 목록</Typography>
             <Typography variant="body2" color="text.secondary">
-              WBS와 연결된 전체 일정을 표 형태로 확인합니다.
+              연결 작업과 함께 일정 전체를 한 번에 확인할 수 있습니다.
             </Typography>
           </Stack>
           <Chip label={`${data?.schedules?.length || 0}건`} color="primary" variant="outlined" />
@@ -311,15 +338,31 @@ export function SchedulesPage() {
 
         {loading ? null : (
           <TableContainer sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
-            <Table sx={{ minWidth: { xs: 760, md: 980 } }}>
+            <Table sx={{ minWidth: { xs: 880, md: 1100 } }}>
               <TableHead>
                 <TableRow>
-                  <TableCell>일정명</TableCell>
-                  <TableCell>유형</TableCell>
-                  <TableCell>기간</TableCell>
-                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>담당자</TableCell>
-                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>연결 작업</TableCell>
-                  <TableCell>관리</TableCell>
+                  <TableCell sx={{ minWidth: 280 }}>일정명</TableCell>
+                  <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 88 }}>유형</TableCell>
+                  <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 180 }}>기간</TableCell>
+                  <TableCell
+                    sx={{
+                      display: { xs: 'none', sm: 'table-cell' },
+                      whiteSpace: 'nowrap',
+                      minWidth: 112,
+                    }}
+                  >
+                    담당자
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      display: { xs: 'none', md: 'table-cell' },
+                      whiteSpace: 'nowrap',
+                      minWidth: 180,
+                    }}
+                  >
+                    연결 작업
+                  </TableCell>
+                  <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 100 }}>관리</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -342,14 +385,33 @@ export function SchedulesPage() {
                         </Typography>
                       </Stack>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
                       <Chip size="small" label={item.schedule_type} />
                     </TableCell>
-                    <TableCell>{formatDateRange(item)}</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{item.assignee_name || '-'}</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{item.task_title || '-'}</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDateRange(item)}</TableCell>
+                    <TableCell
+                      sx={{ display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap' }}
+                    >
+                      {item.assignee_name || '-'}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        display: { xs: 'none', md: 'table-cell' },
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {item.task_title || '-'}
+                    </TableCell>
                     <TableCell>
-                      <Button size="small" variant="outlined" component={RouterLink} to={`/schedules/${item.id}/edit`} sx={{ whiteSpace: 'nowrap', minWidth: 0 }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        component={RouterLink}
+                        to={`/schedules/${item.id}/edit`}
+                        sx={{ whiteSpace: 'nowrap', minWidth: 0 }}
+                      >
                         수정
                       </Button>
                     </TableCell>

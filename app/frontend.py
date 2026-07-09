@@ -63,6 +63,8 @@ def _normalize_short_path(segment: str, path: str | None = None) -> str:
 @bp.route("/members")
 @bp.route("/members/")
 @bp.route("/members/<path:path>")
+@bp.route("/log")
+@bp.route("/log/")
 def app_index(path: str | None = None):
     return _send_frontend_index()
 
@@ -104,3 +106,9 @@ def legacy_schedule_routes(path: str | None = None):
 @bp.route("/member/<path:path>")
 def legacy_member_routes(path: str | None = None):
     return redirect(_normalize_short_path("member", path), code=302)
+
+
+@bp.route("/logs")
+@bp.route("/logs/")
+def legacy_logs_route():
+    return redirect("/log", code=302)

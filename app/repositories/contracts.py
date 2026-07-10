@@ -17,7 +17,15 @@ class DocumentsRepository(Protocol):
     def fetch_document_with_relations(self, document_id: int): ...
     def search_documents_for_link(self, *, keyword: str, limit: int = 10): ...
     def list_documents(
-        self, *, search: str, doc_type: str, tag: str, folder_id: str, limit: int, offset: int
+        self,
+        *,
+        search: str,
+        doc_type: str,
+        tag: str,
+        folder_id: str,
+        include_hidden: bool,
+        limit: int,
+        offset: int,
     ): ...
     def fetch_tag_options(self): ...
     def create_document(self, data, folder_id): ...

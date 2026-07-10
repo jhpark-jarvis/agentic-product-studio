@@ -58,13 +58,24 @@ class SQLiteDocumentsRepository:
     def search_documents_for_link(self, *, keyword: str, limit: int = 10):
         return document_queries.search_documents_for_link(self.db, keyword=keyword, limit=limit)
 
-    def list_documents(self, *, search: str, doc_type: str, tag: str, folder_id: str, limit: int, offset: int):
+    def list_documents(
+        self,
+        *,
+        search: str,
+        doc_type: str,
+        tag: str,
+        folder_id: str,
+        include_hidden: bool,
+        limit: int,
+        offset: int,
+    ):
         return document_queries.list_documents(
             self.db,
             search=search,
             doc_type=doc_type,
             tag=tag,
             folder_id=folder_id,
+            include_hidden=include_hidden,
             limit=limit,
             offset=offset,
         )

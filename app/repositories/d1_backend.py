@@ -682,12 +682,23 @@ class D1DocumentsRepository:
         )
 
     def list_documents(
-        self, *, search: str, doc_type: str, tag: str, folder_id: str, limit: int, offset: int
+        self,
+        *,
+        search: str,
+        doc_type: str,
+        tag: str,
+        folder_id: str,
+        include_hidden: bool,
+        limit: int,
+        offset: int,
     ):
-        clauses = ["d.is_hidden = 0"]
+        clauses = []
         params: list[Any] = []
         joins = ["LEFT JOIN members m ON m.id = d.author_id", "LEFT JOIN document_folders f ON f.id = d.folder_id"]
         count_joins: list[str] = []
+
+        if not include_hidden:
+            clauses.append("d.is_hidden = 0")
 
         if search:
             clauses.append("d.title LIKE ?")
@@ -704,7 +715,7 @@ class D1DocumentsRepository:
             clauses.append("d.folder_id = ?")
             params.append(int(folder_id))
 
-        where_sql = f"WHERE {' AND '.join(clauses)}"
+        where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         if count_joins:
             count_sql = f"""
             SELECT COUNT(DISTINCT d.id) AS count

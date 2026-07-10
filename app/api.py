@@ -10,6 +10,7 @@ from .constants import DOCUMENT_TYPES, SCHEDULE_TYPES, TASK_PRIORITIES, TASK_STA
 from .db import get_db
 from .page_view_logging import read_page_view_logs, write_page_view_log
 from .repositories.provider import get_repository_provider
+from .storage import delete_object
 from .utils import (
     WBS_PLATFORM_OPTIONS,
     build_pagination,
@@ -305,6 +306,7 @@ def documents_list():
     doc_type = request.args.get("doc_type", "").strip()
     tag = request.args.get("tag", "").strip()
     folder_id = request.args.get("folder_id", "").strip()
+    include_hidden = request.args.get("include_hidden", "").strip() in {"1", "true", "yes", "on"}
     page = parse_int(request.args.get("page"), default=1, minimum=1)
     per_page = parse_int(request.args.get("per_page"), default=20, allowed=set(PER_PAGE_OPTIONS))
 
@@ -313,6 +315,7 @@ def documents_list():
         doc_type=doc_type,
         tag=tag,
         folder_id=folder_id,
+        include_hidden=include_hidden,
         limit=per_page,
         offset=max((page - 1) * per_page, 0),
     )
@@ -333,6 +336,7 @@ def documents_list():
                 "doc_type": doc_type,
                 "tag": tag,
                 "folder_id": folder_id,
+                "include_hidden": include_hidden,
             },
         }
     )
@@ -460,6 +464,29 @@ def update_document_api(document_id: int):
         {
             "document_id": document_id,
             "redirect_path": f"/documents/{document_id}",
+        }
+    )
+
+
+@bp.route("/documents/<int:document_id>", methods=["DELETE"])
+def delete_document_api(document_id: int):
+    existing_document, _related_tasks, _tags = (
+        get_repository_provider().documents.fetch_document_with_relations(document_id)
+    )
+    if not existing_document:
+        return jsonify({"error": "Document not found"}), 404
+
+    db = get_db()
+    assets = get_repository_provider().documents.fetch_document_assets(document_id)
+    for asset in assets:
+        delete_object(asset.get("object_key") or "")
+    get_repository_provider().documents.delete_document(document_id)
+    db.commit()
+
+    return jsonify(
+        {
+            "deleted": True,
+            "redirect_path": "/documents",
         }
     )
 

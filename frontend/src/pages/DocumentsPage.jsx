@@ -5,8 +5,10 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
+  FormControlLabel,
   MenuItem,
   Paper,
   Stack,
@@ -29,6 +31,7 @@ const initialFilters = {
   doc_type: '',
   tag: '',
   folder_id: '',
+  include_hidden: false,
   page: 1,
   per_page: 20,
 }
@@ -110,6 +113,16 @@ export function DocumentsPage() {
             </Stack>
           </Stack>
 
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={filters.include_hidden}
+                onChange={(event) => setFilters((prev) => ({ ...prev, include_hidden: event.target.checked }))}
+              />
+            }
+            label="숨김 문서 포함"
+          />
+
           <Box
             sx={{
               display: 'grid',
@@ -186,7 +199,8 @@ export function DocumentsPage() {
           <Box>
             <Typography variant="h6">문서 목록</Typography>
             <Typography variant="body2" color="text.secondary">
-              숨김 문서를 제외한 전체 {data?.pagination?.total_count ?? 0}건 중 {data?.documents?.length ?? 0}건 표시
+              {filters.include_hidden ? '숨김 포함' : '숨김 제외'} 전체 {data?.pagination?.total_count ?? 0}건 중{' '}
+              {data?.documents?.length ?? 0}건 표시
             </Typography>
           </Box>
           {data?.pagination ? (
@@ -238,6 +252,7 @@ export function DocumentsPage() {
                           <Typography variant="body2" color="text.secondary">
                             {document.folder_name ? `${document.doc_type} / ${document.folder_name}` : document.doc_type}
                           </Typography>
+                          {document.is_hidden ? <Chip size="small" label="숨김" color="warning" variant="outlined" /> : null}
                         </Stack>
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>

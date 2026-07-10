@@ -1,4 +1,5 @@
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import ImageRoundedIcon from '@mui/icons-material/ImageRounded'
 import LabelRoundedIcon from '@mui/icons-material/LabelRounded'
@@ -16,8 +17,8 @@ import {
   Typography,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
-import { Link as RouterLink, useParams } from 'react-router-dom'
-import { apiGet } from '../api/client'
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
+import { apiGet, apiJson, normalizeRedirectPath } from '../api/client'
 import { PageHeader } from '../components/PageHeader'
 
 function MetaBlock({ label, value }) {
@@ -64,9 +65,12 @@ function TagBadge({ label }) {
 
 export function DocumentDetailPage() {
   const { documentId } = useParams()
+  const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
+  const [status, setStatus] = useState('')
 
   useEffect(() => {
     const loadDetail = async () => {
@@ -112,6 +116,27 @@ export function DocumentDetailPage() {
 
   const { document, tags, assets, related_tasks, rendered_content, word_count, heading_count } = data
 
+  const handleDelete = async () => {
+    if (
+      deleting ||
+      !window.confirm('이 문서를 삭제할까요? 연결된 태그, 문서 이미지, WBS 연결 정보도 함께 정리됩니다.')
+    ) {
+      return
+    }
+
+    setDeleting(true)
+    setError('')
+    setStatus('문서를 삭제하는 중입니다...')
+    try {
+      const payload = await apiJson(`/api/documents/${document.id}`, { method: 'DELETE' })
+      navigate(normalizeRedirectPath(payload.redirect_path), { replace: true })
+    } catch (deleteError) {
+      setError(deleteError.message)
+      setStatus('문서 삭제에 실패했습니다.')
+      setDeleting(false)
+    }
+  }
+
   return (
     <Stack spacing={3}>
       <PageHeader
@@ -120,8 +145,11 @@ export function DocumentDetailPage() {
         description={`${document.doc_type}${document.folder_name ? ` · ${document.folder_name}` : ''} · ${document.author_name || '작성자 미지정'}`}
       />
 
+      {error ? <Alert severity="error">{error}</Alert> : null}
+      {status && !error ? <Alert severity="info">{status}</Alert> : null}
+
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-        <Button component={RouterLink} to="/documents" variant="outlined" startIcon={<ArrowBackRoundedIcon />}>
+        <Button component={RouterLink} to="/documents" variant="outlined" startIcon={<ArrowBackRoundedIcon />} disabled={deleting}>
           목록으로
         </Button>
         <Button
@@ -129,8 +157,19 @@ export function DocumentDetailPage() {
           startIcon={<EditRoundedIcon />}
           component={RouterLink}
           to={`/documents/${document.id}/edit`}
+          disabled={deleting}
         >
           문서 편집
+        </Button>
+        <Button
+          type="button"
+          color="error"
+          variant="text"
+          startIcon={deleting ? <CircularProgress size={16} color="inherit" /> : <DeleteOutlineRoundedIcon />}
+          onClick={handleDelete}
+          disabled={deleting}
+        >
+          {deleting ? '삭제 중...' : '문서 삭제'}
         </Button>
       </Stack>
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from . import common as common_queries
+from . import assets as asset_queries
 from . import dashboard as dashboard_queries
 from . import documents as document_queries
 from . import members as member_queries
@@ -15,6 +16,7 @@ from ..db import (
     ensure_document_folder,
     fetch_document_asset,
     fetch_document_assets,
+    sync_asset_tags,
     sync_document_tags,
     sync_task_documents,
     sync_task_documents_for_document,
@@ -137,6 +139,76 @@ class SQLiteDocumentsRepository:
 
 
 @dataclass
+class SQLiteAssetsRepository:
+    db: object
+
+    def list_assets(
+        self,
+        *,
+        search: str,
+        asset_type: str,
+        category: str,
+        status: str,
+        tag: str,
+        include_hidden: bool,
+        updated_since: str,
+        limit: int,
+        offset: int,
+    ):
+        return asset_queries.list_assets(
+            self.db,
+            search=search,
+            asset_type=asset_type,
+            category=category,
+            status=status,
+            tag=tag,
+            include_hidden=include_hidden,
+            updated_since=updated_since,
+            limit=limit,
+            offset=offset,
+        )
+
+    def fetch_asset_with_tags(self, asset_id: int):
+        return asset_queries.fetch_asset_with_tags(asset_id, self.db)
+
+    def fetch_asset(self, asset_id: int):
+        return asset_queries.fetch_asset(asset_id, self.db)
+
+    def fetch_tag_options(self):
+        return asset_queries.fetch_asset_tag_options(self.db)
+
+    def fetch_asset_type_options(self):
+        return asset_queries.fetch_asset_type_options(self.db)
+
+    def fetch_category_options(self, *, include_hidden: bool):
+        return asset_queries.fetch_category_options(self.db, include_hidden=include_hidden)
+
+    def fetch_asset_groups(self, *, include_hidden: bool):
+        return asset_queries.fetch_asset_groups(self.db, include_hidden=include_hidden)
+
+    def create_asset_group(self, path: str):
+        return asset_queries.ensure_asset_group(self.db, path)
+
+    def rename_asset_group(self, path: str, new_name: str):
+        return asset_queries.rename_asset_group(self.db, path, new_name)
+
+    def delete_asset_group(self, path: str):
+        asset_queries.delete_asset_group(self.db, path)
+
+    def create_asset(self, data):
+        asset_id = asset_queries.create_asset(self.db, data)
+        sync_asset_tags(self.db, asset_id, data["tags"])
+        return asset_id
+
+    def update_asset(self, asset_id: int, data):
+        asset_queries.update_asset(self.db, asset_id, data)
+        sync_asset_tags(self.db, asset_id, data["tags"])
+
+    def delete_asset(self, asset_id: int):
+        asset_queries.delete_asset(self.db, asset_id)
+
+
+@dataclass
 class SQLiteWbsRepository:
     db: object
 
@@ -229,6 +301,7 @@ def build_sqlite_provider():
     return RepositoryProvider(
         common=SQLiteCommonRepository(db),
         documents=SQLiteDocumentsRepository(db),
+        assets=SQLiteAssetsRepository(db),
         wbs=SQLiteWbsRepository(db),
         members=SQLiteMembersRepository(db),
         schedules=SQLiteSchedulesRepository(db),

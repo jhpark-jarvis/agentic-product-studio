@@ -6,6 +6,9 @@ import { PageViewTracker } from './components/PageViewTracker'
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage').then((module) => ({ default: module.DocumentsPage })))
+const AssetsPage = lazy(() => import('./pages/AssetsPage').then((module) => ({ default: module.AssetsPage })))
+const AssetDetailPage = lazy(() => import('./pages/AssetDetailPage').then((module) => ({ default: module.AssetDetailPage })))
+const AssetEditorPage = lazy(() => import('./pages/AssetEditorPage').then((module) => ({ default: module.AssetEditorPage })))
 const DocumentEditorPage = lazy(() =>
   import('./pages/DocumentEditorPage').then((module) => ({ default: module.DocumentEditorPage })),
 )
@@ -48,6 +51,10 @@ function App() {
           <Route path="/documents/new" element={<DocumentEditorPage />} />
           <Route path="/documents/:documentId" element={<DocumentDetailPage />} />
           <Route path="/documents/:documentId/edit" element={<DocumentEditorPage />} />
+          <Route path="/assets" element={<AssetsPage />} />
+          <Route path="/assets/new" element={<AssetEditorPage />} />
+          <Route path="/assets/:assetId" element={<AssetDetailPage />} />
+          <Route path="/assets/:assetId/edit" element={<AssetEditorPage />} />
           <Route path="/wbs" element={<WbsPage />} />
           <Route path="/wbs/new" element={<WbsEditorPage />} />
           <Route path="/wbs/:taskId" element={<WbsDetailPage />} />
@@ -60,6 +67,7 @@ function App() {
           <Route path="/members/:memberId/edit" element={<MemberEditorPage />} />
           <Route path="/log" element={<LogsPage />} />
           <Route path="/document/*" element={<Navigate to="/documents" replace />} />
+          <Route path="/asset/*" element={<Navigate to="/assets" replace />} />
           <Route path="/task/*" element={<Navigate to="/wbs" replace />} />
           <Route path="/schedule/*" element={<Navigate to="/schedules" replace />} />
           <Route path="/member/*" element={<Navigate to="/members" replace />} />

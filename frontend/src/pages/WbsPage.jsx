@@ -1,13 +1,10 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import {
-  Alert,
   Box,
   Button,
   Chip,
-  CircularProgress,
   MenuItem,
-  Paper,
   Stack,
   Table,
   TableBody,
@@ -21,7 +18,10 @@ import {
 import { useEffect, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiGet } from '../api/client'
+import { EmptyState, ErrorMessage, LoadingState } from '../components/FeedbackStates'
+import { FilterPanel } from '../components/FilterPanel'
 import { PageHeader } from '../components/PageHeader'
+import { SectionCard } from '../components/SectionCard'
 
 const initialFilters = {
   status: '',
@@ -125,116 +125,100 @@ export function WbsPage() {
         description="필터, 계층 구조, 진행률, 지연 상태를 한 화면에서 확인하고 작업 상세와 편집으로 이어질 수 있도록 정리했습니다."
       />
 
-      <Paper component="form" onSubmit={applyFilters} sx={{ p: 3 }}>
-        <Stack spacing={2.5}>
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={2}
-            sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
-          >
-            <Typography variant="h6">작업 필터</Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-              <Button type="submit" variant="contained">
-                필터 적용
-              </Button>
-              <Button variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={resetFilters}>
-                초기화
-              </Button>
-              <Button component={RouterLink} to="/wbs/new" variant="outlined" color="secondary" startIcon={<AddRoundedIcon />}>
-                작업 생성
-              </Button>
-            </Stack>
+      <FilterPanel
+        title="작업 필터"
+        onSubmit={applyFilters}
+        actions={
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+            <Button type="submit" variant="contained">
+              필터 적용
+            </Button>
+            <Button variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={resetFilters}>
+              초기화
+            </Button>
+            <Button
+              component={RouterLink}
+              to="/wbs/new"
+              variant="outlined"
+              color="secondary"
+              startIcon={<AddRoundedIcon />}
+            >
+              작업 생성
+            </Button>
           </Stack>
-
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' },
-              gap: 2,
-            }}
-          >
-            <TextField
-              select
-              label="상태"
-              value={filters.status}
-              onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}
-            >
-              <MenuItem value="">전체</MenuItem>
-              {(data?.statuses || []).map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              label="담당자"
-              value={filters.assignee_id}
-              onChange={(event) => setFilters((prev) => ({ ...prev, assignee_id: event.target.value }))}
-            >
-              <MenuItem value="">전체</MenuItem>
-              {(data?.members || []).map((member) => (
-                <MenuItem key={member.id} value={member.id}>
-                  {member.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              label="우선순위"
-              value={filters.priority}
-              onChange={(event) => setFilters((prev) => ({ ...prev, priority: event.target.value }))}
-            >
-              <MenuItem value="">전체</MenuItem>
-              {(data?.priorities || []).map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              label="플랫폼"
-              value={filters.platform}
-              onChange={(event) => setFilters((prev) => ({ ...prev, platform: event.target.value }))}
-            >
-              <MenuItem value="">전체</MenuItem>
-              {(data?.platforms || []).map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Box>
-        </Stack>
-      </Paper>
-
-      <Paper sx={{ overflow: 'hidden' }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={1.5}
-          sx={{ px: 3, py: 2.5, alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+        }
+      >
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' },
+            gap: 2,
+          }}
         >
-          <Box>
-            <Typography variant="h6">작업 목록</Typography>
-            <Typography variant="body2" color="text.secondary">
-              상위/하위 작업 구조와 현재 진행 상태를 함께 관리합니다.
-            </Typography>
-          </Box>
-          <Chip label={`${data?.task_rows?.length || 0}건`} color="primary" variant="outlined" />
-        </Stack>
+          <TextField
+            select
+            label="상태"
+            value={filters.status}
+            onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}
+          >
+            <MenuItem value="">전체</MenuItem>
+            {(data?.statuses || []).map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="담당자"
+            value={filters.assignee_id}
+            onChange={(event) => setFilters((prev) => ({ ...prev, assignee_id: event.target.value }))}
+          >
+            <MenuItem value="">전체</MenuItem>
+            {(data?.members || []).map((member) => (
+              <MenuItem key={member.id} value={member.id}>
+                {member.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="우선순위"
+            value={filters.priority}
+            onChange={(event) => setFilters((prev) => ({ ...prev, priority: event.target.value }))}
+          >
+            <MenuItem value="">전체</MenuItem>
+            {(data?.priorities || []).map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="플랫폼"
+            value={filters.platform}
+            onChange={(event) => setFilters((prev) => ({ ...prev, platform: event.target.value }))}
+          >
+            <MenuItem value="">전체</MenuItem>
+            {(data?.platforms || []).map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Box>
+      </FilterPanel>
 
-        {error ? (
-          <Box sx={{ px: 3, pb: 3 }}>
-            <Alert severity="error">{error}</Alert>
-          </Box>
-        ) : null}
+      <SectionCard
+        title="작업 목록"
+        description="상위/하위 작업 구조와 현재 진행 상태를 함께 관리합니다."
+        metric={`${data?.task_rows?.length || 0}건`}
+      >
+        <ErrorMessage message={error} sx={{ px: 3, pb: 3 }} />
 
         {loading ? (
-          <Stack sx={{ py: 8, alignItems: 'center', justifyContent: 'center' }} spacing={2}>
-            <CircularProgress size={30} />
-            <Typography color="text.secondary">WBS 목록을 불러오는 중입니다...</Typography>
-          </Stack>
+          <LoadingState message="WBS 목록을 불러오는 중입니다..." />
         ) : (
           <>
             <TableContainer sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
@@ -330,13 +314,11 @@ export function WbsPage() {
             </TableContainer>
 
             {data?.task_rows?.length ? null : (
-              <Box sx={{ px: 3, py: 6 }}>
-                <Alert severity="info">조건에 맞는 WBS 작업이 없습니다.</Alert>
-              </Box>
+              <EmptyState message="조건에 맞는 WBS 작업이 없습니다." sx={{ px: 3, py: 6 }} />
             )}
           </>
         )}
-      </Paper>
+      </SectionCard>
     </Stack>
   )
 }

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from flask import current_app, g
 
 from .contracts import (
+    AssetsRepository,
     CommonRepository,
     DashboardRepository,
     DocumentsRepository,
@@ -18,6 +19,7 @@ from .contracts import (
 class RepositoryProvider:
     common: CommonRepository
     documents: DocumentsRepository
+    assets: AssetsRepository
     wbs: WbsRepository
     members: MembersRepository
     schedules: SchedulesRepository

@@ -104,9 +104,34 @@ CREATE TABLE notices (
 CREATE TABLE assets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
+    asset_type TEXT DEFAULT '',
+    category TEXT DEFAULT '',
     file_name TEXT NOT NULL,
+    original_filename TEXT NOT NULL DEFAULT '',
+    object_key TEXT NOT NULL DEFAULT '',
+    url TEXT NOT NULL DEFAULT '',
+    content_type TEXT,
+    size INTEGER NOT NULL DEFAULT 0,
+    checksum TEXT DEFAULT '',
+    status TEXT NOT NULL DEFAULT '사용 가능',
+    is_hidden INTEGER NOT NULL DEFAULT 0,
+    created_by INTEGER REFERENCES members(id) ON DELETE SET NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE asset_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    path TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(path)
+);
+
+CREATE TABLE asset_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    tag TEXT NOT NULL
 );
 
 CREATE INDEX idx_wbs_tasks_status ON wbs_tasks(status);
@@ -124,6 +149,12 @@ CREATE INDEX idx_document_tags_tag ON document_tags(tag);
 
 CREATE INDEX idx_document_assets_document_id_created_at ON document_assets(document_id, created_at);
 CREATE INDEX idx_document_assets_draft_key ON document_assets(draft_key);
+CREATE INDEX idx_assets_updated_at ON assets(updated_at DESC, id DESC);
+CREATE INDEX idx_assets_status_hidden ON assets(status, is_hidden, updated_at DESC, id DESC);
+CREATE INDEX idx_assets_type_category ON assets(asset_type, category);
+CREATE INDEX idx_asset_groups_path ON asset_groups(path);
+CREATE INDEX idx_asset_tags_asset_id ON asset_tags(asset_id);
+CREATE INDEX idx_asset_tags_tag ON asset_tags(tag);
 
 CREATE INDEX idx_schedules_start_date ON schedules(start_date);
 CREATE INDEX idx_schedules_assignee_id ON schedules(assignee_id);

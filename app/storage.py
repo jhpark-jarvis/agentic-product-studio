@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
 from uuid import uuid4
 
 import boto3
@@ -34,6 +35,20 @@ def build_object_key(folder: str, filename: str) -> str:
     return f"{folder}/{uuid4().hex}{suffix}"
 
 
+def _stream_size_and_checksum(file_storage) -> tuple[int, str]:
+    file_storage.stream.seek(0)
+    digest = hashlib.sha256()
+    total = 0
+    while True:
+        chunk = file_storage.stream.read(1024 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        digest.update(chunk)
+    file_storage.stream.seek(0)
+    return total, digest.hexdigest()
+
+
 def public_asset_url(object_key: str) -> str:
     base_url = (current_app.config.get("R2_PUBLIC_BASE_URL") or "").rstrip("/")
     if base_url:
@@ -60,11 +75,13 @@ def _r2_client():
 
 
 def upload_image(file_storage, folder: str = "documents") -> dict[str, str]:
-    object_key = build_object_key(folder, file_storage.filename or "image")
+    return upload_file(file_storage, folder=folder)
+
+
+def upload_file(file_storage, folder: str = "assets") -> dict[str, str]:
+    object_key = build_object_key(folder, file_storage.filename or "file")
     content_type = file_storage.mimetype or "application/octet-stream"
-    file_storage.stream.seek(0, 2)
-    size = file_storage.stream.tell()
-    file_storage.stream.seek(0)
+    size, checksum = _stream_size_and_checksum(file_storage)
 
     if current_app.config.get("STORAGE_BACKEND") == "r2" and not is_r2_enabled():
         missing = ", ".join(missing_r2_config_fields())
@@ -83,6 +100,7 @@ def upload_image(file_storage, folder: str = "documents") -> dict[str, str]:
             "url": public_asset_url(object_key),
             "content_type": content_type,
             "size": str(size),
+            "checksum": checksum,
         }
 
     upload_dir = Path(current_app.config["UPLOAD_FOLDER"]) / folder
@@ -94,6 +112,7 @@ def upload_image(file_storage, folder: str = "documents") -> dict[str, str]:
         "url": public_asset_url(f"{folder}/{target.name}"),
         "content_type": content_type,
         "size": str(size),
+        "checksum": checksum,
     }
 
 

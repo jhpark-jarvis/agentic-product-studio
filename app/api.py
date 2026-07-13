@@ -6,11 +6,12 @@ from uuid import uuid4
 
 from flask import Blueprint, current_app, jsonify, request
 
-from .constants import DOCUMENT_TYPES, SCHEDULE_TYPES, TASK_PRIORITIES, TASK_STATUSES
+from .constants import ASSET_STATUSES, ASSET_TYPES, DOCUMENT_TYPES, SCHEDULE_TYPES, TASK_PRIORITIES, TASK_STATUSES
 from .db import get_db
 from .page_view_logging import read_page_view_logs, write_page_view_log
+from .repositories.assets import AssetGroupError
 from .repositories.provider import get_repository_provider
-from .storage import delete_object
+from .storage import delete_object, upload_file
 from .utils import (
     WBS_PLATFORM_OPTIONS,
     build_pagination,
@@ -222,6 +223,110 @@ def _validate_member_payload(data):
     errors = []
     if not data["name"]:
         errors.append("팀원 이름은 필수입니다.")
+    return errors
+
+
+def _asset_form_payload(payload, *, uploaded=None, existing=None):
+    existing_data = dict(existing) if existing else {}
+    return {
+        "title": (payload.get("title") or "").strip(),
+        "asset_type": (payload.get("asset_type") or "").strip(),
+        "category": (payload.get("category") or "").strip(),
+        "tags": (payload.get("tags") or "").strip(),
+        "status": (payload.get("status") or ASSET_STATUSES[0]).strip(),
+        "is_hidden": 1 if payload.get("is_hidden") else 0,
+        "created_by": payload.get("created_by") or None,
+        "notes": (payload.get("notes") or "").strip(),
+        "file_name": uploaded["file_name"] if uploaded else existing_data.get("file_name", ""),
+        "original_filename": uploaded["original_filename"] if uploaded else existing_data.get("original_filename", ""),
+        "object_key": uploaded["object_key"] if uploaded else existing_data.get("object_key", ""),
+        "url": uploaded["url"] if uploaded else existing_data.get("url", ""),
+        "content_type": uploaded["content_type"] if uploaded else existing_data.get("content_type", ""),
+        "size": int(uploaded["size"]) if uploaded else int(existing_data.get("size") or 0),
+        "checksum": uploaded["checksum"] if uploaded else existing_data.get("checksum", ""),
+    }
+
+
+def _asset_type_options():
+    repository_options = [
+        row["asset_type"]
+        for row in get_repository_provider().assets.fetch_asset_type_options()
+        if (row.get("asset_type") or "").strip()
+    ]
+    merged = []
+    for option in [*ASSET_TYPES, *repository_options]:
+        normalized = (option or "").strip()
+        if normalized and normalized not in merged:
+            merged.append(normalized)
+    return merged
+
+
+def _build_asset_group_tree(rows):
+    nodes_by_path: dict[str, dict] = {}
+    roots: list[dict] = []
+
+    for row in rows:
+        path = str(row.get("path") or "").strip()
+        if not path:
+            continue
+        node = {
+            "path": path,
+            "name": path.split("/")[-1],
+            "direct_asset_count": int(row.get("direct_asset_count") or 0),
+            "total_asset_count": int(row.get("direct_asset_count") or 0),
+            "last_updated_at": row.get("last_updated_at"),
+            "is_explicit": bool(row.get("is_explicit")),
+            "children": [],
+        }
+        nodes_by_path[path] = node
+
+    for path in sorted(nodes_by_path.keys(), key=lambda value: (value.count("/"), value.lower())):
+        node = nodes_by_path[path]
+        parent_path = "/".join(path.split("/")[:-1])
+        parent = nodes_by_path.get(parent_path)
+        if parent:
+            parent["children"].append(node)
+        else:
+            roots.append(node)
+
+    def accumulate(node: dict):
+        total = node["direct_asset_count"]
+        for child in node["children"]:
+            total += accumulate(child)
+        node["total_asset_count"] = total
+        node["children"].sort(key=lambda item: item["name"].lower())
+        return total
+
+    for root in roots:
+        accumulate(root)
+    roots.sort(key=lambda item: item["name"].lower())
+    return roots
+
+
+def _asset_group_payload(*, include_hidden: bool):
+    group_rows = get_repository_provider().assets.fetch_asset_groups(include_hidden=include_hidden)
+    category_rows = get_repository_provider().assets.fetch_category_options(include_hidden=include_hidden)
+    ungrouped_count = 0
+    for row in category_rows:
+        if row.get("category") == "미분류":
+            ungrouped_count = int(row.get("asset_count") or 0)
+            break
+    return {
+        "tree": _build_asset_group_tree(group_rows),
+        "ungrouped_asset_count": ungrouped_count,
+    }
+
+
+def _validate_asset_payload(data, *, require_file: bool):
+    errors = []
+    if not data["title"]:
+        errors.append("Asset 제목은 필수입니다.")
+    if data["status"] not in ASSET_STATUSES:
+        errors.append("유효하지 않은 Asset 상태입니다.")
+    if require_file and not data["object_key"]:
+        errors.append("업로드할 파일은 필수입니다.")
+    if data["created_by"] and not str(data["created_by"]).isdigit():
+        errors.append("유효하지 않은 등록자입니다.")
     return errors
 
 
@@ -479,7 +584,7 @@ def delete_document_api(document_id: int):
     db = get_db()
     assets = get_repository_provider().documents.fetch_document_assets(document_id)
     for asset in assets:
-        delete_object(asset.get("object_key") or "")
+        delete_object(dict(asset).get("object_key") or "")
     get_repository_provider().documents.delete_document(document_id)
     db.commit()
 
@@ -489,6 +594,234 @@ def delete_document_api(document_id: int):
             "redirect_path": "/documents",
         }
     )
+
+
+@bp.route("/assets")
+def assets_list():
+    search = request.args.get("q", "").strip()
+    asset_type = request.args.get("asset_type", "").strip()
+    category = request.args.get("category", "").strip()
+    status = request.args.get("status", "").strip()
+    tag = request.args.get("tag", "").strip()
+    updated_since = request.args.get("updated_since", "").strip()
+    include_hidden = request.args.get("include_hidden", "").strip() in {"1", "true", "yes", "on"}
+    page = parse_int(request.args.get("page"), default=1, minimum=1)
+    per_page = parse_int(request.args.get("per_page"), default=20, allowed=set(PER_PAGE_OPTIONS))
+
+    total_count, assets = get_repository_provider().assets.list_assets(
+        search=search,
+        asset_type=asset_type,
+        category=category,
+        status=status,
+        tag=tag,
+        include_hidden=include_hidden,
+        updated_since=updated_since,
+        limit=per_page,
+        offset=max((page - 1) * per_page, 0),
+    )
+    pagination = build_pagination(page, per_page, total_count)
+
+    return jsonify(
+        {
+            "assets": _serialize_rows(assets),
+            "statuses": list(ASSET_STATUSES),
+            "asset_type_options": _asset_type_options(),
+            "category_options": _serialize_rows(
+                get_repository_provider().assets.fetch_category_options(include_hidden=include_hidden)
+            ),
+            "group_browser": _asset_group_payload(include_hidden=include_hidden),
+            "tag_options": _serialize_rows(get_repository_provider().assets.fetch_tag_options()),
+            "pagination": pagination,
+            "per_page_options": list(PER_PAGE_OPTIONS),
+            "filters": {
+                "q": search,
+                "asset_type": asset_type,
+                "category": category,
+                "status": status,
+                "tag": tag,
+                "updated_since": updated_since,
+                "include_hidden": include_hidden,
+            },
+        }
+    )
+
+
+@bp.route("/assets/<int:asset_id>")
+def asset_detail(asset_id: int):
+    asset, tags = get_repository_provider().assets.fetch_asset_with_tags(asset_id)
+    if not asset:
+        return jsonify({"error": "Asset not found"}), 404
+    return jsonify(
+        {
+            "asset": dict(asset),
+            "tags": list(tags),
+            "is_image": str(dict(asset).get("content_type") or "").startswith("image/"),
+        }
+    )
+
+
+@bp.route("/assets/editor")
+def asset_editor_bootstrap():
+    asset_id = parse_int(request.args.get("asset_id"), default=0, minimum=0)
+    asset = None
+    tags = []
+    if asset_id:
+        asset, tags = get_repository_provider().assets.fetch_asset_with_tags(asset_id)
+        if not asset:
+            return jsonify({"error": "Asset not found"}), 404
+
+    return jsonify(
+        {
+            "asset": dict(asset) if asset else None,
+            "tags": list(tags),
+            "statuses": list(ASSET_STATUSES),
+            "asset_type_options": _asset_type_options(),
+            "members": _serialize_rows(get_repository_provider().common.fetch_active_members()),
+            "group_browser": _asset_group_payload(include_hidden=True),
+        }
+    )
+
+
+@bp.route("/assets/groups")
+def asset_group_list_api():
+    include_hidden = request.args.get("include_hidden", "").strip() in {"1", "true", "yes", "on"}
+    return jsonify(_asset_group_payload(include_hidden=include_hidden))
+
+
+@bp.route("/assets/groups", methods=["POST"])
+def create_asset_group_api():
+    payload = request.get_json(silent=True) or {}
+    parent_path = str(payload.get("parent_path") or "").strip()
+    name = str(payload.get("name") or "").strip()
+    combined = "/".join(part for part in [parent_path, name] if part)
+    if not name:
+        return jsonify({"error": "새 폴더 이름을 입력해주세요."}), 400
+    try:
+        path = get_repository_provider().assets.create_asset_group(combined)
+        get_db().commit()
+    except AssetGroupError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(
+        {
+            "path": path,
+            "group_browser": _asset_group_payload(include_hidden=True),
+        }
+    )
+
+
+@bp.route("/assets/groups/rename", methods=["POST"])
+def rename_asset_group_api():
+    payload = request.get_json(silent=True) or {}
+    path = str(payload.get("path") or "").strip()
+    new_name = str(payload.get("new_name") or "").strip()
+    if not new_name:
+        return jsonify({"error": "변경할 폴더 이름을 입력해주세요."}), 400
+    try:
+        renamed_path = get_repository_provider().assets.rename_asset_group(path, new_name)
+        get_db().commit()
+    except AssetGroupError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(
+        {
+            "path": renamed_path,
+            "group_browser": _asset_group_payload(include_hidden=True),
+        }
+    )
+
+
+@bp.route("/assets/groups", methods=["DELETE"])
+def delete_asset_group_api():
+    payload = request.get_json(silent=True) or {}
+    path = str(payload.get("path") or "").strip()
+    try:
+        get_repository_provider().assets.delete_asset_group(path)
+        get_db().commit()
+    except AssetGroupError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(
+        {
+            "deleted": True,
+            "group_browser": _asset_group_payload(include_hidden=True),
+        }
+    )
+
+
+@bp.route("/assets", methods=["POST"])
+def create_asset_api():
+    uploaded_file = request.files.get("file")
+    uploaded = None
+    if uploaded_file and uploaded_file.filename:
+        stored = upload_file(uploaded_file, folder="assets")
+        uploaded = {
+            **stored,
+            "file_name": uploaded_file.filename,
+            "original_filename": uploaded_file.filename,
+        }
+    data = _asset_form_payload(request.form, uploaded=uploaded)
+    errors = _validate_asset_payload(data, require_file=True)
+    if errors:
+        if uploaded:
+            delete_object(uploaded["object_key"])
+        return jsonify({"error": errors[0], "errors": errors}), 400
+
+    db = get_db()
+    try:
+        asset_id = get_repository_provider().assets.create_asset(data)
+        db.commit()
+    except Exception:
+        if uploaded:
+            delete_object(uploaded["object_key"])
+        raise
+    return jsonify({"asset_id": asset_id, "redirect_path": f"/assets/{asset_id}"})
+
+
+@bp.route("/assets/<int:asset_id>", methods=["POST"])
+def update_asset_api(asset_id: int):
+    existing = get_repository_provider().assets.fetch_asset(asset_id)
+    if not existing:
+        return jsonify({"error": "Asset not found"}), 404
+
+    uploaded_file = request.files.get("file")
+    uploaded = None
+    if uploaded_file and uploaded_file.filename:
+        stored = upload_file(uploaded_file, folder="assets")
+        uploaded = {
+            **stored,
+            "file_name": uploaded_file.filename,
+            "original_filename": uploaded_file.filename,
+        }
+
+    data = _asset_form_payload(request.form, uploaded=uploaded, existing=existing)
+    errors = _validate_asset_payload(data, require_file=False)
+    if errors:
+        if uploaded:
+            delete_object(uploaded["object_key"])
+        return jsonify({"error": errors[0], "errors": errors}), 400
+
+    db = get_db()
+    try:
+        get_repository_provider().assets.update_asset(asset_id, data)
+        db.commit()
+    except Exception:
+        if uploaded:
+            delete_object(uploaded["object_key"])
+        raise
+    existing_object_key = dict(existing).get("object_key") or ""
+    if uploaded and existing_object_key and existing_object_key != data["object_key"]:
+        delete_object(existing_object_key)
+    return jsonify({"asset_id": asset_id, "redirect_path": f"/assets/{asset_id}"})
+
+
+@bp.route("/assets/<int:asset_id>", methods=["DELETE"])
+def delete_asset_api(asset_id: int):
+    existing = get_repository_provider().assets.fetch_asset(asset_id)
+    if not existing:
+        return jsonify({"error": "Asset not found"}), 404
+    db = get_db()
+    get_repository_provider().assets.delete_asset(asset_id)
+    db.commit()
+    delete_object(dict(existing).get("object_key") or "")
+    return jsonify({"deleted": True, "redirect_path": "/assets"})
 
 
 @bp.route("/schedules")

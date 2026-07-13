@@ -95,9 +95,34 @@ CREATE TABLE IF NOT EXISTS notices (
 CREATE TABLE IF NOT EXISTS assets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
+    asset_type TEXT DEFAULT '',
+    category TEXT DEFAULT '',
     file_name TEXT NOT NULL,
+    original_filename TEXT NOT NULL DEFAULT '',
+    object_key TEXT NOT NULL DEFAULT '',
+    url TEXT NOT NULL DEFAULT '',
+    content_type TEXT,
+    size INTEGER NOT NULL DEFAULT 0,
+    checksum TEXT DEFAULT '',
+    status TEXT NOT NULL DEFAULT '사용 가능',
+    is_hidden INTEGER NOT NULL DEFAULT 0,
+    created_by INTEGER REFERENCES members(id) ON DELETE SET NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS asset_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    path TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(path)
+);
+
+CREATE TABLE IF NOT EXISTS asset_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    tag TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS document_assets (
@@ -173,6 +198,38 @@ def migrate_legacy_schema(db):
         _add_column_if_missing(db, "document_assets", "original_filename", "TEXT")
         _add_column_if_missing(db, "document_assets", "content_type", "TEXT")
         _add_column_if_missing(db, "document_assets", "size", "INTEGER NOT NULL DEFAULT 0")
+    if _table_exists(db, "assets"):
+        _add_column_if_missing(db, "assets", "asset_type", "TEXT DEFAULT ''")
+        _add_column_if_missing(db, "assets", "category", "TEXT DEFAULT ''")
+        _add_column_if_missing(db, "assets", "original_filename", "TEXT NOT NULL DEFAULT ''")
+        _add_column_if_missing(db, "assets", "object_key", "TEXT NOT NULL DEFAULT ''")
+        _add_column_if_missing(db, "assets", "url", "TEXT NOT NULL DEFAULT ''")
+        _add_column_if_missing(db, "assets", "content_type", "TEXT")
+        _add_column_if_missing(db, "assets", "size", "INTEGER NOT NULL DEFAULT 0")
+        _add_column_if_missing(db, "assets", "checksum", "TEXT DEFAULT ''")
+        _add_column_if_missing(db, "assets", "status", "TEXT NOT NULL DEFAULT '사용 가능'")
+        _add_column_if_missing(db, "assets", "is_hidden", "INTEGER NOT NULL DEFAULT 0")
+        _add_column_if_missing(db, "assets", "created_by", "INTEGER")
+        _add_column_if_missing(db, "assets", "updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS asset_groups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(path)
+        )
+        """
+    )
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS asset_tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            asset_id INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+            tag TEXT NOT NULL
+        )
+        """
+    )
 
 
 def ensure_document_folder(db, doc_type, folder_name):
@@ -213,6 +270,15 @@ def sync_document_tags(db, document_id, tags_text):
         db.execute(
             "INSERT INTO document_tags (document_id, tag) VALUES (?, ?)",
             (document_id, tag),
+        )
+
+
+def sync_asset_tags(db, asset_id, tags_text):
+    db.execute("DELETE FROM asset_tags WHERE asset_id = ?", (asset_id,))
+    for tag in normalize_tags(tags_text):
+        db.execute(
+            "INSERT INTO asset_tags (asset_id, tag) VALUES (?, ?)",
+            (asset_id, tag),
         )
 
 

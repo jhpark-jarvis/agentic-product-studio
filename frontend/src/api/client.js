@@ -29,6 +29,7 @@ export function normalizeRedirectPath(path) {
   return normalized
     .replace(/^\/dashboard$/, '/')
     .replace(/^\/document(?=\/|$)/, '/documents')
+    .replace(/^\/asset(?=\/|$)/, '/assets')
     .replace(/^\/task(?=\/|$)/, '/wbs')
     .replace(/^\/schedule(?=\/|$)/, '/schedules')
     .replace(/^\/member(?=\/|$)/, '/members')

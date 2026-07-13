@@ -1,0 +1,426 @@
+import AddRoundedIcon from '@mui/icons-material/AddRounded'
+import PreviewRoundedIcon from '@mui/icons-material/PreviewRounded'
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  FormControlLabel,
+  MenuItem,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from '@mui/material'
+import { useEffect, useState } from 'react'
+import { Link as RouterLink } from 'react-router-dom'
+import { apiGet } from '../api/client'
+import { AssetGroupTree } from '../components/AssetGroupTree'
+import { EmptyState, ErrorMessage, LoadingState } from '../components/FeedbackStates'
+import { FilterPanel } from '../components/FilterPanel'
+import { PageHeader } from '../components/PageHeader'
+import { SectionCard } from '../components/SectionCard'
+
+const initialFilters = {
+  q: '',
+  asset_type: '',
+  category: '',
+  status: '',
+  tag: '',
+  updated_since: '',
+  include_hidden: false,
+  page: 1,
+  per_page: 20,
+}
+
+function isImageAsset(asset) {
+  return String(asset.content_type || '').startsWith('image/')
+}
+
+function normalizeCategoryLabel(category) {
+  return category || '미분류'
+}
+
+export function AssetsPage() {
+  const [filters, setFilters] = useState(initialFilters)
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [showPreview, setShowPreview] = useState(false)
+
+  const loadAssets = async (nextFilters = filters) => {
+    setLoading(true)
+    setError('')
+    try {
+      const payload = await apiGet('/api/assets', nextFilters)
+      setData(payload)
+    } catch (fetchError) {
+      setError(fetchError.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadAssets(initialFilters)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const applyFilters = async (event) => {
+    event.preventDefault()
+    const nextFilters = { ...filters, page: 1 }
+    setFilters(nextFilters)
+    await loadAssets(nextFilters)
+  }
+
+  const resetFilters = async () => {
+    setFilters(initialFilters)
+    setShowPreview(false)
+    await loadAssets(initialFilters)
+  }
+
+  const movePage = async (page) => {
+    const nextFilters = { ...filters, page }
+    setFilters(nextFilters)
+    await loadAssets(nextFilters)
+  }
+
+  const selectCategory = async (category) => {
+    const nextFilters = { ...filters, category, page: 1 }
+    setFilters(nextFilters)
+    await loadAssets(nextFilters)
+  }
+
+  return (
+    <Stack spacing={3}>
+      <PageHeader
+        eyebrow="ASSETS"
+        title="Assets Library"
+        description="그룹별로 Assets를 정리하고, 필요한 파일만 찾아서 상세 확인과 편집으로 이어질 수 있도록 구성한 화면입니다."
+      />
+
+      <FilterPanel
+        title="Assets 필터"
+        onSubmit={applyFilters}
+        actions={
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+            <Button type="submit" variant="contained" startIcon={<SearchRoundedIcon />}>
+              필터 적용
+            </Button>
+            <Button variant="outlined" onClick={resetFilters} startIcon={<RefreshRoundedIcon />}>
+              초기화
+            </Button>
+            <Button
+              variant={showPreview ? 'contained' : 'outlined'}
+              color={showPreview ? 'secondary' : 'primary'}
+              startIcon={showPreview ? <PreviewRoundedIcon /> : <VisibilityOffRoundedIcon />}
+              onClick={() => setShowPreview((prev) => !prev)}
+            >
+              {showPreview ? '미리보기 켜짐' : '미리보기 끔'}
+            </Button>
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<AddRoundedIcon />}
+              component={RouterLink}
+              to="/assets/new"
+            >
+              Asset 등록
+            </Button>
+          </Stack>
+        }
+      >
+        <Stack spacing={2.5}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={filters.include_hidden}
+                onChange={(event) =>
+                  setFilters((prev) => ({ ...prev, include_hidden: event.target.checked }))
+                }
+              />
+            }
+            label="숨김 Asset 포함"
+          />
+
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '1.2fr 1fr 1fr 1fr 1fr 0.7fr' },
+              gap: 2,
+            }}
+          >
+            <TextField
+              label="제목 / 파일명 검색"
+              value={filters.q}
+              onChange={(event) => setFilters((prev) => ({ ...prev, q: event.target.value }))}
+            />
+            <TextField
+              label="Asset 유형"
+              select
+              value={filters.asset_type}
+              onChange={(event) => setFilters((prev) => ({ ...prev, asset_type: event.target.value }))}
+            >
+              <MenuItem value="">전체</MenuItem>
+              {(data?.asset_type_options || []).map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="상태"
+              select
+              value={filters.status}
+              onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}
+            >
+              <MenuItem value="">전체</MenuItem>
+              {(data?.statuses || []).map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="태그"
+              select
+              value={filters.tag}
+              onChange={(event) => setFilters((prev) => ({ ...prev, tag: event.target.value }))}
+            >
+              <MenuItem value="">전체</MenuItem>
+              {(data?.tag_options || []).map((option) => (
+                <MenuItem key={option.tag} value={option.tag}>
+                  {option.tag} ({option.usage_count})
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="업데이트 이후"
+              value={filters.updated_since}
+              onChange={(event) => setFilters((prev) => ({ ...prev, updated_since: event.target.value }))}
+              placeholder="YYYY-MM-DD"
+              helperText="예: 2026-07-13"
+            />
+            <TextField
+              label="표시 수"
+              select
+              value={filters.per_page}
+              onChange={(event) =>
+                setFilters((prev) => ({ ...prev, per_page: Number(event.target.value) }))
+              }
+            >
+              {(data?.per_page_options || [10, 20, 50, 100]).map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Box>
+
+          <Alert severity="info">
+            그룹(폴더)은 Assets를 크게 묶는 분류값이고, 태그는 검색과 연결을 위한 세부 키워드입니다.
+          </Alert>
+        </Stack>
+      </FilterPanel>
+
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', xl: '280px minmax(0, 1fr)' },
+          gap: 3,
+        }}
+      >
+        <SectionCard
+          title="그룹(폴더) 보기"
+          description="트리 구조로 폴더를 따라 내려가며 Assets를 빠르게 좁혀볼 수 있습니다."
+          metric={`${data?.group_browser?.tree?.length || 0}개 루트`}
+        >
+          <Stack spacing={1.5} sx={{ px: 2, pb: 2.5 }}>
+            <Button
+              variant={filters.category ? 'outlined' : 'contained'}
+              onClick={() => selectCategory('')}
+            >
+              전체 보기
+            </Button>
+            <AssetGroupTree
+              tree={data?.group_browser?.tree || []}
+              selectedPath={filters.category}
+              ungroupedCount={data?.group_browser?.ungrouped_asset_count || 0}
+              ungroupedSelectValue="미분류"
+              ungroupedLabel="미분류"
+              onSelect={selectCategory}
+            />
+          </Stack>
+        </SectionCard>
+
+        <SectionCard
+          title={filters.category ? `${filters.category} Assets` : 'Assets 목록'}
+          description={
+            showPreview
+              ? `${filters.include_hidden ? '숨김 포함' : '숨김 제외'} 상태로 Assets 목록과 미리보기를 함께 표시합니다.`
+              : `${filters.include_hidden ? '숨김 포함' : '숨김 제외'} 상태로 메타데이터 중심 목록을 표시합니다.`
+          }
+          metric={data?.pagination ? `${data.pagination.page} / ${data.pagination.total_pages} 페이지` : null}
+        >
+          <ErrorMessage message={error} sx={{ px: 3, pb: 3 }} />
+
+          {loading ? (
+            <LoadingState message="Assets 목록을 불러오는 중입니다..." />
+          ) : (
+            <>
+              <TableContainer sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
+                <Table sx={{ minWidth: { xs: 860, md: 1120 } }}>
+                  <TableHead>
+                    <TableRow>
+                      {showPreview ? <TableCell sx={{ minWidth: 120 }}>미리보기</TableCell> : null}
+                      <TableCell sx={{ minWidth: 260 }}>제목</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 120 }}>유형</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, minWidth: 120 }}>그룹</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 110 }}>상태</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, minWidth: 120 }}>등록자</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, minWidth: 110 }}>크기</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, minWidth: 140 }}>업데이트</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 120 }}>관리</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(data?.assets || []).map((asset) => (
+                      <TableRow key={asset.id} hover>
+                        {showPreview ? (
+                          <TableCell>
+                            {isImageAsset(asset) ? (
+                              <Box
+                                component="img"
+                                src={asset.url}
+                                alt={asset.title}
+                                sx={{
+                                  width: 84,
+                                  height: 64,
+                                  objectFit: 'cover',
+                                  borderRadius: 1,
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  bgcolor: 'background.default',
+                                }}
+                              />
+                            ) : (
+                              <Chip size="small" label="미리보기 없음" variant="outlined" />
+                            )}
+                          </TableCell>
+                        ) : null}
+                        <TableCell>
+                          <Stack spacing={0.5}>
+                            <Button
+                              component={RouterLink}
+                              to={`/assets/${asset.id}`}
+                              sx={{ justifyContent: 'flex-start', px: 0, textAlign: 'left' }}
+                            >
+                              {asset.title}
+                            </Button>
+                            <Typography variant="body2" color="text.secondary">
+                              {asset.original_filename || asset.file_name}
+                            </Typography>
+                            {asset.is_hidden ? (
+                              <Chip size="small" label="숨김" color="warning" variant="outlined" />
+                            ) : null}
+                          </Stack>
+                        </TableCell>
+                        <TableCell>
+                          <Chip size="small" label={asset.asset_type || '미분류'} />
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {normalizeCategoryLabel(asset.category)}
+                        </TableCell>
+                        <TableCell>
+                          <Chip size="small" variant="outlined" label={asset.status} />
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                          {asset.created_by_name || '-'}
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                          {asset.size} bytes
+                        </TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {asset.updated_at || '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={1} sx={{ flexWrap: 'nowrap' }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              component={RouterLink}
+                              to={`/assets/${asset.id}`}
+                              sx={{ whiteSpace: 'nowrap', minWidth: 0 }}
+                            >
+                              상세
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              component={RouterLink}
+                              to={`/assets/${asset.id}/edit`}
+                              sx={{ whiteSpace: 'nowrap', minWidth: 0 }}
+                            >
+                              편집
+                            </Button>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              {data?.assets?.length ? null : (
+                <EmptyState message="조건에 맞는 Assets가 없습니다." sx={{ px: 3, py: 6 }} />
+              )}
+
+              {data?.pagination ? (
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1.25}
+                  sx={{
+                    px: 3,
+                    py: 2.5,
+                    borderTop: '1px solid',
+                    borderColor: 'divider',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Typography variant="body2" color="text.secondary">
+                    현재 페이지 {data.pagination.page} / {data.pagination.total_pages}
+                  </Typography>
+                  <Stack direction="row" spacing={1.25}>
+                    <Button
+                      variant="outlined"
+                      disabled={!data.pagination.has_prev}
+                      onClick={() => movePage(data.pagination.prev_page)}
+                    >
+                      이전
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      disabled={!data.pagination.has_next}
+                      onClick={() => movePage(data.pagination.next_page)}
+                    >
+                      다음
+                    </Button>
+                  </Stack>
+                </Stack>
+              ) : null}
+            </>
+          )}
+        </SectionCard>
+      </Box>
+    </Stack>
+  )
+}

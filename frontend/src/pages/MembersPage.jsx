@@ -1,11 +1,7 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import {
-  Alert,
-  Box,
   Button,
   Chip,
-  CircularProgress,
-  Paper,
   Stack,
   Table,
   TableBody,
@@ -18,7 +14,9 @@ import {
 import { useEffect, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiGet } from '../api/client'
+import { EmptyState, ErrorMessage, LoadingState } from '../components/FeedbackStates'
 import { PageHeader } from '../components/PageHeader'
+import { SectionCard } from '../components/SectionCard'
 
 export function MembersPage() {
   const [data, setData] = useState(null)
@@ -50,34 +48,26 @@ export function MembersPage() {
         description="담당자 정보와 작업/일정 연결 현황을 한 화면에서 확인하고 생성과 수정으로 이어질 수 있도록 정리했습니다."
       />
 
-      <Paper sx={{ p: 0, overflow: 'hidden' }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={1.5}
-          sx={{ px: 3, py: 2.5, alignItems: { md: 'center' }, justifyContent: 'space-between' }}
-        >
-          <Box>
-            <Typography variant="h6">멤버 목록</Typography>
-            <Typography variant="body2" color="text.secondary">
-              WBS 담당자와 일정 담당자로 사용하는 멤버 정보입니다.
-            </Typography>
-          </Box>
-          <Button component={RouterLink} to="/members/new" variant="outlined" color="secondary" startIcon={<AddRoundedIcon />}>
+      <SectionCard
+        title="멤버 목록"
+        description="WBS 담당자와 일정 담당자로 사용하는 멤버 정보입니다."
+        metric={`${data?.members?.length || 0}명`}
+        actions={
+          <Button
+            component={RouterLink}
+            to="/members/new"
+            variant="outlined"
+            color="secondary"
+            startIcon={<AddRoundedIcon />}
+          >
             멤버 추가
           </Button>
-        </Stack>
-
-        {error ? (
-          <Box sx={{ px: 3, pb: 3 }}>
-            <Alert severity="error">{error}</Alert>
-          </Box>
-        ) : null}
+        }
+      >
+        <ErrorMessage message={error} sx={{ px: 3, pb: 3 }} />
 
         {loading ? (
-          <Stack sx={{ py: 8, alignItems: 'center', justifyContent: 'center' }} spacing={2}>
-            <CircularProgress size={30} />
-            <Typography color="text.secondary">멤버 목록을 불러오는 중입니다...</Typography>
-          </Stack>
+          <LoadingState message="멤버 목록을 불러오는 중입니다..." />
         ) : (
           <>
             <TableContainer sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
@@ -113,7 +103,13 @@ export function MembersPage() {
                       <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{member.schedule_count}</TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1} justifyContent="flex-start" sx={{ flexWrap: 'nowrap' }}>
-                          <Button size="small" variant="outlined" component={RouterLink} to={`/members/${member.id}/edit`} sx={{ whiteSpace: 'nowrap', minWidth: 0 }}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            component={RouterLink}
+                            to={`/members/${member.id}/edit`}
+                            sx={{ whiteSpace: 'nowrap', minWidth: 0 }}
+                          >
                             수정
                           </Button>
                         </Stack>
@@ -125,13 +121,11 @@ export function MembersPage() {
             </TableContainer>
 
             {data?.members?.length ? null : (
-              <Box sx={{ px: 3, py: 6 }}>
-                <Alert severity="info">등록된 멤버가 없습니다.</Alert>
-              </Box>
+              <EmptyState message="등록된 멤버가 없습니다." sx={{ px: 3, py: 6 }} />
             )}
           </>
         )}
-      </Paper>
+      </SectionCard>
     </Stack>
   )
 }

@@ -2,15 +2,12 @@ import CreateRoundedIcon from '@mui/icons-material/CreateRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import {
-  Alert,
   Box,
   Button,
   Checkbox,
   Chip,
-  CircularProgress,
   FormControlLabel,
   MenuItem,
-  Paper,
   Stack,
   Table,
   TableBody,
@@ -24,7 +21,10 @@ import {
 import { useEffect, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiGet } from '../api/client'
+import { EmptyState, ErrorMessage, LoadingState } from '../components/FeedbackStates'
+import { FilterPanel } from '../components/FilterPanel'
 import { PageHeader } from '../components/PageHeader'
+import { SectionCard } from '../components/SectionCard'
 
 const initialFilters = {
   q: '',
@@ -86,38 +86,37 @@ export function DocumentsPage() {
         description="문서 검색, 분류, 상세 확인, 편집 진입까지 한 흐름으로 관리할 수 있도록 정리한 화면입니다."
       />
 
-      <Paper component="form" onSubmit={applyFilters} sx={{ p: 3 }}>
-        <Stack spacing={2.5}>
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={2}
-            sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
-          >
-            <Typography variant="h6">문서 필터</Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-              <Button type="submit" variant="contained" startIcon={<SearchRoundedIcon />}>
-                필터 적용
-              </Button>
-              <Button variant="outlined" onClick={resetFilters} startIcon={<RefreshRoundedIcon />}>
-                초기화
-              </Button>
-              <Button
-                variant="outlined"
-                color="secondary"
-                startIcon={<CreateRoundedIcon />}
-                component={RouterLink}
-                to="/documents/new"
-              >
-                새 문서 작성
-              </Button>
-            </Stack>
+      <FilterPanel
+        title="문서 필터"
+        onSubmit={applyFilters}
+        actions={
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+            <Button type="submit" variant="contained" startIcon={<SearchRoundedIcon />}>
+              필터 적용
+            </Button>
+            <Button variant="outlined" onClick={resetFilters} startIcon={<RefreshRoundedIcon />}>
+              초기화
+            </Button>
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<CreateRoundedIcon />}
+              component={RouterLink}
+              to="/documents/new"
+            >
+              새 문서 작성
+            </Button>
           </Stack>
-
+        }
+      >
+        <Stack spacing={2.5}>
           <FormControlLabel
             control={
               <Checkbox
                 checked={filters.include_hidden}
-                onChange={(event) => setFilters((prev) => ({ ...prev, include_hidden: event.target.checked }))}
+                onChange={(event) =>
+                  setFilters((prev) => ({ ...prev, include_hidden: event.target.checked }))
+                }
               />
             }
             label="숨김 문서 포함"
@@ -178,7 +177,9 @@ export function DocumentsPage() {
               select
               label="표시 수"
               value={filters.per_page}
-              onChange={(event) => setFilters((prev) => ({ ...prev, per_page: Number(event.target.value) }))}
+              onChange={(event) =>
+                setFilters((prev) => ({ ...prev, per_page: Number(event.target.value) }))
+              }
             >
               {(data?.per_page_options || [10, 20, 50, 100]).map((option) => (
                 <MenuItem key={option} value={option}>
@@ -188,41 +189,17 @@ export function DocumentsPage() {
             </TextField>
           </Box>
         </Stack>
-      </Paper>
+      </FilterPanel>
 
-      <Paper sx={{ p: 0, overflow: 'hidden' }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={1.5}
-          sx={{ px: 3, py: 2.5, alignItems: { md: 'center' }, justifyContent: 'space-between' }}
-        >
-          <Box>
-            <Typography variant="h6">문서 목록</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {filters.include_hidden ? '숨김 포함' : '숨김 제외'} 전체 {data?.pagination?.total_count ?? 0}건 중{' '}
-              {data?.documents?.length ?? 0}건 표시
-            </Typography>
-          </Box>
-          {data?.pagination ? (
-            <Chip
-              label={`${data.pagination.page} / ${data.pagination.total_pages} 페이지`}
-              color="primary"
-              variant="outlined"
-            />
-          ) : null}
-        </Stack>
-
-        {error ? (
-          <Box sx={{ px: 3, pb: 3 }}>
-            <Alert severity="error">{error}</Alert>
-          </Box>
-        ) : null}
+      <SectionCard
+        title="문서 목록"
+        description={`${filters.include_hidden ? '숨김 포함' : '숨김 제외'} 전체 ${data?.pagination?.total_count ?? 0}건 중 ${data?.documents?.length ?? 0}건 표시`}
+        metric={data?.pagination ? `${data.pagination.page} / ${data.pagination.total_pages} 페이지` : null}
+      >
+        <ErrorMessage message={error} sx={{ px: 3, pb: 3 }} />
 
         {loading ? (
-          <Stack sx={{ py: 8, alignItems: 'center', justifyContent: 'center' }} spacing={2}>
-            <CircularProgress size={30} />
-            <Typography color="text.secondary">문서 목록을 불러오는 중입니다...</Typography>
-          </Stack>
+          <LoadingState message="문서 목록을 불러오는 중입니다..." />
         ) : (
           <>
             <TableContainer sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
@@ -250,9 +227,13 @@ export function DocumentsPage() {
                             {document.title}
                           </Button>
                           <Typography variant="body2" color="text.secondary">
-                            {document.folder_name ? `${document.doc_type} / ${document.folder_name}` : document.doc_type}
+                            {document.folder_name
+                              ? `${document.doc_type} / ${document.folder_name}`
+                              : document.doc_type}
                           </Typography>
-                          {document.is_hidden ? <Chip size="small" label="숨김" color="warning" variant="outlined" /> : null}
+                          {document.is_hidden ? (
+                            <Chip size="small" label="숨김" color="warning" variant="outlined" />
+                          ) : null}
                         </Stack>
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
@@ -261,8 +242,12 @@ export function DocumentsPage() {
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                         {document.folder_name ? `${document.doc_type} / ${document.folder_name}` : '미지정'}
                       </TableCell>
-                      <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>{document.author_name || '-'}</TableCell>
-                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{document.updated_at || '-'}</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                        {document.author_name || '-'}
+                      </TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                        {document.updated_at || '-'}
+                      </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1} justifyContent="flex-start" sx={{ flexWrap: 'nowrap' }}>
                           <Button
@@ -292,16 +277,20 @@ export function DocumentsPage() {
             </TableContainer>
 
             {data?.documents?.length ? null : (
-              <Box sx={{ px: 3, py: 6 }}>
-                <Alert severity="info">조건에 맞는 문서가 없습니다.</Alert>
-              </Box>
+              <EmptyState message="조건에 맞는 문서가 없습니다." sx={{ px: 3, py: 6 }} />
             )}
 
             {data?.pagination ? (
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 spacing={1.25}
-                sx={{ px: 3, py: 2.5, borderTop: '1px solid', borderColor: 'divider', justifyContent: 'space-between' }}
+                sx={{
+                  px: 3,
+                  py: 2.5,
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
+                  justifyContent: 'space-between',
+                }}
               >
                 <Typography variant="body2" color="text.secondary">
                   현재 페이지 {data.pagination.page} / {data.pagination.total_pages}
@@ -328,7 +317,7 @@ export function DocumentsPage() {
             ) : null}
           </>
         )}
-      </Paper>
+      </SectionCard>
     </Stack>
   )
 }

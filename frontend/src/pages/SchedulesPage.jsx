@@ -3,11 +3,9 @@ import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import {
-  Alert,
   Box,
   Button,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -25,7 +23,9 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiGet } from '../api/client'
+import { EmptyState, ErrorMessage, LoadingState } from '../components/FeedbackStates'
 import { PageHeader } from '../components/PageHeader'
+import { SectionCard } from '../components/SectionCard'
 
 function formatMonthLabel(monthQuery) {
   const [year, month] = monthQuery.split('-')
@@ -145,18 +145,10 @@ export function SchedulesPage() {
         description="이번 주 일정과 월간 캘린더, 전체 일정 목록을 한 화면에서 확인하고 바로 수정할 수 있도록 정리했습니다."
       />
 
-      <Paper sx={{ p: 3 }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={2}
-          sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
-        >
-          <Stack spacing={0.5}>
-            <Typography variant="h6">이번 주 일정</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {data?.week_range?.start || '-'} ~ {data?.week_range?.end || '-'}
-            </Typography>
-          </Stack>
+      <SectionCard
+        title="이번 주 일정"
+        description={`${data?.week_range?.start || '-'} ~ ${data?.week_range?.end || '-'}`}
+        actions={
           <Button
             component={RouterLink}
             to="/schedules/new"
@@ -166,19 +158,16 @@ export function SchedulesPage() {
           >
             새 일정
           </Button>
-        </Stack>
-
-        {error ? <Alert severity="error" sx={{ mt: 2.5 }}>{error}</Alert> : null}
+        }
+        contentSx={{ px: 3, pb: 3 }}
+      >
+        <ErrorMessage message={error} sx={{ pb: 2.5 }} />
 
         {loading ? (
-          <Stack spacing={2} sx={{ py: 8, alignItems: 'center', justifyContent: 'center' }}>
-            <CircularProgress size={30} />
-            <Typography color="text.secondary">일정 정보를 불러오는 중입니다...</Typography>
-          </Stack>
+          <LoadingState message="일정 정보를 불러오는 중입니다..." />
         ) : (
           <Box
             sx={{
-              mt: 2.5,
               display: 'grid',
               gridTemplateColumns: { xs: '1fr', xl: 'repeat(3, minmax(0, 1fr))' },
               gap: 2,
@@ -187,30 +176,17 @@ export function SchedulesPage() {
             {data?.week_items?.length ? (
               data.week_items.map((item) => <WeekScheduleCard key={item.id} item={item} />)
             ) : (
-              <Alert severity="info">이번 주 일정이 없습니다.</Alert>
+              <EmptyState message="이번 주 일정이 없습니다." />
             )}
           </Box>
         )}
-      </Paper>
+      </SectionCard>
 
-      <Paper sx={{ p: 3 }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={2}
-          sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between', mb: 2.5 }}
-        >
-          <Stack spacing={0.5}>
-            <Typography variant="h6">월간 일정</Typography>
-            <Typography variant="body2" color="text.secondary">
-              날짜를 누르면 해당 일자의 등록 일정 목록을 바로 확인할 수 있습니다.
-            </Typography>
-          </Stack>
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            sx={{ alignSelf: { xs: 'stretch', md: 'auto' } }}
-          >
+      <SectionCard
+        title="월간 일정"
+        description="날짜를 누르면 해당 일자의 등록 일정 목록을 바로 확인할 수 있습니다."
+        actions={
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ alignSelf: { xs: 'stretch', md: 'auto' } }}>
             <Button
               variant="outlined"
               onClick={() => loadSchedules(shiftMonth(monthQuery, -1))}
@@ -232,8 +208,9 @@ export function SchedulesPage() {
               <ChevronRightRoundedIcon fontSize="small" />
             </Button>
           </Stack>
-        </Stack>
-
+        }
+        contentSx={{ px: 3, pb: 3 }}
+      >
         {loading ? null : (
           <Box sx={{ overflowX: 'auto' }}>
             <Box
@@ -263,10 +240,7 @@ export function SchedulesPage() {
               ))}
               {monthCells.map((day) =>
                 day.empty ? (
-                  <Box
-                    key={day.key}
-                    sx={{ minHeight: 132, borderRadius: 3, bgcolor: 'background.default' }}
-                  />
+                  <Box key={day.key} sx={{ minHeight: 132, borderRadius: 3, bgcolor: 'background.default' }} />
                 ) : (
                   <Paper
                     key={day.key}
@@ -319,23 +293,13 @@ export function SchedulesPage() {
             </Box>
           </Box>
         )}
-      </Paper>
+      </SectionCard>
 
-      <Paper sx={{ p: 0, overflow: 'hidden' }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={1.5}
-          sx={{ px: 3, py: 2.5, alignItems: { md: 'center' }, justifyContent: 'space-between' }}
-        >
-          <Stack spacing={0.5}>
-            <Typography variant="h6">전체 일정 목록</Typography>
-            <Typography variant="body2" color="text.secondary">
-              연결 작업과 함께 일정 전체를 한 번에 확인할 수 있습니다.
-            </Typography>
-          </Stack>
-          <Chip label={`${data?.schedules?.length || 0}건`} color="primary" variant="outlined" />
-        </Stack>
-
+      <SectionCard
+        title="전체 일정 목록"
+        description="연결 작업과 함께 일정 전체를 한 번에 확인할 수 있습니다."
+        metric={`${data?.schedules?.length || 0}건`}
+      >
         {loading ? null : (
           <TableContainer sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
             <Table sx={{ minWidth: { xs: 880, md: 1100 } }}>
@@ -344,22 +308,10 @@ export function SchedulesPage() {
                   <TableCell sx={{ minWidth: 280 }}>일정명</TableCell>
                   <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 88 }}>유형</TableCell>
                   <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 180 }}>기간</TableCell>
-                  <TableCell
-                    sx={{
-                      display: { xs: 'none', sm: 'table-cell' },
-                      whiteSpace: 'nowrap',
-                      minWidth: 112,
-                    }}
-                  >
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap', minWidth: 112 }}>
                     담당자
                   </TableCell>
-                  <TableCell
-                    sx={{
-                      display: { xs: 'none', md: 'table-cell' },
-                      whiteSpace: 'nowrap',
-                      minWidth: 180,
-                    }}
-                  >
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap', minWidth: 180 }}>
                     연결 작업
                   </TableCell>
                   <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 100 }}>관리</TableCell>
@@ -389,9 +341,7 @@ export function SchedulesPage() {
                       <Chip size="small" label={item.schedule_type} />
                     </TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDateRange(item)}</TableCell>
-                    <TableCell
-                      sx={{ display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap' }}
-                    >
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap' }}>
                       {item.assignee_name || '-'}
                     </TableCell>
                     <TableCell
@@ -421,7 +371,7 @@ export function SchedulesPage() {
             </Table>
           </TableContainer>
         )}
-      </Paper>
+      </SectionCard>
 
       <Dialog open={Boolean(selectedDay)} onClose={() => setSelectedDay(null)} fullWidth maxWidth="md">
         <DialogTitle>{selectedDay ? `${selectedDay.date} 일정` : '일정 상세'}</DialogTitle>
@@ -449,7 +399,7 @@ export function SchedulesPage() {
                 </Paper>
               ))
             ) : (
-              <Alert severity="info">해당 날짜에 표시할 일정이 없습니다.</Alert>
+              <EmptyState message="해당 날짜에 표시할 일정이 없습니다." />
             )}
           </Stack>
         </DialogContent>

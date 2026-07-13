@@ -43,6 +43,7 @@ def _normalize_short_path(segment: str, path: str | None = None) -> str:
     suffix = f"/{path}" if path else ""
     return {
         "document": f"/documents{suffix}",
+        "asset": f"/assets{suffix}",
         "task": f"/wbs{suffix}",
         "schedule": f"/schedules{suffix}",
         "member": f"/members{suffix}",
@@ -54,6 +55,9 @@ def _normalize_short_path(segment: str, path: str | None = None) -> str:
 @bp.route("/documents")
 @bp.route("/documents/")
 @bp.route("/documents/<path:path>")
+@bp.route("/assets")
+@bp.route("/assets/")
+@bp.route("/assets/<path:path>")
 @bp.route("/wbs")
 @bp.route("/wbs/")
 @bp.route("/wbs/<path:path>")
@@ -85,6 +89,13 @@ def app_routes(path: str):
 @bp.route("/document/<path:path>")
 def legacy_document_routes(path: str | None = None):
     return redirect(_normalize_short_path("document", path), code=302)
+
+
+@bp.route("/asset")
+@bp.route("/asset/")
+@bp.route("/asset/<path:path>")
+def legacy_asset_routes(path: str | None = None):
+    return redirect(_normalize_short_path("asset", path), code=302)
 
 
 @bp.route("/task")

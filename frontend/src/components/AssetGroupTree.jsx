@@ -1,6 +1,8 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import CreateRoundedIcon from '@mui/icons-material/CreateRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import FolderOpenRoundedIcon from '@mui/icons-material/FolderOpenRounded'
 import FolderRoundedIcon from '@mui/icons-material/FolderRounded'
 import {
@@ -16,12 +18,36 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+
+function collectAncestorPaths(path) {
+  if (!path) {
+    return []
+  }
+  const parts = String(path).split('/').filter(Boolean)
+  return parts.map((_, index) => parts.slice(0, index + 1).join('/'))
+}
+
+function collectTreePaths(nodes) {
+  const paths = new Set()
+  const visit = (items) => {
+    items.forEach((item) => {
+      paths.add(item.path)
+      if (item.children?.length) {
+        visit(item.children)
+      }
+    })
+  }
+  visit(nodes)
+  return paths
+}
 
 function AssetGroupNode({
   node,
   depth,
   selectedPath,
+  expandedPaths,
+  onToggle,
   onSelect,
   onOpenCreate,
   onOpenRename,
@@ -29,6 +55,8 @@ function AssetGroupNode({
   manageable,
 }) {
   const isSelected = selectedPath === node.path
+  const hasChildren = Boolean(node.children?.length)
+  const isExpanded = !hasChildren || expandedPaths.has(node.path)
 
   return (
     <Stack spacing={1}>
@@ -44,6 +72,23 @@ function AssetGroupNode({
           bgcolor: isSelected ? 'action.selected' : 'transparent',
         }}
       >
+        {hasChildren ? (
+          <IconButton
+            size="small"
+            onClick={() => onToggle(node.path)}
+            title={isExpanded ? '폴더 접기' : '폴더 펼치기'}
+            sx={{ ml: -0.5 }}
+          >
+            {isExpanded ? (
+              <ExpandMoreRoundedIcon fontSize="inherit" />
+            ) : (
+              <ChevronRightRoundedIcon fontSize="inherit" />
+            )}
+          </IconButton>
+        ) : (
+          <Box sx={{ width: 28, flexShrink: 0 }} />
+        )}
+
         <Button
           variant={isSelected ? 'contained' : 'text'}
           color={isSelected ? 'primary' : 'inherit'}
@@ -88,13 +133,15 @@ function AssetGroupNode({
         ) : null}
       </Stack>
 
-      {node.children?.length
+      {hasChildren && isExpanded
         ? node.children.map((child) => (
             <AssetGroupNode
               key={child.path}
               node={child}
               depth={depth + 1}
               selectedPath={selectedPath}
+              expandedPaths={expandedPaths}
+              onToggle={onToggle}
               onSelect={onSelect}
               onOpenCreate={onOpenCreate}
               onOpenRename={onOpenRename}
@@ -124,6 +171,29 @@ export function AssetGroupTree({
   const [activeNode, setActiveNode] = useState(null)
   const [parentPath, setParentPath] = useState('')
   const [folderName, setFolderName] = useState('')
+  const [expandedPaths, setExpandedPaths] = useState(() => new Set())
+
+  const treePaths = useMemo(() => collectTreePaths(tree), [tree])
+
+  useEffect(() => {
+    setExpandedPaths((prev) => {
+      const next = new Set([...prev].filter((path) => treePaths.has(path)))
+      collectAncestorPaths(selectedPath).forEach((path) => next.add(path))
+      return next
+    })
+  }, [selectedPath, treePaths])
+
+  const togglePath = (path) => {
+    setExpandedPaths((prev) => {
+      const next = new Set(prev)
+      if (next.has(path)) {
+        next.delete(path)
+      } else {
+        next.add(path)
+      }
+      return next
+    })
+  }
 
   const closeDialog = () => {
     if (busy) {
@@ -203,6 +273,8 @@ export function AssetGroupTree({
               node={node}
               depth={0}
               selectedPath={selectedPath}
+              expandedPaths={expandedPaths}
+              onToggle={togglePath}
               onSelect={onSelect}
               onOpenCreate={openCreate}
               onOpenRename={openRename}

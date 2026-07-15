@@ -25,6 +25,7 @@ import { EmptyState, ErrorMessage, LoadingState } from '../components/FeedbackSt
 import { FilterPanel } from '../components/FilterPanel'
 import { PageHeader } from '../components/PageHeader'
 import { SectionCard } from '../components/SectionCard'
+import { formatDateTimeKst } from '../utils/datetime'
 
 const initialFilters = {
   q: '',
@@ -246,7 +247,7 @@ export function DocumentsPage() {
                         {document.author_name || '-'}
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                        {document.updated_at || '-'}
+                        {formatDateTimeKst(document.updated_at)}
                       </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1} justifyContent="flex-start" sx={{ flexWrap: 'nowrap' }}>

@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiGet } from '../api/client'
 import { PageHeader } from '../components/PageHeader'
+import { formatDateTimeKst } from '../utils/datetime'
 
 function SummaryCard({ label, value, caption, tone = 'default' }) {
   const isAlert = tone === 'alert'
@@ -197,7 +198,7 @@ export function DashboardPage() {
                   {data.pinned_notice.content}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  업데이트 {data.pinned_notice.updated_at || '-'}
+                  업데이트 {formatDateTimeKst(data.pinned_notice.updated_at)}
                 </Typography>
               </Stack>
             </Paper>

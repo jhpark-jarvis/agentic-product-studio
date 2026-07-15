@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react'
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
 import { apiGet, apiJson, normalizeRedirectPath } from '../api/client'
 import { PageHeader } from '../components/PageHeader'
+import { formatDateTimeKst } from '../utils/datetime'
 
 function MetaBlock({ label, value }) {
   return (
@@ -189,7 +190,7 @@ export function DocumentDetailPage() {
                 variant="outlined"
                 color={document.is_hidden ? 'warning' : 'default'}
               />
-              <Chip label={`수정 ${document.updated_at || '-'}`} variant="outlined" />
+              <Chip label={`수정 ${formatDateTimeKst(document.updated_at)}`} variant="outlined" />
             </Stack>
 
             <Divider />

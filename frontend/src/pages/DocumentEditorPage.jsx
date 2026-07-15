@@ -1,6 +1,9 @@
 import AddPhotoAlternateRoundedIcon from '@mui/icons-material/AddPhotoAlternateRounded'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded'
+import CodeRoundedIcon from '@mui/icons-material/CodeRounded'
+import EditNoteRoundedIcon from '@mui/icons-material/EditNoteRounded'
+import FormatBoldRoundedIcon from '@mui/icons-material/FormatBoldRounded'
 import LinkRoundedIcon from '@mui/icons-material/LinkRounded'
 import SaveRoundedIcon from '@mui/icons-material/SaveRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
@@ -15,6 +18,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Fab,
   FormControlLabel,
   MenuItem,
   Paper,
@@ -174,6 +178,73 @@ export function DocumentEditorPage() {
   const updateField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
+
+  const toolbarActions = [
+    {
+      key: 'h1',
+      label: 'H1',
+      onClick: () => insertAtCursor('# {selection}', '제목'),
+    },
+    {
+      key: 'h2',
+      label: 'H2',
+      onClick: () => insertAtCursor('## {selection}', '소제목'),
+    },
+    {
+      key: 'list',
+      label: 'List',
+      onClick: () => insertAtCursor('- {selection}', '목록'),
+    },
+    {
+      key: 'bold',
+      label: 'Bold',
+      onClick: () => insertAtCursor('**{selection}**', '강조'),
+    },
+    {
+      key: 'inline-code',
+      label: 'Code',
+      onClick: () => insertAtCursor('`{selection}`', 'code'),
+    },
+    {
+      key: 'code-block',
+      label: 'Block',
+      onClick: () => insertAtCursor('```\n{selection}\n```', 'code'),
+    },
+  ]
+
+  const floatingActions = [
+    {
+      key: 'float-h1',
+      label: 'H1',
+      icon: <EditNoteRoundedIcon fontSize="small" />,
+      onClick: () => insertAtCursor('# {selection}', '제목'),
+    },
+    {
+      key: 'float-code',
+      label: '코드',
+      icon: <CodeRoundedIcon fontSize="small" />,
+      onClick: () => insertAtCursor('```\n{selection}\n```', 'code'),
+    },
+    {
+      key: 'float-bold',
+      label: '강조',
+      icon: <FormatBoldRoundedIcon fontSize="small" />,
+      onClick: () => insertAtCursor('**{selection}**', '강조'),
+    },
+    {
+      key: 'float-image',
+      label: '이미지',
+      icon: <AddPhotoAlternateRoundedIcon fontSize="small" />,
+      onClick: () => fileInputRef.current?.click(),
+      disabled: uploading || saving,
+    },
+    {
+      key: 'float-link',
+      label: '문서 검색',
+      icon: <LinkRoundedIcon fontSize="small" />,
+      onClick: () => setLinkSearchOpen(true),
+    },
+  ]
 
   const insertAtCursor = (snippet, fallbackSelection = '') => {
     const textarea = textareaRef.current
@@ -428,14 +499,7 @@ export function DocumentEditorPage() {
             </Box>
           </Box>
 
-          <Paper
-            variant="outlined"
-            sx={{
-              overflow: 'hidden',
-              borderRadius: 3,
-              borderColor: dragActive ? 'primary.main' : undefined,
-              boxShadow: dragActive ? '0 0 0 3px rgba(30, 58, 95, 0.14)' : undefined,
-            }}
+          <Box
             onDragEnter={(event) => {
               event.preventDefault()
               setDragActive(true)
@@ -457,69 +521,71 @@ export function DocumentEditorPage() {
               await handleImageUpload(file)
             }}
           >
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={1}
+            <Paper
+              variant="outlined"
               sx={{
+                position: 'sticky',
+                top: { xs: 84, sm: 92 },
+                zIndex: 20,
+                mb: 1.25,
                 p: 1.5,
-                borderBottom: '1px solid',
-                borderColor: 'divider',
+                borderRadius: 3,
                 bgcolor: 'background.default',
-                flexWrap: 'wrap',
-                alignItems: { md: 'center' },
+                boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
               }}
             >
-              <Button size="small" variant="outlined" onClick={() => insertAtCursor('# {selection}', '제목')}>
-                H1
-              </Button>
-              <Button size="small" variant="outlined" onClick={() => insertAtCursor('## {selection}', '소제목')}>
-                H2
-              </Button>
-              <Button size="small" variant="outlined" onClick={() => insertAtCursor('- {selection}', '목록')}>
-                List
-              </Button>
-              <Button size="small" variant="outlined" onClick={() => insertAtCursor('**{selection}**', '강조')}>
-                Bold
-              </Button>
-              <Button size="small" variant="outlined" onClick={() => insertAtCursor('`{selection}`', 'code')}>
-                Code
-              </Button>
-              <Button size="small" variant="outlined" onClick={() => insertAtCursor('```\n{selection}\n```', 'code')}>
-                Block
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<AddPhotoAlternateRoundedIcon />}
-                disabled={uploading || saving}
-                onClick={() => fileInputRef.current?.click()}
+              <Stack
+                direction={{ xs: 'column', md: 'row' }}
+                spacing={1}
+                sx={{
+                  flexWrap: 'wrap',
+                  alignItems: { md: 'center' },
+                }}
               >
-                이미지
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<LinkRoundedIcon />}
-                onClick={() => setLinkSearchOpen(true)}
-              >
-                문서 검색
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<AutoFixHighRoundedIcon />}
-                disabled={formatting || saving || uploading}
-                onClick={handleFormat}
-              >
-                코드 정리
-              </Button>
-              <Chip
-                label={status}
-                color={error ? 'error' : 'default'}
-                variant="outlined"
-                sx={{ ml: { md: 'auto' }, maxWidth: '100%' }}
-              />
-            </Stack>
+                {toolbarActions.map((action) => (
+                  <Button
+                    key={action.key}
+                    size="small"
+                    variant="outlined"
+                    onClick={action.onClick}
+                  >
+                    {action.label}
+                  </Button>
+                ))}
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<AddPhotoAlternateRoundedIcon />}
+                  disabled={uploading || saving}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  이미지
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<LinkRoundedIcon />}
+                  onClick={() => setLinkSearchOpen(true)}
+                >
+                  문서 검색
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<AutoFixHighRoundedIcon />}
+                  disabled={formatting || saving || uploading}
+                  onClick={handleFormat}
+                >
+                  코드 정리
+                </Button>
+                <Chip
+                  label={status}
+                  color={error ? 'error' : 'default'}
+                  variant="outlined"
+                  sx={{ ml: { md: 'auto' }, maxWidth: '100%' }}
+                />
+              </Stack>
+            </Paper>
 
             <input
               ref={fileInputRef}
@@ -529,104 +595,114 @@ export function DocumentEditorPage() {
               onChange={(event) => handleImageUpload(event.target.files?.[0])}
             />
 
-            <Box
+            <Paper
+              variant="outlined"
               sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.15fr) minmax(0, 0.85fr)' },
+                overflow: 'hidden',
+                borderRadius: 3,
+                borderColor: dragActive ? 'primary.main' : undefined,
+                boxShadow: dragActive ? '0 0 0 3px rgba(30, 58, 95, 0.14)' : undefined,
               }}
             >
-              <Box sx={{ borderRight: { xl: '1px solid' }, borderColor: { xl: 'divider' } }}>
-                <Typography variant="overline" sx={{ display: 'block', px: 2, py: 1.25, color: 'text.secondary' }}>
-                  Editor
-                </Typography>
-                <TextField
-                  id="react-document-content"
-                  inputRef={textareaRef}
-                  multiline
-                  fullWidth
-                  minRows={30}
-                  value={form.content}
-                  onChange={(event) => updateField('content', event.target.value)}
-                  onPaste={async (event) => {
-                    const items = Array.from(event.clipboardData?.items || [])
-                    const imageItem = items.find((item) => item.type?.startsWith('image/'))
-                    const file = imageItem?.getAsFile()
-                    if (!file) {
-                      return
-                    }
-
-                    event.preventDefault()
-                    await handleImageUpload(file)
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 0,
-                      alignItems: 'stretch',
-                    },
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      border: 0,
-                    },
-                    '& textarea': {
-                      fontFamily: 'Consolas, "Courier New", monospace',
-                      lineHeight: 1.7,
-                      fontSize: 14,
-                    },
-                  }}
-                  helperText="클립보드 이미지 붙여넣기, 드래그 앤 드롭, 업로드 버튼을 모두 지원합니다."
-                />
-              </Box>
-
-              <Box>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  useFlexGap
-                  flexWrap="wrap"
-                  sx={{ px: 2, py: 1.25, alignItems: 'center' }}
-                >
-                  <Typography variant="overline" sx={{ color: 'text.secondary' }}>
-                    Preview
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.15fr) minmax(0, 0.85fr)' },
+                }}
+              >
+                <Box sx={{ borderRight: { xl: '1px solid' }, borderColor: { xl: 'divider' } }}>
+                  <Typography variant="overline" sx={{ display: 'block', px: 2, py: 1.25, color: 'text.secondary' }}>
+                    Editor
                   </Typography>
-                  {busyFlags.map((label) => (
-                    <Chip key={label} size="small" label={label} variant="outlined" />
-                  ))}
-                </Stack>
-                <Box
-                  className="markdown-body"
-                  sx={{
-                    minHeight: 520,
-                    p: 2.5,
-                    overflowX: 'auto',
-                    '& img': {
-                      display: 'block',
-                      maxWidth: '100%',
-                      height: 'auto',
-                      borderRadius: 2,
-                    },
-                    '& pre': {
+                  <TextField
+                    id="react-document-content"
+                    inputRef={textareaRef}
+                    multiline
+                    fullWidth
+                    minRows={30}
+                    value={form.content}
+                    onChange={(event) => updateField('content', event.target.value)}
+                    onPaste={async (event) => {
+                      const items = Array.from(event.clipboardData?.items || [])
+                      const imageItem = items.find((item) => item.type?.startsWith('image/'))
+                      const file = imageItem?.getAsFile()
+                      if (!file) {
+                        return
+                      }
+
+                      event.preventDefault()
+                      await handleImageUpload(file)
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 0,
+                        alignItems: 'stretch',
+                      },
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        border: 0,
+                      },
+                      '& textarea': {
+                        fontFamily: 'Consolas, "Courier New", monospace',
+                        lineHeight: 1.7,
+                        fontSize: 14,
+                      },
+                    }}
+                    helperText="클립보드 이미지 붙여넣기, 드래그 앤 드롭, 업로드 버튼을 모두 지원합니다."
+                  />
+                </Box>
+
+                <Box>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    useFlexGap
+                    flexWrap="wrap"
+                    sx={{ px: 2, py: 1.25, alignItems: 'center' }}
+                  >
+                    <Typography variant="overline" sx={{ color: 'text.secondary' }}>
+                      Preview
+                    </Typography>
+                    {busyFlags.map((label) => (
+                      <Chip key={label} size="small" label={label} variant="outlined" />
+                    ))}
+                  </Stack>
+                  <Box
+                    className="markdown-body"
+                    sx={{
+                      minHeight: 520,
+                      p: 2.5,
                       overflowX: 'auto',
-                    },
-                    '& table': {
-                      width: '100%',
-                      borderCollapse: 'collapse',
-                    },
-                    '& th, & td': {
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      p: 1,
-                      textAlign: 'left',
-                    },
-                  }}
-                >
-                  {previewHtml ? (
-                    <Box dangerouslySetInnerHTML={{ __html: previewHtml }} />
-                  ) : (
-                    <Alert severity="info">본문을 입력하면 여기에서 Markdown 미리보기를 확인할 수 있습니다.</Alert>
-                  )}
+                      '& img': {
+                        display: 'block',
+                        maxWidth: '100%',
+                        height: 'auto',
+                        borderRadius: 2,
+                      },
+                      '& pre': {
+                        overflowX: 'auto',
+                      },
+                      '& table': {
+                        width: '100%',
+                        borderCollapse: 'collapse',
+                      },
+                      '& th, & td': {
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        p: 1,
+                        textAlign: 'left',
+                      },
+                    }}
+                  >
+                    {previewHtml ? (
+                      <Box dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                    ) : (
+                      <Alert severity="info">본문을 입력하면 여기에서 Markdown 미리보기를 확인할 수 있습니다.</Alert>
+                    )}
+                  </Box>
                 </Box>
               </Box>
-            </Box>
-          </Paper>
+            </Paper>
+          </Box>
 
           <Typography variant="body2" color="text.secondary">
             이미지는 버튼으로 업로드하거나 에디터에 드래그 앤 드롭, 클립보드 붙여넣기로 삽입할 수 있습니다.
@@ -673,6 +749,45 @@ export function DocumentEditorPage() {
               취소
             </Button>
           </Stack>
+        </Stack>
+      </Paper>
+
+      <Paper
+        elevation={8}
+        sx={{
+          position: 'fixed',
+          right: { xs: 16, md: 24 },
+          bottom: { xs: 20, md: 28 },
+          zIndex: 1200,
+          p: 1,
+          borderRadius: 3,
+          backdropFilter: 'blur(10px)',
+          bgcolor: 'rgba(255,255,255,0.9)',
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Stack direction="column" spacing={1}>
+          {floatingActions.map((action) => (
+            <Fab
+              key={action.key}
+              size="small"
+              color="primary"
+              variant="extended"
+              onClick={action.onClick}
+              disabled={action.disabled}
+              sx={{
+                justifyContent: 'flex-start',
+                minHeight: 36,
+                px: 1.5,
+                gap: 0.75,
+                boxShadow: 'none',
+              }}
+            >
+              {action.icon}
+              {action.label}
+            </Fab>
+          ))}
         </Stack>
       </Paper>
 

@@ -1,6 +1,8 @@
 import AddPhotoAlternateRoundedIcon from '@mui/icons-material/AddPhotoAlternateRounded'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded'
+import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import CodeRoundedIcon from '@mui/icons-material/CodeRounded'
 import EditNoteRoundedIcon from '@mui/icons-material/EditNoteRounded'
 import FormatBoldRoundedIcon from '@mui/icons-material/FormatBoldRounded'
@@ -20,6 +22,7 @@ import {
   DialogTitle,
   Fab,
   FormControlLabel,
+  IconButton,
   MenuItem,
   Paper,
   Stack,
@@ -78,6 +81,7 @@ export function DocumentEditorPage() {
   const [linkQuery, setLinkQuery] = useState('')
   const [linkResults, setLinkResults] = useState([])
   const [searchingLinks, setSearchingLinks] = useState(false)
+  const [floatingBarCollapsed, setFloatingBarCollapsed] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -752,44 +756,157 @@ export function DocumentEditorPage() {
         </Stack>
       </Paper>
 
-      <Paper
-        elevation={8}
+      <Box
         sx={{
           position: 'fixed',
-          right: { xs: 16, md: 24 },
+          right: { xs: 8, md: 12 },
           bottom: { xs: 20, md: 28 },
           zIndex: 1200,
-          p: 1,
-          borderRadius: 3,
-          backdropFilter: 'blur(10px)',
-          bgcolor: 'rgba(255,255,255,0.9)',
-          border: '1px solid',
-          borderColor: 'divider',
+          display: 'flex',
+          flexDirection: 'row-reverse',
+          alignItems: 'flex-end',
+          gap: 0,
         }}
       >
-        <Stack direction="column" spacing={1}>
-          {floatingActions.map((action) => (
-            <Fab
-              key={action.key}
-              size="small"
-              color="primary"
-              variant="extended"
-              onClick={action.onClick}
-              disabled={action.disabled}
-              sx={{
-                justifyContent: 'flex-start',
-                minHeight: 36,
-                px: 1.5,
-                gap: 0.75,
-                boxShadow: 'none',
-              }}
-            >
-              {action.icon}
-              {action.label}
-            </Fab>
-          ))}
-        </Stack>
-      </Paper>
+        <Paper
+          elevation={8}
+          sx={{
+            borderRadius: '18px 0 0 18px',
+            backdropFilter: 'blur(14px)',
+            bgcolor: (theme) => (
+              theme.palette.mode === 'dark'
+                ? 'rgba(12, 20, 36, 0.94)'
+                : 'rgba(255,255,255,0.92)'
+            ),
+            border: '1px solid',
+            borderRight: 0,
+            borderColor: (theme) => (
+              theme.palette.mode === 'dark'
+                ? 'rgba(148, 163, 184, 0.22)'
+                : theme.palette.divider
+            ),
+            boxShadow: (theme) => (
+              theme.palette.mode === 'dark'
+                ? '0 18px 36px rgba(2, 6, 23, 0.5)'
+                : undefined
+            ),
+          }}
+        >
+          <IconButton
+            size="small"
+            onClick={() => setFloatingBarCollapsed((prev) => !prev)}
+            sx={{
+              width: 34,
+              height: 58,
+              borderRadius: '18px 0 0 18px',
+              color: 'text.secondary',
+              bgcolor: (theme) => (
+                theme.palette.mode === 'dark'
+                  ? 'rgba(30, 41, 59, 0.92)'
+                  : 'rgba(241, 245, 249, 0.98)'
+              ),
+              border: '1px solid',
+              borderColor: (theme) => (
+                theme.palette.mode === 'dark'
+                  ? 'rgba(148, 163, 184, 0.18)'
+                  : 'rgba(148, 163, 184, 0.3)'
+              ),
+              boxShadow: (theme) => (
+                theme.palette.mode === 'dark'
+                  ? '0 10px 24px rgba(2, 6, 23, 0.35)'
+                  : '0 8px 18px rgba(15, 23, 42, 0.12)'
+              ),
+              '&:hover': {
+                bgcolor: (theme) => (
+                  theme.palette.mode === 'dark'
+                    ? 'rgba(51, 65, 85, 0.96)'
+                    : 'rgba(226, 232, 240, 1)'
+                ),
+              },
+            }}
+          >
+            {floatingBarCollapsed ? <ChevronLeftRoundedIcon /> : <ChevronRightRoundedIcon />}
+          </IconButton>
+        </Paper>
+
+        {floatingBarCollapsed ? null : (
+          <Paper
+            elevation={8}
+            sx={{
+              p: 1,
+              mr: -0.5,
+              borderRadius: 3,
+              borderTopRightRadius: 0,
+              borderBottomRightRadius: 0,
+              backdropFilter: 'blur(14px)',
+              bgcolor: (theme) => (
+                theme.palette.mode === 'dark'
+                  ? 'rgba(12, 20, 36, 0.92)'
+                  : 'rgba(255,255,255,0.9)'
+              ),
+              border: '1px solid',
+              borderColor: (theme) => (
+                theme.palette.mode === 'dark'
+                  ? 'rgba(148, 163, 184, 0.22)'
+                  : theme.palette.divider
+              ),
+              boxShadow: (theme) => (
+                theme.palette.mode === 'dark'
+                  ? '0 18px 36px rgba(2, 6, 23, 0.5)'
+                  : undefined
+              ),
+            }}
+          >
+            <Stack direction="column" spacing={1}>
+              {floatingActions.map((action) => (
+                <Fab
+                  key={action.key}
+                  size="small"
+                  variant="extended"
+                  onClick={action.onClick}
+                  disabled={action.disabled}
+                  sx={{
+                    justifyContent: 'flex-start',
+                    minHeight: 36,
+                    px: 1.5,
+                    gap: 0.75,
+                    boxShadow: 'none',
+                    color: (theme) => (theme.palette.mode === 'dark' ? '#e2e8f0' : undefined),
+                    bgcolor: (theme) => (
+                      theme.palette.mode === 'dark'
+                        ? 'rgba(30, 41, 59, 0.94)'
+                        : theme.palette.primary.main
+                    ),
+                    border: (theme) => (
+                      theme.palette.mode === 'dark'
+                        ? '1px solid rgba(148, 163, 184, 0.18)'
+                        : 'none'
+                    ),
+                    '&:hover': {
+                      bgcolor: (theme) => (
+                        theme.palette.mode === 'dark'
+                          ? 'rgba(51, 65, 85, 0.98)'
+                          : theme.palette.primary.dark
+                      ),
+                    },
+                    '&.Mui-disabled': {
+                      color: (theme) => (theme.palette.mode === 'dark' ? 'rgba(226, 232, 240, 0.45)' : undefined),
+                      bgcolor: (theme) => (
+                        theme.palette.mode === 'dark'
+                          ? 'rgba(15, 23, 42, 0.74)'
+                          : undefined
+                      ),
+                    },
+                  }}
+                >
+                  {action.icon}
+                  {action.label}
+                </Fab>
+              ))}
+            </Stack>
+          </Paper>
+        )}
+      </Box>
 
       <Dialog open={linkSearchOpen} onClose={() => setLinkSearchOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>기존 문서 검색</DialogTitle>

@@ -39,11 +39,12 @@ function TagBadge({ label }) {
   return (
     <span
       style={{
-        display: 'inline-block',
-        flex: 'none',
+        display: 'inline-flex',
+        alignItems: 'center',
+        flex: '0 1 auto',
         width: 'auto',
-        minWidth: 'max-content',
-        maxWidth: 'none',
+        minWidth: 0,
+        maxWidth: '100%',
         padding: '8px 12px',
         border: '1px solid var(--mui-palette-divider)',
         borderRadius: '4px',
@@ -52,9 +53,9 @@ function TagBadge({ label }) {
         fontSize: '0.875rem',
         fontWeight: 700,
         lineHeight: 1.2,
-        whiteSpace: 'nowrap',
+        whiteSpace: 'normal',
         wordBreak: 'keep-all',
-        overflowWrap: 'normal',
+        overflowWrap: 'anywhere',
         writingMode: 'horizontal-tb',
         verticalAlign: 'top',
       }}
@@ -179,9 +180,10 @@ export function DocumentDetailPage() {
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.45fr) minmax(340px, 0.55fr)' },
           gap: 3,
+          minWidth: 0,
         }}
       >
-        <Paper sx={{ p: { xs: 2.5, sm: 3.5 } }}>
+        <Paper sx={{ p: { xs: 2.5, sm: 3.5 }, minWidth: 0 }}>
           <Stack spacing={2.5}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2} useFlexGap flexWrap="wrap">
               <Chip label={document.doc_type} color="primary" />
@@ -198,16 +200,25 @@ export function DocumentDetailPage() {
             <Box
               className="markdown-body"
               sx={{
+                minWidth: 0,
+                overflowX: 'auto',
                 '& h1, & h2, & h3': {
                   fontWeight: 800,
                   letterSpacing: '-0.02em',
+                  overflowWrap: 'anywhere',
+                },
+                '& p, & li, & blockquote, & a, & strong, & em, & span': {
+                  overflowWrap: 'anywhere',
+                  wordBreak: 'break-word',
                 },
                 '& img': {
+                  display: 'block',
                   maxWidth: '100%',
                   borderRadius: 2.5,
                 },
                 '& pre': {
                   overflowX: 'auto',
+                  maxWidth: '100%',
                   p: 2,
                   borderRadius: 2,
                   bgcolor: 'secondary.main',
@@ -215,8 +226,12 @@ export function DocumentDetailPage() {
                 },
                 '& code': {
                   fontFamily: 'Consolas, "Courier New", monospace',
+                  overflowWrap: 'anywhere',
                 },
                 '& table': {
+                  display: 'block',
+                  maxWidth: '100%',
+                  overflowX: 'auto',
                   width: '100%',
                   borderCollapse: 'collapse',
                 },
@@ -225,6 +240,8 @@ export function DocumentDetailPage() {
                   borderColor: 'divider',
                   p: 1.25,
                   textAlign: 'left',
+                  overflowWrap: 'anywhere',
+                  wordBreak: 'break-word',
                 },
               }}
               dangerouslySetInnerHTML={{ __html: rendered_content }}
@@ -232,8 +249,8 @@ export function DocumentDetailPage() {
           </Stack>
         </Paper>
 
-        <Stack spacing={3}>
-          <Paper sx={{ p: 3 }}>
+        <Stack spacing={3} sx={{ minWidth: 0 }}>
+          <Paper sx={{ p: 3, minWidth: 0 }}>
             <Stack spacing={2.5}>
               <Typography variant="h6">문서 메타데이터</Typography>
               <Box
@@ -251,7 +268,7 @@ export function DocumentDetailPage() {
             </Stack>
           </Paper>
 
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: 3, minWidth: 0 }}>
             <Stack spacing={2}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <LabelRoundedIcon color="primary" fontSize="small" />
@@ -274,7 +291,7 @@ export function DocumentDetailPage() {
             </Stack>
           </Paper>
 
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: 3, minWidth: 0 }}>
             <Stack spacing={2}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <SchemaRoundedIcon color="primary" fontSize="small" />
@@ -284,10 +301,12 @@ export function DocumentDetailPage() {
                 <Paper
                   key={task.id}
                   variant="outlined"
-                  sx={{ p: 2, borderRadius: 3, bgcolor: 'background.default' }}
+                  sx={{ p: 2, borderRadius: 3, bgcolor: 'background.default', minWidth: 0 }}
                 >
                   <Stack spacing={0.8}>
-                    <Typography fontWeight={700}>{task.title}</Typography>
+                    <Typography fontWeight={700} sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                      {task.title}
+                    </Typography>
                     <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                       <Chip size="small" label={task.status} />
                       <Chip size="small" variant="outlined" label={task.priority} />
@@ -300,7 +319,7 @@ export function DocumentDetailPage() {
             </Stack>
           </Paper>
 
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: 3, minWidth: 0 }}>
             <Stack spacing={2}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <ImageRoundedIcon color="primary" fontSize="small" />
@@ -310,10 +329,17 @@ export function DocumentDetailPage() {
                 <Paper
                   key={asset.id}
                   variant="outlined"
-                  sx={{ p: 2, borderRadius: 3, bgcolor: 'background.default' }}
+                  sx={{ p: 2, borderRadius: 3, bgcolor: 'background.default', minWidth: 0 }}
                 >
                   <Stack spacing={1}>
-                    <Link href={asset.url} target="_blank" rel="noreferrer" underline="hover" fontWeight={700}>
+                    <Link
+                      href={asset.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      underline="hover"
+                      fontWeight={700}
+                      sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+                    >
                       {asset.original_filename}
                     </Link>
                     <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">

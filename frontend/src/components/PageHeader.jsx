@@ -19,9 +19,27 @@ export function PageHeader({ eyebrow, title, description }) {
               {eyebrow}
             </Typography>
           ) : null}
-          <Typography variant="h3">{title}</Typography>
+          <Typography
+            variant="h3"
+            sx={{
+              minWidth: 0,
+              overflowWrap: 'anywhere',
+              wordBreak: 'break-word',
+            }}
+          >
+            {title}
+          </Typography>
           {description ? (
-            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 760, lineHeight: 1.8 }}>
+            <Typography
+              variant="body1"
+              color="text.secondary"
+              sx={{
+                maxWidth: 760,
+                lineHeight: 1.8,
+                overflowWrap: 'anywhere',
+                wordBreak: 'break-word',
+              }}
+            >
               {description}
             </Typography>
           ) : null}

@@ -2,6 +2,7 @@ import CreateRoundedIcon from '@mui/icons-material/CreateRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
@@ -18,9 +19,9 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
-import { apiGet } from '../api/client'
+import { apiGet, apiJson } from '../api/client'
 import { EmptyState, ErrorMessage, LoadingState } from '../components/FeedbackStates'
 import { FilterPanel } from '../components/FilterPanel'
 import { PageHeader } from '../components/PageHeader'
@@ -42,6 +43,8 @@ export function DocumentsPage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedIds, setSelectedIds] = useState([])
+  const [bulkActionLoading, setBulkActionLoading] = useState('')
 
   const loadDocuments = async (nextFilters = filters) => {
     setLoading(true)
@@ -55,6 +58,11 @@ export function DocumentsPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const pageIds = new Set((data?.documents || []).map((document) => document.id))
+    setSelectedIds((prev) => prev.filter((id) => pageIds.has(id)))
+  }, [data?.documents])
 
   useEffect(() => {
     loadDocuments(initialFilters)
@@ -77,6 +85,103 @@ export function DocumentsPage() {
     const nextFilters = { ...filters, page }
     setFilters(nextFilters)
     await loadDocuments(nextFilters)
+  }
+
+  const selectedDocuments = useMemo(() => {
+    const selectedSet = new Set(selectedIds)
+    return (data?.documents || []).filter((document) => selectedSet.has(document.id))
+  }, [data?.documents, selectedIds])
+
+  const allPageSelected = Boolean(data?.documents?.length) && selectedIds.length === data.documents.length
+  const hasAnySelection = selectedIds.length > 0
+  const shouldUnhide = hasAnySelection && selectedDocuments.every((document) => document.is_hidden)
+
+  const toggleSelectAllOnPage = (checked) => {
+    if (!checked) {
+      setSelectedIds([])
+      return
+    }
+    setSelectedIds((data?.documents || []).map((document) => document.id))
+  }
+
+  const toggleSelectDocument = (documentId, checked) => {
+    setSelectedIds((prev) => {
+      if (checked) {
+        return [...new Set([...prev, documentId])]
+      }
+      return prev.filter((id) => id !== documentId)
+    })
+  }
+
+  const handleBulkAction = async (action) => {
+    if (!selectedIds.length) {
+      return
+    }
+
+    const confirmMessage =
+      action === 'delete'
+        ? `선택한 문서 ${selectedIds.length}건을 삭제할까요? 연결된 이미지 자산도 함께 정리됩니다.`
+        : action === 'hide'
+          ? `선택한 문서 ${selectedIds.length}건을 숨김 처리할까요?`
+          : `선택한 문서 ${selectedIds.length}건을 숨김 해제할까요?`
+
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
+    setBulkActionLoading(action)
+    setError('')
+    try {
+      const payload = await apiJson('/api/documents/bulk', {
+        body: {
+          action,
+          document_ids: selectedIds,
+        },
+      })
+
+      if (action === 'delete') {
+        const deletedSet = new Set(payload.document_ids || [])
+        setData((prev) => {
+          if (!prev) {
+            return prev
+          }
+          const remainingDocuments = (prev.documents || []).filter((document) => !deletedSet.has(document.id))
+          const deletedCount = deletedSet.size
+          const nextTotalCount = Math.max((prev.pagination?.total_count || 0) - deletedCount, 0)
+          return {
+            ...prev,
+            documents: remainingDocuments,
+            pagination: prev.pagination
+              ? {
+                  ...prev.pagination,
+                  total_count: nextTotalCount,
+                }
+              : prev.pagination,
+          }
+        })
+        setSelectedIds([])
+        return
+      }
+
+      const nextHidden = action === 'hide'
+      const updatedSet = new Set(payload.document_ids || [])
+      setData((prev) => {
+        if (!prev) {
+          return prev
+        }
+        return {
+          ...prev,
+          documents: (prev.documents || []).map((document) =>
+            updatedSet.has(document.id) ? { ...document, is_hidden: nextHidden } : document,
+          ),
+        }
+      })
+      setSelectedIds([])
+    } catch (actionError) {
+      setError(actionError.message)
+    } finally {
+      setBulkActionLoading('')
+    }
   }
 
   return (
@@ -197,6 +302,40 @@ export function DocumentsPage() {
         description={`${filters.include_hidden ? '숨김 포함' : '숨김 제외'} 전체 ${data?.pagination?.total_count ?? 0}건 중 ${data?.documents?.length ?? 0}건 표시`}
         metric={data?.pagination ? `${data.pagination.page} / ${data.pagination.total_pages} 페이지` : null}
       >
+        {hasAnySelection ? (
+          <Alert
+            severity="info"
+            sx={{ mx: 3, mt: 3 }}
+            action={
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={Boolean(bulkActionLoading)}
+                  onClick={() => handleBulkAction(shouldUnhide ? 'unhide' : 'hide')}
+                >
+                  {bulkActionLoading === 'hide' || bulkActionLoading === 'unhide'
+                    ? '처리 중...'
+                    : shouldUnhide
+                      ? '숨김 해제'
+                      : '숨김 처리'}
+                </Button>
+                <Button
+                  size="small"
+                  color="error"
+                  variant="outlined"
+                  disabled={Boolean(bulkActionLoading)}
+                  onClick={() => handleBulkAction('delete')}
+                >
+                  {bulkActionLoading === 'delete' ? '삭제 중...' : '삭제'}
+                </Button>
+              </Stack>
+            }
+          >
+            문서 {selectedIds.length}건 선택됨
+          </Alert>
+        ) : null}
+
         <ErrorMessage message={error} sx={{ px: 3, pb: 3 }} />
 
         {loading ? (
@@ -207,6 +346,14 @@ export function DocumentsPage() {
               <Table sx={{ minWidth: { xs: 720, md: 960 } }}>
                 <TableHead>
                   <TableRow>
+                    <TableCell padding="checkbox" sx={{ width: 52 }}>
+                      <Checkbox
+                        checked={allPageSelected}
+                        indeterminate={hasAnySelection && !allPageSelected}
+                        onChange={(event) => toggleSelectAllOnPage(event.target.checked)}
+                        inputProps={{ 'aria-label': '현재 페이지 문서 전체 선택' }}
+                      />
+                    </TableCell>
                     <TableCell>제목</TableCell>
                     <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>유형</TableCell>
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>폴더</TableCell>
@@ -218,6 +365,13 @@ export function DocumentsPage() {
                 <TableBody>
                   {(data?.documents || []).map((document) => (
                     <TableRow key={document.id} hover>
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={selectedIds.includes(document.id)}
+                          onChange={(event) => toggleSelectDocument(document.id, event.target.checked)}
+                          inputProps={{ 'aria-label': `${document.title} 선택` }}
+                        />
+                      </TableCell>
                       <TableCell sx={{ minWidth: 280 }}>
                         <Stack spacing={0.5}>
                           <Button

@@ -57,6 +57,9 @@ class SQLiteDocumentsRepository:
     def fetch_document_with_relations(self, document_id: int):
         return document_queries.fetch_document_with_relations(self.db, document_id)
 
+    def fetch_documents_by_ids(self, document_ids: list[int]):
+        return document_queries.fetch_documents_by_ids(self.db, document_ids)
+
     def search_documents_for_link(self, *, keyword: str, limit: int = 10):
         return document_queries.search_documents_for_link(self.db, keyword=keyword, limit=limit)
 
@@ -130,6 +133,9 @@ class SQLiteDocumentsRepository:
 
     def update_document(self, document_id, data, folder_id):
         return document_queries.update_document(self.db, document_id, data, folder_id)
+
+    def bulk_set_hidden(self, document_ids: list[int], is_hidden: int):
+        return document_queries.bulk_set_hidden(self.db, document_ids, is_hidden)
 
     def delete_document(self, document_id):
         return document_queries.delete_document(self.db, document_id)

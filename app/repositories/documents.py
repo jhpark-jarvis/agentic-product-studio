@@ -64,6 +64,25 @@ def fetch_document_with_relations(db, document_id: int):
     return document, related_tasks, [row["tag"] for row in tag_rows]
 
 
+def fetch_documents_by_ids(db, document_ids: list[int]):
+    normalized_ids = sorted({int(document_id) for document_id in document_ids if int(document_id) > 0})
+    if not normalized_ids:
+        return []
+
+    placeholders = ", ".join("?" for _ in normalized_ids)
+    return db.execute(
+        f"""
+        SELECT d.*, m.name AS author_name, f.name AS folder_name
+        FROM documents d
+        LEFT JOIN members m ON m.id = d.author_id
+        LEFT JOIN document_folders f ON f.id = d.folder_id
+        WHERE d.id IN ({placeholders})
+        ORDER BY d.updated_at DESC, d.id DESC
+        """,
+        normalized_ids,
+    ).fetchall()
+
+
 def search_documents_for_link(db, *, keyword: str, limit: int = 10):
     normalized = (keyword or "").strip()
     if not normalized:
@@ -214,6 +233,23 @@ def update_document(db, document_id, data, folder_id):
             document_id,
         ),
     )
+
+
+def bulk_set_hidden(db, document_ids: list[int], is_hidden: int):
+    normalized_ids = sorted({int(document_id) for document_id in document_ids if int(document_id) > 0})
+    if not normalized_ids:
+        return 0
+
+    placeholders = ", ".join("?" for _ in normalized_ids)
+    cursor = db.execute(
+        f"""
+        UPDATE documents
+        SET is_hidden = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id IN ({placeholders})
+        """,
+        [is_hidden, *normalized_ids],
+    )
+    return cursor.rowcount
 
 
 def delete_document(db, document_id):

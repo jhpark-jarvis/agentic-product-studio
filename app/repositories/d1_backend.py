@@ -750,6 +750,24 @@ class D1DocumentsRepository:
         )
         return _cache_set(cache_key, (document, related_tasks, [row["tag"] for row in tag_rows]))
 
+    def fetch_documents_by_ids(self, document_ids: list[int]):
+        normalized_ids = sorted({int(document_id) for document_id in document_ids if int(document_id) > 0})
+        if not normalized_ids:
+            return []
+
+        placeholders = ", ".join("?" for _ in normalized_ids)
+        return self.client.query_rows(
+            f"""
+            SELECT d.*, m.name AS author_name, f.name AS folder_name
+            FROM documents d
+            LEFT JOIN members m ON m.id = d.author_id
+            LEFT JOIN document_folders f ON f.id = d.folder_id
+            WHERE d.id IN ({placeholders})
+            ORDER BY d.updated_at DESC, d.id DESC
+            """,
+            normalized_ids,
+        )
+
     def search_documents_for_link(self, *, keyword: str, limit: int = 10):
         normalized = (keyword or "").strip()
         if not normalized:
@@ -1012,6 +1030,38 @@ class D1DocumentsRepository:
         )
         _shadow_upsert_document(document_id, data, folder_id)
         _cache_invalidate(f"documents:detail:{document_id}", "documents:", "common:document_link_options", "dashboard:")
+
+    def bulk_set_hidden(self, document_ids: list[int], is_hidden: int):
+        normalized_ids = sorted({int(document_id) for document_id in document_ids if int(document_id) > 0})
+        if not normalized_ids:
+            return 0
+
+        placeholders = ", ".join("?" for _ in normalized_ids)
+        self.client.query(
+            f"""
+            UPDATE documents
+            SET is_hidden = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id IN ({placeholders})
+            """,
+            [is_hidden, *normalized_ids],
+        )
+
+        for document_id in normalized_ids:
+            document = self.client.query_first(
+                """
+                SELECT title, content, author_id, tags, is_hidden, doc_type, folder_id
+                FROM documents
+                WHERE id = ?
+                """,
+                [document_id],
+            )
+            if document:
+                _shadow_upsert_document(document_id, document, document.get("folder_id"))
+
+        _cache_invalidate("documents:", "common:document_link_options", "dashboard:")
+        for document_id in normalized_ids:
+            _cache_invalidate(f"documents:detail:{document_id}")
+        return len(normalized_ids)
 
     def delete_document(self, document_id):
         self.client.query("DELETE FROM document_assets WHERE document_id = ?", [document_id])

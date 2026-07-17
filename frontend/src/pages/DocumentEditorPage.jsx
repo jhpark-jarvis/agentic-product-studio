@@ -20,7 +20,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Fab,
   FormControlLabel,
   IconButton,
   MenuItem,
@@ -66,6 +65,7 @@ export function DocumentEditorPage() {
   const isEditMode = Boolean(documentId)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
+  const editorSelectionRef = useRef({ start: 0, end: 0 })
   const [bootstrap, setBootstrap] = useState(null)
   const [form, setForm] = useState(initialForm)
   const [previewHtml, setPreviewHtml] = useState('')
@@ -183,6 +183,55 @@ export function DocumentEditorPage() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
+  const syncEditorSelection = () => {
+    const textarea = textareaRef.current
+    if (!textarea) {
+      return
+    }
+
+    editorSelectionRef.current = {
+      start: textarea.selectionStart ?? 0,
+      end: textarea.selectionEnd ?? textarea.selectionStart ?? 0,
+    }
+  }
+
+  const preserveEditorSelection = (event) => {
+    syncEditorSelection()
+
+    if (document.activeElement === textareaRef.current) {
+      event.preventDefault()
+    }
+  }
+
+  const openLinkSearch = () => {
+    syncEditorSelection()
+    setLinkSearchOpen(true)
+  }
+
+  const openImagePicker = () => {
+    syncEditorSelection()
+    fileInputRef.current?.click()
+  }
+
+  const focusEditorSelection = (start, end = start) => {
+    const textarea = textareaRef.current
+    if (!textarea) {
+      return
+    }
+
+    const scrollX = window.scrollX
+    const scrollY = window.scrollY
+    const textareaScrollTop = textarea.scrollTop
+    const textareaScrollLeft = textarea.scrollLeft
+
+    textarea.focus({ preventScroll: true })
+    textarea.setSelectionRange(start, end)
+    textarea.scrollTop = textareaScrollTop
+    textarea.scrollLeft = textareaScrollLeft
+    window.scrollTo(scrollX, scrollY)
+    editorSelectionRef.current = { start, end }
+  }
+
   const toolbarActions = [
     {
       key: 'h1',
@@ -239,35 +288,36 @@ export function DocumentEditorPage() {
       key: 'float-image',
       label: '이미지',
       icon: <AddPhotoAlternateRoundedIcon fontSize="small" />,
-      onClick: () => fileInputRef.current?.click(),
+      onClick: openImagePicker,
       disabled: uploading || saving,
     },
     {
       key: 'float-link',
       label: '문서 검색',
       icon: <LinkRoundedIcon fontSize="small" />,
-      onClick: () => setLinkSearchOpen(true),
+      onClick: openLinkSearch,
     },
   ]
 
   const insertAtCursor = (snippet, fallbackSelection = '') => {
     const textarea = textareaRef.current
+    const savedSelection = editorSelectionRef.current
     if (!textarea) {
       updateField('content', `${form.content}${snippet}`)
       return
     }
 
-    const start = textarea.selectionStart ?? form.content.length
-    const end = textarea.selectionEnd ?? form.content.length
+    const hasTextareaFocus = document.activeElement === textarea
+    const start = hasTextareaFocus ? (textarea.selectionStart ?? form.content.length) : savedSelection.start
+    const end = hasTextareaFocus ? (textarea.selectionEnd ?? form.content.length) : savedSelection.end
     const selected = form.content.slice(start, end) || fallbackSelection
     const nextSnippet = snippet.replace('{selection}', selected)
     const nextValue = `${form.content.slice(0, start)}${nextSnippet}${form.content.slice(end)}`
     updateField('content', nextValue)
 
     requestAnimationFrame(() => {
-      textarea.focus()
       const cursor = start + nextSnippet.length
-      textarea.setSelectionRange(cursor, cursor)
+      focusEditorSelection(cursor, cursor)
     })
   }
 
@@ -551,6 +601,7 @@ export function DocumentEditorPage() {
                     key={action.key}
                     size="small"
                     variant="outlined"
+                    onMouseDown={preserveEditorSelection}
                     onClick={action.onClick}
                   >
                     {action.label}
@@ -561,7 +612,8 @@ export function DocumentEditorPage() {
                   variant="outlined"
                   startIcon={<AddPhotoAlternateRoundedIcon />}
                   disabled={uploading || saving}
-                  onClick={() => fileInputRef.current?.click()}
+                  onMouseDown={preserveEditorSelection}
+                  onClick={openImagePicker}
                 >
                   이미지
                 </Button>
@@ -569,7 +621,8 @@ export function DocumentEditorPage() {
                   size="small"
                   variant="outlined"
                   startIcon={<LinkRoundedIcon />}
-                  onClick={() => setLinkSearchOpen(true)}
+                  onMouseDown={preserveEditorSelection}
+                  onClick={openLinkSearch}
                 >
                   문서 검색
                 </Button>
@@ -626,6 +679,8 @@ export function DocumentEditorPage() {
                     minRows={30}
                     value={form.content}
                     onChange={(event) => updateField('content', event.target.value)}
+                    onClick={syncEditorSelection}
+                    onKeyUp={syncEditorSelection}
                     onPaste={async (event) => {
                       const items = Array.from(event.clipboardData?.items || [])
                       const imageItem = items.find((item) => item.type?.startsWith('image/'))
@@ -637,6 +692,7 @@ export function DocumentEditorPage() {
                       event.preventDefault()
                       await handleImageUpload(file)
                     }}
+                    onSelect={syncEditorSelection}
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 0,
@@ -769,27 +825,13 @@ export function DocumentEditorPage() {
         }}
       >
         <Paper
-          elevation={8}
+          elevation={0}
           sx={{
-            borderRadius: '18px 0 0 18px',
-            backdropFilter: 'blur(14px)',
-            bgcolor: (theme) => (
-              theme.palette.mode === 'dark'
-                ? 'rgba(12, 20, 36, 0.94)'
-                : 'rgba(255,255,255,0.92)'
-            ),
+            borderRadius: '6px 0 0 6px',
+            bgcolor: 'background.paper',
             border: '1px solid',
             borderRight: 0,
-            borderColor: (theme) => (
-              theme.palette.mode === 'dark'
-                ? 'rgba(148, 163, 184, 0.22)'
-                : theme.palette.divider
-            ),
-            boxShadow: (theme) => (
-              theme.palette.mode === 'dark'
-                ? '0 18px 36px rgba(2, 6, 23, 0.5)'
-                : undefined
-            ),
+            borderColor: 'divider',
           }}
         >
           <IconButton
@@ -798,30 +840,14 @@ export function DocumentEditorPage() {
             sx={{
               width: 34,
               height: 58,
-              borderRadius: '18px 0 0 18px',
+              borderRadius: '6px 0 0 6px',
               color: 'text.secondary',
-              bgcolor: (theme) => (
-                theme.palette.mode === 'dark'
-                  ? 'rgba(30, 41, 59, 0.92)'
-                  : 'rgba(241, 245, 249, 0.98)'
-              ),
+              bgcolor: 'background.paper',
               border: '1px solid',
-              borderColor: (theme) => (
-                theme.palette.mode === 'dark'
-                  ? 'rgba(148, 163, 184, 0.18)'
-                  : 'rgba(148, 163, 184, 0.3)'
-              ),
-              boxShadow: (theme) => (
-                theme.palette.mode === 'dark'
-                  ? '0 10px 24px rgba(2, 6, 23, 0.35)'
-                  : '0 8px 18px rgba(15, 23, 42, 0.12)'
-              ),
+              borderColor: 'divider',
+              boxShadow: 'none',
               '&:hover': {
-                bgcolor: (theme) => (
-                  theme.palette.mode === 'dark'
-                    ? 'rgba(51, 65, 85, 0.96)'
-                    : 'rgba(226, 232, 240, 1)'
-                ),
+                bgcolor: 'action.hover',
               },
             }}
           >
@@ -831,84 +857,58 @@ export function DocumentEditorPage() {
 
         {floatingBarCollapsed ? null : (
           <Paper
-            elevation={8}
+            elevation={0}
             sx={{
               p: 1,
               mr: -0.5,
-              borderRadius: 3,
+              borderRadius: 1.5,
               borderTopRightRadius: 0,
               borderBottomRightRadius: 0,
-              backdropFilter: 'blur(14px)',
-              bgcolor: (theme) => (
-                theme.palette.mode === 'dark'
-                  ? 'rgba(12, 20, 36, 0.92)'
-                  : 'rgba(255,255,255,0.9)'
-              ),
+              bgcolor: 'background.paper',
               border: '1px solid',
-              borderColor: (theme) => (
-                theme.palette.mode === 'dark'
-                  ? 'rgba(148, 163, 184, 0.22)'
-                  : theme.palette.divider
-              ),
-              boxShadow: (theme) => (
-                theme.palette.mode === 'dark'
-                  ? '0 18px 36px rgba(2, 6, 23, 0.5)'
-                  : undefined
-              ),
+              borderColor: 'divider',
+              boxShadow: 'none',
             }}
           >
             <Stack direction="column" spacing={1}>
               {floatingActions.map((action) => (
-                <Fab
+                <Button
                   key={action.key}
                   size="small"
-                  variant="extended"
+                  variant="outlined"
+                  startIcon={action.icon}
                   onClick={action.onClick}
+                  onMouseDown={preserveEditorSelection}
                   disabled={action.disabled}
                   sx={{
                     justifyContent: 'flex-start',
-                    minHeight: 36,
+                    minHeight: 38,
                     px: 1.5,
-                    gap: 0.75,
+                    borderRadius: 1,
                     boxShadow: 'none',
-                    color: (theme) => (theme.palette.mode === 'dark' ? '#e2e8f0' : undefined),
-                    bgcolor: (theme) => (
-                      theme.palette.mode === 'dark'
-                        ? 'rgba(30, 41, 59, 0.94)'
-                        : theme.palette.primary.main
-                    ),
-                    border: (theme) => (
-                      theme.palette.mode === 'dark'
-                        ? '1px solid rgba(148, 163, 184, 0.18)'
-                        : 'none'
-                    ),
-                    '&:hover': {
-                      bgcolor: (theme) => (
-                        theme.palette.mode === 'dark'
-                          ? 'rgba(51, 65, 85, 0.98)'
-                          : theme.palette.primary.dark
-                      ),
+                    '& .MuiButton-startIcon': {
+                      marginRight: 0.75,
                     },
-                    '&.Mui-disabled': {
-                      color: (theme) => (theme.palette.mode === 'dark' ? 'rgba(226, 232, 240, 0.45)' : undefined),
-                      bgcolor: (theme) => (
-                        theme.palette.mode === 'dark'
-                          ? 'rgba(15, 23, 42, 0.74)'
-                          : undefined
-                      ),
+                    '&:hover': {
+                      boxShadow: 'none',
                     },
                   }}
                 >
-                  {action.icon}
                   {action.label}
-                </Fab>
+                </Button>
               ))}
             </Stack>
           </Paper>
         )}
       </Box>
 
-      <Dialog open={linkSearchOpen} onClose={() => setLinkSearchOpen(false)} fullWidth maxWidth="md">
+      <Dialog
+        open={linkSearchOpen}
+        onClose={() => setLinkSearchOpen(false)}
+        disableRestoreFocus
+        fullWidth
+        maxWidth="md"
+      >
         <DialogTitle>기존 문서 검색</DialogTitle>
         <DialogContent>
           <Stack spacing={2}>
@@ -954,8 +954,8 @@ export function DocumentEditorPage() {
                         <Button
                           variant="contained"
                           onClick={() => {
-                            insertAtCursor(`[${item.title}](${item.path})`)
                             setLinkSearchOpen(false)
+                            insertAtCursor(`[${item.title}](${item.path})`)
                             setStatus('문서 링크를 본문에 삽입했습니다.')
                           }}
                         >

@@ -1,5 +1,6 @@
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import ImageRoundedIcon from '@mui/icons-material/ImageRounded'
 import LabelRoundedIcon from '@mui/icons-material/LabelRounded'
@@ -20,6 +21,7 @@ import { useEffect, useState } from 'react'
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
 import { apiGet, apiJson, normalizeRedirectPath } from '../api/client'
 import { PageHeader } from '../components/PageHeader'
+import { hiddenStatusChipSx } from '../theme'
 import { formatDateTimeKst } from '../utils/datetime'
 
 function MetaBlock({ label, value }) {
@@ -116,7 +118,7 @@ export function DocumentDetailPage() {
     )
   }
 
-  const { document, tags, assets, related_tasks, rendered_content, word_count, heading_count } = data
+  const { document, tags, assets, related_tasks, linked_documents = [], rendered_content, word_count, heading_count } = data
 
   const handleDelete = async () => {
     if (
@@ -190,7 +192,7 @@ export function DocumentDetailPage() {
               <Chip
                 label={document.is_hidden ? '숨김 문서' : '일반 문서'}
                 variant="outlined"
-                color={document.is_hidden ? 'warning' : 'default'}
+                sx={document.is_hidden ? hiddenStatusChipSx : undefined}
               />
               <Chip label={`수정 ${formatDateTimeKst(document.updated_at)}`} variant="outlined" />
             </Stack>
@@ -315,6 +317,45 @@ export function DocumentDetailPage() {
                 </Paper>
               )) : (
                 <Typography color="text.secondary">연결된 WBS 작업이 없습니다.</Typography>
+              )}
+            </Stack>
+          </Paper>
+
+          <Paper sx={{ p: 3, minWidth: 0 }}>
+            <Stack spacing={2}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <DescriptionRoundedIcon color="primary" fontSize="small" />
+                <Typography variant="h6">연결 문서</Typography>
+              </Stack>
+              {linked_documents.length ? linked_documents.map((linkedDocument) => (
+                <Paper
+                  key={linkedDocument.id}
+                  variant="outlined"
+                  sx={{ p: 2, borderRadius: 3, bgcolor: 'background.default', minWidth: 0 }}
+                >
+                  <Stack spacing={0.8}>
+                    <Link
+                      component={RouterLink}
+                      to={`/documents/${linkedDocument.id}`}
+                      underline="hover"
+                      fontWeight={700}
+                      sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+                    >
+                      {linkedDocument.title}
+                    </Link>
+                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                      <Chip size="small" label={linkedDocument.doc_type} />
+                      {linkedDocument.folder_name ? (
+                        <Chip size="small" variant="outlined" label={linkedDocument.folder_name} />
+                      ) : null}
+                      {linkedDocument.is_hidden ? (
+                        <Chip size="small" variant="outlined" label="숨김" sx={hiddenStatusChipSx} />
+                      ) : null}
+                    </Stack>
+                  </Stack>
+                </Paper>
+              )) : (
+                <Typography color="text.secondary">본문에 연결된 내부 문서가 없습니다.</Typography>
               )}
             </Stack>
           </Paper>

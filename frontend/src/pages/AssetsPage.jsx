@@ -29,6 +29,7 @@ import { EmptyState, ErrorMessage, LoadingState } from '../components/FeedbackSt
 import { FilterPanel } from '../components/FilterPanel'
 import { PageHeader } from '../components/PageHeader'
 import { SectionCard } from '../components/SectionCard'
+import { hiddenStatusChipSx } from '../theme'
 import { formatDateTimeKst } from '../utils/datetime'
 
 const initialFilters = {
@@ -331,7 +332,7 @@ export function AssetsPage() {
                               {asset.original_filename || asset.file_name}
                             </Typography>
                             {asset.is_hidden ? (
-                              <Chip size="small" label="숨김" color="warning" variant="outlined" />
+                              <Chip size="small" label="숨김" variant="outlined" sx={hiddenStatusChipSx} />
                             ) : null}
                           </Stack>
                         </TableCell>

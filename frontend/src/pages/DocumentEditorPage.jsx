@@ -38,6 +38,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
 import { apiForm, apiGet, apiJson, normalizeRedirectPath } from '../api/client'
+import { hiddenStatusChipSx } from '../theme'
 import { PageHeader } from '../components/PageHeader'
 
 const initialForm = {
@@ -987,7 +988,7 @@ export function DocumentEditorPage() {
                     <Stack spacing={1}>
                       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
                         <Typography fontWeight={700}>{item.title}</Typography>
-                        {item.is_hidden ? <Chip size="small" label="숨김" color="warning" /> : null}
+                        {item.is_hidden ? <Chip size="small" label="숨김" variant="outlined" sx={hiddenStatusChipSx} /> : null}
                       </Stack>
                       <Typography variant="body2" color="text.secondary">
                         {item.doc_type} · {item.folder_name || '폴더 없음'}

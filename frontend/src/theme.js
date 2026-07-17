@@ -31,6 +31,9 @@ const themeTokens = {
     markdownLinkHover: '#6e330f',
     markdownLinkVisited: '#7b4a91',
     markdownLinkUnderline: 'rgba(154, 78, 23, 0.35)',
+    hiddenChipBackground: '#fff3e4',
+    hiddenChipBorder: '#d7a56d',
+    hiddenChipText: '#8f4f1f',
   },
   midnight: {
     mode: 'dark',
@@ -62,11 +65,27 @@ const themeTokens = {
     markdownLinkHover: '#d7efff',
     markdownLinkVisited: '#c7b8ff',
     markdownLinkUnderline: 'rgba(143, 211, 255, 0.38)',
+    hiddenChipBackground: 'rgba(251, 191, 36, 0.12)',
+    hiddenChipBorder: 'rgba(251, 191, 36, 0.38)',
+    hiddenChipText: '#f7d68a',
   },
 }
 
 export const THEME_STORAGE_KEY = 'agentic-product-studio-theme-mode'
 export const DEFAULT_THEME_MODE = 'studio'
+
+export function hiddenStatusChipSx(theme) {
+  const tokens = theme.customTokens
+
+  return {
+    color: tokens.hiddenChipText,
+    backgroundColor: tokens.hiddenChipBackground,
+    borderColor: tokens.hiddenChipBorder,
+    '& .MuiChip-label': {
+      color: tokens.hiddenChipText,
+    },
+  }
+}
 
 export function buildAppTheme(mode = DEFAULT_THEME_MODE) {
   const tokens = themeTokens[mode] || themeTokens[DEFAULT_THEME_MODE]

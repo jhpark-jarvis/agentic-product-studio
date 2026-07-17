@@ -7,6 +7,7 @@ import {
   Checkbox,
   Chip,
   FormControlLabel,
+  Link,
   MenuItem,
   Stack,
   Table,
@@ -25,6 +26,7 @@ import { EmptyState, ErrorMessage, LoadingState } from '../components/FeedbackSt
 import { FilterPanel } from '../components/FilterPanel'
 import { PageHeader } from '../components/PageHeader'
 import { SectionCard } from '../components/SectionCard'
+import { hiddenStatusChipSx } from '../theme'
 import { formatDateTimeKst } from '../utils/datetime'
 
 const initialFilters = {
@@ -168,11 +170,26 @@ export function DocumentsPage() {
         if (!prev) {
           return prev
         }
+        const nextDocuments = (prev.documents || [])
+          .map((document) =>
+            updatedSet.has(document.id) ? { ...document, is_hidden: nextHidden } : document,
+          )
+          .filter((document) => filters.include_hidden || !document.is_hidden)
+
+        const hiddenRemovedCount =
+          action === 'hide' && !filters.include_hidden
+            ? (prev.documents || []).length - nextDocuments.length
+            : 0
+
         return {
           ...prev,
-          documents: (prev.documents || []).map((document) =>
-            updatedSet.has(document.id) ? { ...document, is_hidden: nextHidden } : document,
-          ),
+          documents: nextDocuments,
+          pagination: prev.pagination
+            ? {
+                ...prev.pagination,
+                total_count: Math.max((prev.pagination.total_count || 0) - hiddenRemovedCount, 0),
+              }
+            : prev.pagination,
         }
       })
       setSelectedIds([])
@@ -402,30 +419,52 @@ export function DocumentsPage() {
                         },
                       }}
                     >
-                      <TableCell padding="checkbox">
+                      <TableCell padding="checkbox" sx={{ verticalAlign: 'top', pt: 2.25 }}>
                         <Checkbox
                           checked={selectedIds.includes(document.id)}
                           onChange={(event) => toggleSelectDocument(document.id, event.target.checked)}
                           inputProps={{ 'aria-label': `${document.title} 선택` }}
                         />
                       </TableCell>
-                      <TableCell sx={{ minWidth: 280 }}>
+                      <TableCell sx={{ minWidth: 280, verticalAlign: 'top' }}>
                         <Stack spacing={0.5}>
-                          <Button
-                            component={RouterLink}
-                            to={`/documents/${document.id}`}
-                            sx={{ justifyContent: 'flex-start', px: 0, textAlign: 'left' }}
-                          >
-                            {document.title}
-                          </Button>
+                          <Stack direction="row" spacing={0.75} alignItems="flex-start" useFlexGap flexWrap="wrap">
+                            <Link
+                              component={RouterLink}
+                              to={`/documents/${document.id}`}
+                              underline="hover"
+                              color="inherit"
+                              sx={{
+                                minWidth: 0,
+                                typography: 'body1',
+                                fontWeight: 700,
+                                lineHeight: 1.45,
+                                textAlign: 'left',
+                                textDecorationColor: 'currentColor',
+                                overflowWrap: 'anywhere',
+                                wordBreak: 'break-word',
+                              }}
+                            >
+                              {document.title}
+                            </Link>
+                            {document.is_hidden ? (
+                              <Chip
+                                size="small"
+                                label="숨김"
+                                variant="outlined"
+                                sx={(theme) => ({
+                                  ...hiddenStatusChipSx(theme),
+                                  alignSelf: 'flex-start',
+                                  mt: '2px',
+                                })}
+                              />
+                            ) : null}
+                          </Stack>
                           <Typography variant="body2" color="text.secondary">
                             {document.folder_name
                               ? `${document.doc_type} / ${document.folder_name}`
                               : document.doc_type}
                           </Typography>
-                          {document.is_hidden ? (
-                            <Chip size="small" label="숨김" color="warning" variant="outlined" />
-                          ) : null}
                         </Stack>
                       </TableCell>
                       <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>

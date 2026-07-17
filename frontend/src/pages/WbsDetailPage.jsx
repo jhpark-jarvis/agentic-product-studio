@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 import { apiGet } from '../api/client'
 import { PageHeader } from '../components/PageHeader'
+import { hiddenStatusChipSx } from '../theme'
 
 function MetaBlock({ label, value }) {
   return (
@@ -173,7 +174,7 @@ export function WbsDetailPage() {
                       </Button>
                       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                         <Chip size="small" label={document.doc_type} />
-                        {document.is_hidden ? <Chip size="small" variant="outlined" label="숨김 문서" /> : null}
+                        {document.is_hidden ? <Chip size="small" variant="outlined" label="숨김 문서" sx={hiddenStatusChipSx} /> : null}
                       </Stack>
                     </Stack>
                   </Paper>

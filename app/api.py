@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timedelta
+import re
 from uuid import uuid4
 
 from flask import Blueprint, current_app, jsonify, request
@@ -30,6 +31,26 @@ PER_PAGE_OPTIONS = (10, 20, 50, 100)
 
 def _serialize_rows(rows):
     return [dict(row) for row in rows]
+
+
+_DOCUMENT_LINK_PATTERN = re.compile(
+    r"(?:https?://[^\s)\"'>]+)?/documents?/(?P<document_id>\d+)(?=[/?#)\]\s\"'<>]|$)",
+    re.IGNORECASE,
+)
+
+
+def _extract_linked_document_ids(content: str, current_document_id: int) -> list[int]:
+    ordered_ids: list[int] = []
+    seen_ids: set[int] = set()
+
+    for match in _DOCUMENT_LINK_PATTERN.finditer(content or ""):
+        document_id = parse_int(match.group("document_id"), default=0, minimum=1)
+        if not document_id or document_id == current_document_id or document_id in seen_ids:
+            continue
+        seen_ids.add(document_id)
+        ordered_ids.append(document_id)
+
+    return ordered_ids
 
 
 def _client_ip() -> str:
@@ -467,6 +488,9 @@ def document_detail(document_id: int):
 
     assets = get_repository_provider().documents.fetch_document_assets(document_id)
     content = document["content"] or ""
+    linked_document_ids = _extract_linked_document_ids(content, document_id)
+    linked_documents = get_repository_provider().documents.fetch_documents_by_ids(linked_document_ids)
+    linked_documents_by_id = {item["id"]: dict(item) for item in linked_documents}
 
     return jsonify(
         {
@@ -474,6 +498,11 @@ def document_detail(document_id: int):
             "related_tasks": _serialize_rows(related_tasks),
             "tags": list(tags),
             "assets": _serialize_rows(assets),
+            "linked_documents": [
+                linked_documents_by_id[linked_document_id]
+                for linked_document_id in linked_document_ids
+                if linked_document_id in linked_documents_by_id
+            ],
             "rendered_content": str(markdown_to_html(content)),
             "word_count": len(content.split()),
             "heading_count": sum(

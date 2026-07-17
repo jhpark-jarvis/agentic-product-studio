@@ -2,19 +2,31 @@
 
 `Agentic Product Studio`는 외부 에셋 카탈로그 개발팀이 문서, WBS, 일정, 멤버, Assets를 한 곳에서 관리하기 위한 내부 협업용 웹앱입니다.
 
+이 서비스는 사용자가 브라우저에서 직접 사용하는 협업 도구이면서, 동시에 AI Agent가 기획 문서와 운영 데이터를 확인하며 개발 작업을 진행할 때 참조하는 작업 허브 역할도 합니다.
+
 현재 운영 기준은 `Flask + React(MUI)` 프론트, `Cloudflare D1 / SQLite` 데이터 저장소, `Cloudflare R2 / 로컬 uploads` 파일 스토리지 조합입니다.
+
+![Agentic Product Studio Overview](./Overview.png)
 
 ## 현재 운영 구조
 
 ```text
-Browser
-  -> Flask (PythonAnywhere)
-      -> React build (app/static/frontend)
-      -> Frontend routes (/ /documents /assets /wbs /schedules /members /log)
-      -> API (/api/*)
-      -> Markdown utility endpoints
-      -> D1 or SQLite
-      -> R2 or local uploads
+User
+  -> Browser
+      -> Flask (PythonAnywhere)
+          -> React build (app/static/frontend)
+          -> Frontend routes (/ /dashboard /documents /assets /wbs /schedules /members /log)
+          -> API (/api/*)
+          -> Markdown utility endpoints (/documents/*)
+          -> D1 or SQLite
+          -> R2 or local uploads
+
+AI Agent
+  -> Static guides (.docs/catalog/*)
+  -> HTTP API (/api/*, /documents/*)
+      -> Flask (PythonAnywhere)
+          -> D1-backed documents / project data
+          -> Markdown helper endpoints
 ```
 
 이 구조를 쓰는 이유는 아래와 같습니다.
@@ -23,6 +35,14 @@ Browser
 - Flask는 API, 업로드, Markdown 유틸, 배포 진입점 역할에 집중합니다.
 - PythonAnywhere에서는 React 빌드 결과만 서빙하면 되므로 운영이 단순합니다.
 - 데이터와 스토리지를 D1/R2로 분리해 이후 Cloudflare 중심 구조로 확장하기 쉽습니다.
+- AI Agent는 `.docs/catalog/` 가이드와 운영 API를 함께 참조해, 최신 기획 문맥과 구현 대상 데이터를 확인하며 작업할 수 있습니다.
+
+## 사용자와 AI Agent의 역할
+
+- 사용자는 브라우저에서 대시보드, 문서, WBS, 일정, 멤버, 에셋 관리 화면을 직접 사용합니다.
+- Flask 앱은 React 프론트엔드와 API를 함께 서빙하며, 문서 미리보기/업로드 같은 보조 엔드포인트도 제공합니다.
+- AI Agent는 `.docs/catalog/`의 정적 가이드를 먼저 읽고, 필요하면 운영 API를 조회해 최신 문서와 데이터를 다시 확인합니다.
+- 즉, 이 서비스는 단순한 내부 웹앱이 아니라, 사용자와 AI가 같은 문서/데이터 기반 위에서 협업하는 개발 허브로 동작합니다.
 
 ## 주요 기능
 
@@ -58,6 +78,7 @@ Browser
 ## 주요 경로
 
 - `/`
+- `/dashboard`
 - `/documents`
 - `/assets`
 - `/wbs`
@@ -112,6 +133,9 @@ agentic-product-studio/
 ├─ deployment/
 ├─ .docs/                      # 개발용 내부 문서 / 회고 / 마일스톤
 ├─ uploads/
+├─ instance/                   # 로컬 SQLite DB / page view 로그 등 런타임 파일
+├─ worker/                     # Cloudflare Worker(JS) 관련 실험/보조 배포 코드
+├─ worker-python/              # Cloudflare Python Worker 관련 설정/코드
 ├─ run.py
 ├─ requirements.txt
 ├─ package.json
@@ -153,6 +177,12 @@ npm run frontend:install
 ### 3. 환경 변수 준비
 
 `.env.example`을 기준으로 `.env`를 작성합니다.
+
+주의:
+
+- `.env.example`의 `DATABASE={}` / `UPLOAD_FOLDER={}`는 "비워둔 자리" 표시입니다.
+- 로컬 기본 경로를 그대로 쓰려면 해당 줄을 삭제하거나, 실제 경로로 명시해서 사용하세요.
+- 값을 비우지 않고 `{}` 그대로 두면 문자열 `"{}"` 경로를 사용하게 됩니다.
 
 최소 예시:
 
@@ -220,6 +250,13 @@ flask cloudflare-check
 FLASK_APP=run.py flask cloudflare-check
 ```
 
+PowerShell 예시:
+
+```powershell
+$env:FLASK_APP="run.py"
+flask cloudflare-check
+```
+
 이 명령은 아래를 확인합니다.
 
 - 현재 repository backend
@@ -251,18 +288,6 @@ virtualenv 이름이 다르면 아래처럼 지정할 수 있습니다.
 ```bash
 VENV_NAME=<your_virtualenv_name> bash scripts/pythonanywhere_refresh.sh
 ```
-
-상세 절차:
-
-- [PYTHONANYWHERE_DEPLOY_PROCESS.md](/D:/dev/git/agentic-product-studio/PYTHONANYWHERE_DEPLOY_PROCESS.md)
-- [DEPLOY_PROCESS.md](/D:/dev/git/agentic-product-studio/DEPLOY_PROCESS.md)
-
-## 관련 문서
-
-- [database/d1/README.md](/D:/dev/git/agentic-product-studio/database/d1/README.md)
-- [.docs/README.md](/D:/dev/git/agentic-product-studio/.docs/README.md)
-- [.docs/frontend/frontend-refactoring-milestone.md](/D:/dev/git/agentic-product-studio/.docs/frontend/frontend-refactoring-milestone.md)
-- [.docs/catalog/README.md](/D:/dev/git/agentic-product-studio/.docs/catalog/README.md)
 
 ## 현재 참고 사항
 

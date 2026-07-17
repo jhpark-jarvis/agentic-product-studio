@@ -2,7 +2,6 @@ import CreateRoundedIcon from '@mui/icons-material/CreateRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import {
-  Alert,
   Box,
   Button,
   Checkbox,
@@ -303,37 +302,63 @@ export function DocumentsPage() {
         metric={data?.pagination ? `${data.pagination.page} / ${data.pagination.total_pages} 페이지` : null}
       >
         {hasAnySelection ? (
-          <Alert
-            severity="info"
-            sx={{ mx: 3, mt: 3 }}
-            action={
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  disabled={Boolean(bulkActionLoading)}
-                  onClick={() => handleBulkAction(shouldUnhide ? 'unhide' : 'hide')}
-                >
-                  {bulkActionLoading === 'hide' || bulkActionLoading === 'unhide'
-                    ? '처리 중...'
-                    : shouldUnhide
-                      ? '숨김 해제'
-                      : '숨김 처리'}
-                </Button>
-                <Button
-                  size="small"
-                  color="error"
-                  variant="outlined"
-                  disabled={Boolean(bulkActionLoading)}
-                  onClick={() => handleBulkAction('delete')}
-                >
-                  {bulkActionLoading === 'delete' ? '삭제 중...' : '삭제'}
-                </Button>
-              </Stack>
-            }
+          <Box
+            sx={{
+              mx: 3,
+              mt: 3,
+              mb: 2,
+              px: 2,
+              py: 1.5,
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              alignItems: { md: 'center' },
+              justifyContent: 'space-between',
+              gap: 1.5,
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1,
+              bgcolor: 'background.default',
+            }}
           >
-            문서 {selectedIds.length}건 선택됨
-          </Alert>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+              <Checkbox
+                checked
+                size="small"
+                sx={{
+                  p: 0.5,
+                  '&.Mui-checked': {
+                    color: 'primary.main',
+                  },
+                }}
+              />
+              <Typography variant="body2" fontWeight={700}>
+                문서 {selectedIds.length}건 선택됨
+              </Typography>
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={Boolean(bulkActionLoading)}
+                onClick={() => handleBulkAction(shouldUnhide ? 'unhide' : 'hide')}
+              >
+                {bulkActionLoading === 'hide' || bulkActionLoading === 'unhide'
+                  ? '처리 중...'
+                  : shouldUnhide
+                    ? '숨김 해제'
+                    : '숨김 처리'}
+              </Button>
+              <Button
+                size="small"
+                color="error"
+                variant="outlined"
+                disabled={Boolean(bulkActionLoading)}
+                onClick={() => handleBulkAction('delete')}
+              >
+                {bulkActionLoading === 'delete' ? '삭제 중...' : '삭제'}
+              </Button>
+            </Stack>
+          </Box>
         ) : null}
 
         <ErrorMessage message={error} sx={{ px: 3, pb: 3 }} />
@@ -364,7 +389,19 @@ export function DocumentsPage() {
                 </TableHead>
                 <TableBody>
                   {(data?.documents || []).map((document) => (
-                    <TableRow key={document.id} hover>
+                    <TableRow
+                      key={document.id}
+                      hover
+                      selected={selectedIds.includes(document.id)}
+                      sx={{
+                        '&.Mui-selected': {
+                          bgcolor: 'rgba(192, 107, 43, 0.08)',
+                        },
+                        '&.Mui-selected:hover': {
+                          bgcolor: 'rgba(192, 107, 43, 0.12)',
+                        },
+                      }}
+                    >
                       <TableCell padding="checkbox">
                         <Checkbox
                           checked={selectedIds.includes(document.id)}

@@ -596,6 +596,32 @@ def delete_document_api(document_id: int):
     )
 
 
+@bp.route("/documents/<int:document_id>/assets/<int:asset_id>", methods=["DELETE"])
+def delete_document_asset_api(document_id: int, asset_id: int):
+    existing_document, _related_tasks, _tags = (
+        get_repository_provider().documents.fetch_document_with_relations(document_id)
+    )
+    if not existing_document:
+        return jsonify({"error": "Document not found"}), 404
+
+    asset = get_repository_provider().documents.fetch_document_asset(asset_id)
+    if not asset or int(asset["document_id"] or 0) != document_id:
+        return jsonify({"error": "Document asset not found"}), 404
+
+    db = get_db()
+    delete_object(dict(asset).get("object_key") or "")
+    get_repository_provider().documents.delete_document_asset(asset_id)
+    db.commit()
+
+    return jsonify(
+        {
+            "deleted": True,
+            "asset_id": asset_id,
+            "document_id": document_id,
+        }
+    )
+
+
 @bp.route("/assets")
 def assets_list():
     search = request.args.get("q", "").strip()

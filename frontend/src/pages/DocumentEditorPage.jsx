@@ -4,6 +4,7 @@ import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import CodeRoundedIcon from '@mui/icons-material/CodeRounded'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditNoteRoundedIcon from '@mui/icons-material/EditNoteRounded'
 import FormatBoldRoundedIcon from '@mui/icons-material/FormatBoldRounded'
 import LinkRoundedIcon from '@mui/icons-material/LinkRounded'
@@ -82,6 +83,7 @@ export function DocumentEditorPage() {
   const [linkResults, setLinkResults] = useState([])
   const [searchingLinks, setSearchingLinks] = useState(false)
   const [floatingBarCollapsed, setFloatingBarCollapsed] = useState(false)
+  const [deletingAssetIds, setDeletingAssetIds] = useState([])
 
   useEffect(() => {
     const load = async () => {
@@ -399,6 +401,39 @@ export function DocumentEditorPage() {
       setStatus('문서 저장에 실패했습니다.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDeleteAsset = async (assetId) => {
+    if (!documentId) {
+      return
+    }
+    if (deletingAssetIds.includes(assetId)) {
+      return
+    }
+    if (!window.confirm('이 이미지 자산을 삭제할까요? 본문에 남아 있는 이미지 링크는 직접 같이 정리해야 합니다.')) {
+      return
+    }
+
+    setDeletingAssetIds((prev) => [...prev, assetId])
+    setStatus('이미지 자산을 삭제하는 중입니다...')
+    try {
+      await apiJson(`/api/documents/${documentId}/assets/${assetId}`, { method: 'DELETE' })
+      setBootstrap((prev) => {
+        if (!prev) {
+          return prev
+        }
+        return {
+          ...prev,
+          assets: (prev.assets || []).filter((asset) => asset.id !== assetId),
+        }
+      })
+      setStatus('이미지 자산을 삭제했습니다.')
+    } catch (deleteError) {
+      setError(deleteError.message)
+      setStatus('이미지 자산 삭제에 실패했습니다.')
+    } finally {
+      setDeletingAssetIds((prev) => prev.filter((id) => id !== assetId))
     }
   }
 
@@ -779,6 +814,7 @@ export function DocumentEditorPage() {
                         <TableCell>파일명</TableCell>
                         <TableCell>유형</TableCell>
                         <TableCell>크기</TableCell>
+                        <TableCell align="right">관리</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -787,6 +823,24 @@ export function DocumentEditorPage() {
                           <TableCell>{asset.original_filename}</TableCell>
                           <TableCell>{asset.content_type || 'image/*'}</TableCell>
                           <TableCell>{asset.size} bytes</TableCell>
+                          <TableCell align="right">
+                            <Button
+                              size="small"
+                              color="error"
+                              variant="outlined"
+                              startIcon={
+                                deletingAssetIds.includes(asset.id) ? (
+                                  <CircularProgress size={14} color="inherit" />
+                                ) : (
+                                  <DeleteOutlineRoundedIcon />
+                                )
+                              }
+                              disabled={deletingAssetIds.includes(asset.id) || saving || uploading}
+                              onClick={() => handleDeleteAsset(asset.id)}
+                            >
+                              {deletingAssetIds.includes(asset.id) ? '삭제 중...' : '삭제'}
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

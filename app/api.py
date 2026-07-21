@@ -35,6 +35,15 @@ def _serialize_rows(rows):
     return [dict(row) for row in rows]
 
 
+def _row_value(row, key, default=None):
+    if row is None:
+        return default
+    if isinstance(row, dict):
+        return row.get(key, default)
+    mapping = dict(row)
+    return mapping.get(key, default)
+
+
 _DOCUMENT_LINK_PATTERN = re.compile(
     r"(?:https?://[^\s)\"'>]+)?/documents?/(?P<document_id>\d+)(?=[/?#)\]\s\"'<>]|$)",
     re.IGNORECASE,
@@ -282,9 +291,9 @@ def _asset_form_payload(payload, *, uploaded=None, existing=None):
 
 def _asset_type_options():
     repository_options = [
-        row["asset_type"]
+        _row_value(row, "asset_type", "")
         for row in get_repository_provider().assets.fetch_asset_type_options()
-        if (row.get("asset_type") or "").strip()
+        if str(_row_value(row, "asset_type", "") or "").strip()
     ]
     merged = []
     for option in [*ASSET_TYPES, *repository_options]:
@@ -299,16 +308,16 @@ def _build_asset_group_tree(rows):
     roots: list[dict] = []
 
     for row in rows:
-        path = str(row.get("path") or "").strip()
+        path = str(_row_value(row, "path", "") or "").strip()
         if not path:
             continue
         node = {
             "path": path,
             "name": path.split("/")[-1],
-            "direct_asset_count": int(row.get("direct_asset_count") or 0),
-            "total_asset_count": int(row.get("direct_asset_count") or 0),
-            "last_updated_at": row.get("last_updated_at"),
-            "is_explicit": bool(row.get("is_explicit")),
+            "direct_asset_count": int(_row_value(row, "direct_asset_count", 0) or 0),
+            "total_asset_count": int(_row_value(row, "direct_asset_count", 0) or 0),
+            "last_updated_at": _row_value(row, "last_updated_at"),
+            "is_explicit": bool(_row_value(row, "is_explicit")),
             "children": [],
         }
         nodes_by_path[path] = node
@@ -341,8 +350,8 @@ def _asset_group_payload(*, include_hidden: bool):
     category_rows = get_repository_provider().assets.fetch_category_options(include_hidden=include_hidden)
     ungrouped_count = 0
     for row in category_rows:
-        if row.get("category") == "미분류":
-            ungrouped_count = int(row.get("asset_count") or 0)
+        if _row_value(row, "category") == "미분류":
+            ungrouped_count = int(_row_value(row, "asset_count", 0) or 0)
             break
     return {
         "tree": _build_asset_group_tree(group_rows),

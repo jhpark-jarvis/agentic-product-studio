@@ -24,6 +24,10 @@ def _send_frontend_index():
     return response
 
 
+def _upload_dir() -> Path:
+    return Path(current_app.config["UPLOAD_FOLDER"])
+
+
 def _normalize_legacy_path(path: str) -> str:
     normalized = path or ""
     full_path = f"/app/{normalized}".rstrip("/")
@@ -123,3 +127,8 @@ def legacy_member_routes(path: str | None = None):
 @bp.route("/logs/")
 def legacy_logs_route():
     return redirect("/log", code=302)
+
+
+@bp.route("/uploads/<path:path>")
+def uploaded_files(path: str):
+    return send_from_directory(_upload_dir(), path)

@@ -412,7 +412,7 @@ export function AssetsPage() {
                           />
                         </TableCell>
                         {showPreview ? (
-                          <TableCell sx={{ verticalAlign: 'top', pt: 2 }}>
+                          <TableCell sx={{ verticalAlign: 'top', pt: 2.25 }}>
                             {isImageAsset(asset) ? (
                               <Box
                                 component="img"
@@ -475,25 +475,25 @@ export function AssetsPage() {
                             </Typography>
                           </Stack>
                         </TableCell>
-                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, verticalAlign: 'top', pt: 2.25 }}>
                           <Chip size="small" label={asset.asset_type || '미분류'} />
                         </TableCell>
-                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, verticalAlign: 'top', pt: 2.25 }}>
                           {normalizeCategoryLabel(asset.category)}
                         </TableCell>
-                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, verticalAlign: 'top', pt: 2.25 }}>
                           <Chip size="small" variant="outlined" label={asset.status} />
                         </TableCell>
-                        <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
+                        <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, verticalAlign: 'top', pt: 2.25 }}>
                           {asset.created_by_name || '-'}
                         </TableCell>
-                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, verticalAlign: 'top', pt: 2.25 }}>
                           {asset.size} bytes
                         </TableCell>
-                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, verticalAlign: 'top', pt: 2.25 }}>
                           {formatDateTimeKst(asset.updated_at)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ verticalAlign: 'top', pt: 2.25 }}>
                           <Stack direction="row" spacing={1} justifyContent="flex-start" sx={{ flexWrap: 'nowrap' }}>
                             <Button
                               component={RouterLink}

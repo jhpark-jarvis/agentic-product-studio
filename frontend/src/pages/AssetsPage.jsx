@@ -11,6 +11,7 @@ import {
   Checkbox,
   Chip,
   FormControlLabel,
+  Link,
   MenuItem,
   Stack,
   Table,
@@ -114,6 +115,7 @@ export function AssetsPage() {
   const visibleAssetIds = visibleAssets.map((asset) => asset.id)
   const allVisibleSelected = visibleAssetIds.length > 0 && visibleAssetIds.every((assetId) => selectedAssetIds.includes(assetId))
   const someVisibleSelected = visibleAssetIds.some((assetId) => selectedAssetIds.includes(assetId))
+  const hasAnySelection = selectedAssetIds.length > 0
 
   const toggleAssetSelection = (assetId) => {
     setSelectedAssetIds((prev) =>
@@ -167,15 +169,6 @@ export function AssetsPage() {
               onClick={() => setShowPreview((prev) => !prev)}
             >
               {showPreview ? '미리보기 켜짐' : '미리보기 끔'}
-            </Button>
-            <Button
-              variant="outlined"
-              color="primary"
-              startIcon={<DownloadRoundedIcon />}
-              disabled={!selectedAssetIds.length}
-              onClick={handleBatchDownload}
-            >
-              선택 다운로드 ({selectedAssetIds.length})
             </Button>
             <Button
               variant="outlined"
@@ -321,6 +314,52 @@ export function AssetsPage() {
           }
           metric={data?.pagination ? `${data.pagination.page} / ${data.pagination.total_pages} 페이지` : null}
         >
+          {hasAnySelection ? (
+            <Box
+              sx={{
+                mx: 3,
+                mt: 3,
+                mb: 2,
+                px: 2,
+                py: 1.5,
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                alignItems: { md: 'center' },
+                justifyContent: 'space-between',
+                gap: 1.5,
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1,
+                bgcolor: 'background.default',
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                <Checkbox
+                  checked
+                  size="small"
+                  sx={{
+                    p: 0.5,
+                    '&.Mui-checked': {
+                      color: 'primary.main',
+                    },
+                  }}
+                />
+                <Typography variant="body2" fontWeight={700}>
+                  Asset {selectedAssetIds.length}건 선택됨
+                </Typography>
+              </Stack>
+              <Button
+                size="small"
+                variant="outlined"
+                color="primary"
+                startIcon={<DownloadRoundedIcon />}
+                onClick={handleBatchDownload}
+              >
+                선택 다운로드
+              </Button>
+            </Box>
+          ) : null}
+
           <ErrorMessage message={error} sx={{ px: 3, pb: 3 }} />
 
           {loading ? (
@@ -328,32 +367,44 @@ export function AssetsPage() {
           ) : (
             <>
               <TableContainer sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
-                <Table sx={{ minWidth: { xs: 860, md: 1120 } }}>
+                <Table sx={{ minWidth: { xs: showPreview ? 980 : 760, md: showPreview ? 1140 : 980 } }}>
                   <TableHead>
                     <TableRow>
-                      <TableCell padding="checkbox" sx={{ width: 56 }}>
+                      <TableCell padding="checkbox" sx={{ width: 52 }}>
                         <Checkbox
                           checked={allVisibleSelected}
-                          indeterminate={!allVisibleSelected && someVisibleSelected}
+                          indeterminate={hasAnySelection && !allVisibleSelected && someVisibleSelected}
                           onChange={(event) => toggleSelectAllVisible(event.target.checked)}
                           inputProps={{ 'aria-label': '현재 페이지 Asset 전체 선택' }}
                         />
                       </TableCell>
                       {showPreview ? <TableCell sx={{ minWidth: 120 }}>미리보기</TableCell> : null}
-                      <TableCell sx={{ minWidth: 260 }}>제목</TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 120 }}>유형</TableCell>
-                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, minWidth: 120 }}>그룹</TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 110 }}>상태</TableCell>
+                      <TableCell>제목</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>유형</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>그룹</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>상태</TableCell>
                       <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' }, minWidth: 120 }}>등록자</TableCell>
-                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, minWidth: 110 }}>크기</TableCell>
-                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, minWidth: 140 }}>업데이트</TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 120 }}>관리</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>크기</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>업데이트</TableCell>
+                      <TableCell>관리</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {(data?.assets || []).map((asset) => (
-                      <TableRow key={asset.id} hover>
-                        <TableCell padding="checkbox">
+                      <TableRow
+                        key={asset.id}
+                        hover
+                        selected={selectedAssetIds.includes(asset.id)}
+                        sx={{
+                          '&.Mui-selected': {
+                            bgcolor: 'rgba(192, 107, 43, 0.08)',
+                          },
+                          '&.Mui-selected:hover': {
+                            bgcolor: 'rgba(192, 107, 43, 0.12)',
+                          },
+                        }}
+                      >
+                        <TableCell padding="checkbox" sx={{ verticalAlign: 'top', pt: 2.25 }}>
                           <Checkbox
                             checked={selectedAssetIds.includes(asset.id)}
                             onChange={() => toggleAssetSelection(asset.id)}
@@ -361,7 +412,7 @@ export function AssetsPage() {
                           />
                         </TableCell>
                         {showPreview ? (
-                          <TableCell>
+                          <TableCell sx={{ verticalAlign: 'top', pt: 2 }}>
                             {isImageAsset(asset) ? (
                               <Box
                                 component="img"
@@ -382,30 +433,55 @@ export function AssetsPage() {
                             )}
                           </TableCell>
                         ) : null}
-                        <TableCell>
+                        <TableCell sx={{ minWidth: 280, verticalAlign: 'top' }}>
                           <Stack spacing={0.5}>
-                            <Button
-                              component={RouterLink}
-                              to={`/assets/${asset.id}`}
-                              sx={{ justifyContent: 'flex-start', px: 0, textAlign: 'left' }}
-                            >
-                              {asset.title}
-                            </Button>
+                            <Stack direction="row" spacing={0.75} alignItems="flex-start" useFlexGap flexWrap="wrap">
+                              <Link
+                                component={RouterLink}
+                                to={`/assets/${asset.id}`}
+                                underline="hover"
+                                color="inherit"
+                                sx={{
+                                  minWidth: 0,
+                                  typography: 'body1',
+                                  fontWeight: 700,
+                                  lineHeight: 1.45,
+                                  textAlign: 'left',
+                                  textDecorationColor: 'currentColor',
+                                  overflowWrap: 'anywhere',
+                                  wordBreak: 'break-word',
+                                }}
+                              >
+                                {asset.title}
+                              </Link>
+                              {asset.is_hidden ? (
+                                <Chip
+                                  size="small"
+                                  label="숨김"
+                                  variant="outlined"
+                                  sx={(theme) => ({
+                                    ...hiddenStatusChipSx(theme),
+                                    alignSelf: 'flex-start',
+                                    mt: '2px',
+                                  })}
+                                />
+                              ) : null}
+                            </Stack>
                             <Typography variant="body2" color="text.secondary">
                               {asset.original_filename || asset.file_name}
                             </Typography>
-                            {asset.is_hidden ? (
-                              <Chip size="small" label="숨김" variant="outlined" sx={hiddenStatusChipSx} />
-                            ) : null}
+                            <Typography variant="body2" color="text.secondary">
+                              {(asset.asset_type || '미분류')} · {normalizeCategoryLabel(asset.category)}
+                            </Typography>
                           </Stack>
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                           <Chip size="small" label={asset.asset_type || '미분류'} />
                         </TableCell>
                         <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                           {normalizeCategoryLabel(asset.category)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                           <Chip size="small" variant="outlined" label={asset.status} />
                         </TableCell>
                         <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
@@ -418,12 +494,12 @@ export function AssetsPage() {
                           {formatDateTimeKst(asset.updated_at)}
                         </TableCell>
                         <TableCell>
-                          <Stack direction="row" spacing={1} sx={{ flexWrap: 'nowrap' }}>
+                          <Stack direction="row" spacing={1} justifyContent="flex-start" sx={{ flexWrap: 'nowrap' }}>
                             <Button
-                              size="small"
-                              variant="outlined"
                               component={RouterLink}
                               to={`/assets/${asset.id}`}
+                              size="small"
+                              variant="outlined"
                               sx={{ whiteSpace: 'nowrap', minWidth: 0 }}
                             >
                               상세

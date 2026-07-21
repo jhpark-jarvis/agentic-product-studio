@@ -77,6 +77,7 @@ export function AssetDetailPage() {
   }
 
   const { asset, tags, is_image: isImage } = data
+  const downloadUrl = `/api/assets/${asset.id}/download`
 
   const handleDelete = async () => {
     if (deleting || !window.confirm('이 Asset을 삭제할까요? 연결된 파일과 관리 정보가 함께 정리됩니다.')) {
@@ -113,7 +114,7 @@ export function AssetDetailPage() {
         <Button variant="contained" startIcon={<EditRoundedIcon />} component={RouterLink} to={`/assets/${asset.id}/edit`} disabled={deleting}>
           메타데이터 편집
         </Button>
-        <Button variant="outlined" startIcon={<DownloadRoundedIcon />} component="a" href={asset.url} target="_blank" rel="noreferrer" disabled={deleting}>
+        <Button variant="outlined" startIcon={<DownloadRoundedIcon />} component="a" href={downloadUrl} disabled={deleting}>
           다운로드
         </Button>
         <Button type="button" color="error" variant="text" startIcon={deleting ? <CircularProgress size={16} color="inherit" /> : <DeleteOutlineRoundedIcon />} onClick={handleDelete} disabled={deleting}>

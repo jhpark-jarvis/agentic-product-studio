@@ -12,7 +12,7 @@ from .db import get_db
 from .page_view_logging import read_page_view_logs, write_page_view_log
 from .repositories.assets import AssetGroupError
 from .repositories.provider import get_repository_provider
-from .storage import delete_object, upload_file
+from .storage import delete_object, download_object, upload_file
 from .utils import (
     WBS_PLATFORM_OPTIONS,
     build_pagination,
@@ -784,6 +784,31 @@ def asset_detail(asset_id: int):
             "is_image": str(dict(asset).get("content_type") or "").startswith("image/"),
         }
     )
+
+
+@bp.route("/assets/<int:asset_id>/download")
+def asset_download(asset_id: int):
+    asset = get_repository_provider().assets.fetch_asset(asset_id)
+    if not asset:
+        return jsonify({"error": "Asset not found"}), 404
+
+    asset_data = dict(asset)
+    object_key = str(asset_data.get("object_key") or "").strip()
+    download_name = (
+        str(asset_data.get("original_filename") or "").strip()
+        or str(asset_data.get("file_name") or "").strip()
+        or f"asset-{asset_id}"
+    )
+    content_type = str(asset_data.get("content_type") or "").strip() or None
+
+    try:
+        return download_object(
+            object_key=object_key,
+            download_name=download_name,
+            content_type=content_type,
+        )
+    except FileNotFoundError:
+        return jsonify({"error": "Asset file not found"}), 404
 
 
 @bp.route("/assets/editor")

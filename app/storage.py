@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
 import hashlib
 from uuid import uuid4
 
 import boto3
 from botocore.client import Config
-from flask import current_app
+from flask import current_app, send_file
 
 
 ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
@@ -128,3 +129,34 @@ def delete_object(object_key: str) -> None:
     target = Path(current_app.config["UPLOAD_FOLDER"]) / object_key
     if target.exists():
         target.unlink()
+
+
+def download_object(*, object_key: str, download_name: str, content_type: str | None = None):
+    if not object_key:
+        raise FileNotFoundError("Missing object key")
+
+    if is_r2_enabled():
+        client = _r2_client()
+        response = client.get_object(
+            Bucket=current_app.config["R2_BUCKET_NAME"],
+            Key=object_key,
+        )
+        body = response["Body"].read()
+        resolved_content_type = content_type or response.get("ContentType") or "application/octet-stream"
+        return send_file(
+            BytesIO(body),
+            mimetype=resolved_content_type,
+            as_attachment=True,
+            download_name=download_name,
+        )
+
+    target = Path(current_app.config["UPLOAD_FOLDER"]) / object_key
+    if not target.exists():
+        raise FileNotFoundError(object_key)
+
+    return send_file(
+        target,
+        mimetype=content_type or None,
+        as_attachment=True,
+        download_name=download_name,
+    )

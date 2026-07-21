@@ -131,7 +131,7 @@ def delete_object(object_key: str) -> None:
         target.unlink()
 
 
-def download_object(*, object_key: str, download_name: str, content_type: str | None = None):
+def read_object_bytes(object_key: str) -> tuple[bytes, str | None]:
     if not object_key:
         raise FileNotFoundError("Missing object key")
 
@@ -141,22 +141,23 @@ def download_object(*, object_key: str, download_name: str, content_type: str | 
             Bucket=current_app.config["R2_BUCKET_NAME"],
             Key=object_key,
         )
-        body = response["Body"].read()
-        resolved_content_type = content_type or response.get("ContentType") or "application/octet-stream"
-        return send_file(
-            BytesIO(body),
-            mimetype=resolved_content_type,
-            as_attachment=True,
-            download_name=download_name,
-        )
+        return response["Body"].read(), response.get("ContentType")
 
     target = Path(current_app.config["UPLOAD_FOLDER"]) / object_key
     if not target.exists():
         raise FileNotFoundError(object_key)
+    return target.read_bytes(), None
 
+
+def download_object(*, object_key: str, download_name: str, content_type: str | None = None):
+    if not object_key:
+        raise FileNotFoundError("Missing object key")
+
+    body, detected_content_type = read_object_bytes(object_key)
+    resolved_content_type = content_type or detected_content_type or "application/octet-stream"
     return send_file(
-        target,
-        mimetype=content_type or None,
+        BytesIO(body),
+        mimetype=resolved_content_type,
         as_attachment=True,
         download_name=download_name,
     )

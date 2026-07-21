@@ -1138,8 +1138,9 @@ class D1AssetsRepository:
             if category == "미분류":
                 clauses.append("COALESCE(a.category, '') = ''")
             else:
-                clauses.append("a.category = ?")
-                params.append(category)
+                normalized_category = normalize_asset_group_path(category)
+                clauses.append("(a.category = ? OR a.category LIKE ?)")
+                params.extend([normalized_category, f"{normalized_category}/%"])
         if status:
             clauses.append("a.status = ?")
             params.append(status)

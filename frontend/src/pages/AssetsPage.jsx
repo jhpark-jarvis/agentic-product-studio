@@ -1,4 +1,5 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
+import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import PreviewRoundedIcon from '@mui/icons-material/PreviewRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
@@ -58,6 +59,7 @@ export function AssetsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showPreview, setShowPreview] = useState(false)
+  const [selectedAssetIds, setSelectedAssetIds] = useState([])
 
   const loadAssets = async (nextFilters = filters) => {
     setLoading(true)
@@ -77,6 +79,11 @@ export function AssetsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    const visibleAssetIds = new Set((data?.assets || []).map((asset) => asset.id))
+    setSelectedAssetIds((prev) => prev.filter((assetId) => visibleAssetIds.has(assetId)))
+  }, [data?.assets])
+
   const applyFilters = async (event) => {
     event.preventDefault()
     const nextFilters = { ...filters, page: 1 }
@@ -87,6 +94,7 @@ export function AssetsPage() {
   const resetFilters = async () => {
     setFilters(initialFilters)
     setShowPreview(false)
+    setSelectedAssetIds([])
     await loadAssets(initialFilters)
   }
 
@@ -100,6 +108,37 @@ export function AssetsPage() {
     const nextFilters = { ...filters, category, page: 1 }
     setFilters(nextFilters)
     await loadAssets(nextFilters)
+  }
+
+  const visibleAssets = data?.assets || []
+  const visibleAssetIds = visibleAssets.map((asset) => asset.id)
+  const allVisibleSelected = visibleAssetIds.length > 0 && visibleAssetIds.every((assetId) => selectedAssetIds.includes(assetId))
+  const someVisibleSelected = visibleAssetIds.some((assetId) => selectedAssetIds.includes(assetId))
+
+  const toggleAssetSelection = (assetId) => {
+    setSelectedAssetIds((prev) =>
+      prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId]
+    )
+  }
+
+  const toggleSelectAllVisible = (checked) => {
+    setSelectedAssetIds((prev) => {
+      if (checked) {
+        return Array.from(new Set([...prev, ...visibleAssetIds]))
+      }
+      return prev.filter((assetId) => !visibleAssetIds.includes(assetId))
+    })
+  }
+
+  const handleBatchDownload = () => {
+    if (!selectedAssetIds.length) {
+      return
+    }
+    const params = new URLSearchParams()
+    selectedAssetIds.forEach((assetId) => {
+      params.append('asset_ids', String(assetId))
+    })
+    window.location.assign(`/api/assets/download?${params.toString()}`)
   }
 
   return (
@@ -128,6 +167,15 @@ export function AssetsPage() {
               onClick={() => setShowPreview((prev) => !prev)}
             >
               {showPreview ? '미리보기 켜짐' : '미리보기 끔'}
+            </Button>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<DownloadRoundedIcon />}
+              disabled={!selectedAssetIds.length}
+              onClick={handleBatchDownload}
+            >
+              선택 다운로드 ({selectedAssetIds.length})
             </Button>
             <Button
               variant="outlined"
@@ -283,6 +331,14 @@ export function AssetsPage() {
                 <Table sx={{ minWidth: { xs: 860, md: 1120 } }}>
                   <TableHead>
                     <TableRow>
+                      <TableCell padding="checkbox" sx={{ width: 56 }}>
+                        <Checkbox
+                          checked={allVisibleSelected}
+                          indeterminate={!allVisibleSelected && someVisibleSelected}
+                          onChange={(event) => toggleSelectAllVisible(event.target.checked)}
+                          inputProps={{ 'aria-label': '현재 페이지 Asset 전체 선택' }}
+                        />
+                      </TableCell>
                       {showPreview ? <TableCell sx={{ minWidth: 120 }}>미리보기</TableCell> : null}
                       <TableCell sx={{ minWidth: 260 }}>제목</TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 120 }}>유형</TableCell>
@@ -297,6 +353,13 @@ export function AssetsPage() {
                   <TableBody>
                     {(data?.assets || []).map((asset) => (
                       <TableRow key={asset.id} hover>
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            checked={selectedAssetIds.includes(asset.id)}
+                            onChange={() => toggleAssetSelection(asset.id)}
+                            inputProps={{ 'aria-label': `${asset.title} 선택` }}
+                          />
+                        </TableCell>
                         {showPreview ? (
                           <TableCell>
                             {isImageAsset(asset) ? (

@@ -56,8 +56,9 @@ def list_assets(
         if category == "미분류":
             clauses.append("COALESCE(a.category, '') = ''")
         else:
-            clauses.append("a.category = ?")
-            params.append(category)
+            clauses.append("(a.category = ? OR a.category LIKE ?)")
+            exact, descendant_like = _asset_group_like_params(category)
+            params.extend([exact, descendant_like])
     if status:
         clauses.append("a.status = ?")
         params.append(status)

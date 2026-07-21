@@ -2,17 +2,19 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timedelta
+from io import BytesIO
 import re
 from uuid import uuid4
+from zipfile import ZIP_DEFLATED, ZipFile
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_file
 
 from .constants import ASSET_STATUSES, ASSET_TYPES, DOCUMENT_TYPES, SCHEDULE_TYPES, TASK_PRIORITIES, TASK_STATUSES
 from .db import get_db
 from .page_view_logging import read_page_view_logs, write_page_view_log
 from .repositories.assets import AssetGroupError
 from .repositories.provider import get_repository_provider
-from .storage import delete_object, download_object, upload_file
+from .storage import delete_object, download_object, read_object_bytes, upload_file
 from .utils import (
     WBS_PLATFORM_OPTIONS,
     build_pagination,
@@ -346,6 +348,28 @@ def _asset_group_payload(*, include_hidden: bool):
         "tree": _build_asset_group_tree(group_rows),
         "ungrouped_asset_count": ungrouped_count,
     }
+
+
+def _unique_download_name(filename: str, used_names: set[str]) -> str:
+    normalized = (filename or "").strip() or "asset"
+    if normalized not in used_names:
+        used_names.add(normalized)
+        return normalized
+
+    stem, dot, suffix = normalized.rpartition(".")
+    if not dot:
+        stem = normalized
+        suffix = ""
+
+    index = 2
+    while True:
+        candidate = f"{stem} ({index})"
+        if suffix:
+            candidate = f"{candidate}.{suffix}"
+        if candidate not in used_names:
+            used_names.add(candidate)
+            return candidate
+        index += 1
 
 
 def _validate_asset_payload(data, *, require_file: bool):
@@ -809,6 +833,65 @@ def asset_download(asset_id: int):
         )
     except FileNotFoundError:
         return jsonify({"error": "Asset file not found"}), 404
+
+
+@bp.route("/assets/download")
+def asset_bulk_download():
+    raw_ids = request.args.getlist("asset_ids")
+    asset_ids: list[int] = []
+    seen_ids: set[int] = set()
+    for raw_id in raw_ids:
+        asset_id = parse_int(raw_id, default=0, minimum=1)
+        if asset_id and asset_id not in seen_ids:
+            seen_ids.add(asset_id)
+            asset_ids.append(asset_id)
+
+    if not asset_ids:
+        return jsonify({"error": "다운로드할 Asset을 선택해주세요."}), 400
+
+    assets = []
+    for asset_id in asset_ids:
+        asset = get_repository_provider().assets.fetch_asset(asset_id)
+        if asset:
+            assets.append(dict(asset))
+
+    if not assets:
+        return jsonify({"error": "다운로드할 Asset을 찾지 못했습니다."}), 404
+
+    archive_buffer = BytesIO()
+    used_names: set[str] = set()
+    added_count = 0
+    with ZipFile(archive_buffer, "w", compression=ZIP_DEFLATED) as archive:
+        for asset in assets:
+            object_key = str(asset.get("object_key") or "").strip()
+            if not object_key:
+                continue
+
+            try:
+                body, _content_type = read_object_bytes(object_key)
+            except FileNotFoundError:
+                continue
+
+            download_name = _unique_download_name(
+                str(asset.get("original_filename") or "").strip()
+                or str(asset.get("file_name") or "").strip()
+                or f"asset-{asset['id']}",
+                used_names,
+            )
+            archive.writestr(download_name, body)
+            added_count += 1
+
+    if not added_count:
+        return jsonify({"error": "다운로드 가능한 Asset 파일을 찾지 못했습니다."}), 404
+
+    archive_buffer.seek(0)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    return send_file(
+        archive_buffer,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=f"assets-{timestamp}.zip",
+    )
 
 
 @bp.route("/assets/editor")

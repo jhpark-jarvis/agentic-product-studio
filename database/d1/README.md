@@ -298,9 +298,9 @@ npx wrangler d1 execute agentic-product-studio --remote --file database/d1/data.
 앱에서는 `REPOSITORY_BACKEND` 설정에 따라 저장소 구현을 바꿉니다.
 
 - `sqlite`
-  - [app/repositories/sqlite_backend.py](/D:/dev/git/agentic-product-studio/app/repositories/sqlite_backend.py)
+  - [app/repositories/sqlite_backend.py](../../app/repositories/sqlite_backend.py)
 - `d1`
-  - [app/repositories/d1_backend.py](/D:/dev/git/agentic-product-studio/app/repositories/d1_backend.py)
+  - [app/repositories/d1_backend.py](../../app/repositories/d1_backend.py)
 
 즉, D1 schema는 단순 SQL 파일이 아니라 앱의 repository backend 전환과 같이 봐야 합니다.
 
@@ -333,10 +333,10 @@ npx wrangler d1 execute agentic-product-studio --remote --file database/d1/data.
 
 ## 관련 파일
 
-- [database/d1/schema.sql](/D:/dev/git/agentic-product-studio/database/d1/schema.sql)
-- [database/d1/export_sqlite_to_d1.py](/D:/dev/git/agentic-product-studio/database/d1/export_sqlite_to_d1.py)
-- [app/repositories/d1_backend.py](/D:/dev/git/agentic-product-studio/app/repositories/d1_backend.py)
-- [cloudflare-migration-task.md](/D:/dev/git/agentic-product-studio/cloudflare-migration-task.md)
+- [database/d1/schema.sql](schema.sql)
+- [database/d1/export_sqlite_to_d1.py](export_sqlite_to_d1.py)
+- [app/repositories/d1_backend.py](../../app/repositories/d1_backend.py)
+- [cloudflare-migration-task.md](../../cloudflare-migration-task.md)
 
 ## 한 줄 요약
 

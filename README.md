@@ -160,6 +160,19 @@ agentic-product-studio/
 - `STORAGE_BACKEND=r2`
   - Cloudflare R2 사용
 
+## 스키마 기준
+
+로컬 SQLite와 D1은 DB 파일 자체보다 아래 스키마 정의를 기준으로 관리합니다.
+
+- 로컬 SQLite 앱 스키마/초기화/마이그레이션:
+  - [app/db.py](app/db.py)
+  - `SCHEMA_SQL`과 `init_db()`, `migrate_legacy_schema()`가 로컬 `app.db` 구조를 정의합니다.
+- Cloudflare D1 baseline 스키마:
+  - [database/d1/schema.sql](database/d1/schema.sql)
+  - Wrangler/D1 반영 시 기준이 되는 정식 SQL 스키마입니다.
+
+즉, `instance/app.db` 같은 런타임 SQLite 파일은 생성 결과물이고, 구조의 정식 기준은 위 두 파일입니다.
+
 ## 빠른 시작
 
 ### 1. Python 의존성 설치
@@ -210,7 +223,35 @@ Cloudflare 연동 시 주요 값:
 npm run frontend:build
 ```
 
-### 5. 로컬 실행
+### 5. 로컬 DB 초기화
+
+로컬 SQLite는 앱이 처음 뜰 때 자동 생성되지만, 명시적으로 초기화하거나 샘플 데이터를 넣고 시작하려면 아래 명령을 사용합니다.
+
+스키마만 초기화:
+
+```bash
+flask --app run.py init-db
+```
+
+샘플 협업 데이터 주입:
+
+```bash
+flask --app run.py seed-sample-data
+```
+
+이미 데이터가 있는데 샘플 데이터를 다시 채우려면:
+
+```bash
+flask --app run.py seed-sample-data --force
+```
+
+정리:
+
+- `init-db`는 테이블/컬럼 등 스키마만 준비합니다.
+- `seed-sample-data`는 멤버, WBS, 문서, 일정, 공지 샘플 데이터를 넣습니다.
+- `instance/app.db`는 런타임 생성물이라 레포에 포함하지 않아도 됩니다.
+
+### 6. 로컬 실행
 
 ```bash
 python run.py

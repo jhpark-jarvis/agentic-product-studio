@@ -1959,6 +1959,10 @@ class D1DashboardRepository:
 
 def build_d1_provider():
     config = current_app.config
+    return build_d1_provider_from_config(config)
+
+
+def build_d1_provider_from_config(config):
     client = D1RestClient(
         account_id=config.get("CLOUDFLARE_ACCOUNT_ID", ""),
         database_id=config.get("D1_DATABASE_ID", ""),

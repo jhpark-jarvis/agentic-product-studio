@@ -306,9 +306,34 @@ flask cloudflare-check
 - active members 조회 가능 여부
 - R2 public base URL 설정 여부
 
+## 실행 엔트리포인트
+
+현재 저장소에는 두 가지 앱 진입점이 있습니다.
+
+- `asgi.py`
+  - FastAPI 운영/이관 대상 엔트리포인트
+- `run.py`
+  - 기존 Flask 호환 엔트리포인트
+
+로컬에서 FastAPI를 실행하려면 아래처럼 사용합니다.
+
+```bash
+uvicorn asgi:app --reload
+```
+
+간단한 래퍼 스크립트를 쓰고 싶다면 아래도 가능합니다.
+
+```bash
+python fastapi_run.py
+```
+
 ## PythonAnywhere 배포
 
-현재 운영 기준으로는 PythonAnywhere에서 Flask가 React 빌드 결과와 API를 함께 서빙합니다.
+현재 문서 기준 운영 구성은 PythonAnywhere의 Flask 기준 설명을 유지하고 있습니다.
+
+다만 코드베이스는 FastAPI 이관을 진행 중이므로, 앞으로 운영 전환 시에는 `run.py` 대신 `asgi.py`를 기준으로 ASGI 서버 구성을 잡는 방향이 자연스럽습니다.
+
+ASGI 서버 예시는 [deployment/asgi_uvicorn.example.txt](/D:/dev/git/agentic-product-studio/deployment/asgi_uvicorn.example.txt)에 정리해두었습니다.
 
 일반적인 반영 순서는 아래와 같습니다.
 

@@ -304,6 +304,10 @@ def build_sqlite_provider():
     from .db_access import get_repository_db
 
     db = get_repository_db()
+    return build_sqlite_provider_for_db(db)
+
+
+def build_sqlite_provider_for_db(db):
     return RepositoryProvider(
         common=SQLiteCommonRepository(db),
         documents=SQLiteDocumentsRepository(db),

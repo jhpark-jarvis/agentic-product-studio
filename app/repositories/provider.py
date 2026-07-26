@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from flask import current_app, g
 
+from ..db import get_db
 from .contracts import (
     AssetsRepository,
     CommonRepository,
@@ -27,16 +28,12 @@ class RepositoryProvider:
 
 
 def _build_provider():
-    backend = current_app.config.get("REPOSITORY_BACKEND", "sqlite")
-    if backend == "sqlite":
-        from .sqlite_backend import build_sqlite_provider
+    from .runtime_provider import build_repository_provider
 
-        return build_sqlite_provider()
-    if backend == "d1":
-        from .d1_backend import build_d1_provider
-
-        return build_d1_provider()
-    raise RuntimeError(f"Unsupported repository backend: {backend}")
+    config = dict(current_app.config)
+    if config.get("REPOSITORY_BACKEND", "sqlite") == "sqlite":
+        return build_repository_provider(config, db=get_db())
+    return build_repository_provider(config)
 
 
 def get_repository_provider() -> RepositoryProvider:

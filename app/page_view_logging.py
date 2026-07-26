@@ -68,18 +68,14 @@ def _log_dir_for_path(instance_path: str | Path) -> Path:
 
 
 def iter_page_view_log_files(app: Flask) -> list[Path]:
-    log_dir = _log_dir(app)
-    if not log_dir.exists():
-        return []
-    return sorted(
-        log_dir.glob("page-views.log*"),
-        key=lambda path: path.stat().st_mtime,
-        reverse=True,
-    )
+    return _iter_page_view_log_files(_log_dir(app))
 
 
 def iter_page_view_log_files_for_path(instance_path: str | Path) -> list[Path]:
-    log_dir = _log_dir_for_path(instance_path)
+    return _iter_page_view_log_files(_log_dir_for_path(instance_path))
+
+
+def _iter_page_view_log_files(log_dir: Path) -> list[Path]:
     if not log_dir.exists():
         return []
     return sorted(
@@ -96,11 +92,26 @@ def read_page_view_logs(
     search: str = "",
     visitor_id: str = "",
 ) -> list[dict[str, Any]]:
+    return _read_page_view_logs_from_files(
+        iter_page_view_log_files(app),
+        limit=limit,
+        search=search,
+        visitor_id=visitor_id,
+    )
+
+
+def _read_page_view_logs_from_files(
+    log_files: list[Path],
+    *,
+    limit: int,
+    search: str,
+    visitor_id: str,
+) -> list[dict[str, Any]]:
     normalized_search = (search or "").strip().lower()
     normalized_visitor_id = (visitor_id or "").strip()
     rows: list[dict[str, Any]] = []
 
-    for log_file in iter_page_view_log_files(app):
+    for log_file in log_files:
         try:
             lines = log_file.read_text(encoding="utf-8").splitlines()
         except OSError:
@@ -145,43 +156,9 @@ def read_page_view_logs_for_path(
     search: str = "",
     visitor_id: str = "",
 ) -> list[dict[str, Any]]:
-    normalized_search = (search or "").strip().lower()
-    normalized_visitor_id = (visitor_id or "").strip()
-    rows: list[dict[str, Any]] = []
-
-    for log_file in iter_page_view_log_files_for_path(instance_path):
-        try:
-            lines = log_file.read_text(encoding="utf-8").splitlines()
-        except OSError:
-            continue
-
-        for raw_line in reversed(lines):
-            if not raw_line.strip():
-                continue
-            try:
-                item = json.loads(raw_line)
-            except json.JSONDecodeError:
-                continue
-
-            if normalized_visitor_id and item.get("visitor_id") != normalized_visitor_id:
-                continue
-
-            if normalized_search:
-                haystack = " ".join(
-                    [
-                        str(item.get("path") or ""),
-                        str(item.get("referrer") or ""),
-                        str(item.get("visitor_id") or ""),
-                        str(item.get("session_id") or ""),
-                        str(item.get("ip") or ""),
-                        str(item.get("user_agent") or ""),
-                    ]
-                ).lower()
-                if normalized_search not in haystack:
-                    continue
-
-            rows.append(item)
-            if len(rows) >= limit:
-                return rows
-
-    return rows
+    return _read_page_view_logs_from_files(
+        iter_page_view_log_files_for_path(instance_path),
+        limit=limit,
+        search=search,
+        visitor_id=visitor_id,
+    )

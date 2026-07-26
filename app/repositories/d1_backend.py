@@ -8,8 +8,6 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from flask import current_app
-
 from ..db import (
     assign_draft_assets_to_document,
     ensure_document_folder,
@@ -1958,6 +1956,8 @@ class D1DashboardRepository:
 
 
 def build_d1_provider():
+    from flask import current_app
+
     config = current_app.config
     return build_d1_provider_from_config(config)
 

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from flask import current_app, g
-
 from ..db import get_db
 from .contracts import (
     AssetsRepository,
@@ -28,6 +26,7 @@ class RepositoryProvider:
 
 
 def _build_provider():
+    from flask import current_app
     from .runtime_provider import build_repository_provider
 
     config = dict(current_app.config)
@@ -37,6 +36,8 @@ def _build_provider():
 
 
 def get_repository_provider() -> RepositoryProvider:
+    from flask import g
+
     if "repository_provider" not in g:
         g.repository_provider = _build_provider()
     return g.repository_provider

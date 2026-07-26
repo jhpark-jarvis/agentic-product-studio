@@ -2,7 +2,14 @@ import sqlite3
 from pathlib import Path
 
 import click
-from flask import current_app, g, has_app_context
+
+
+def _has_flask_app_context() -> bool:
+    try:
+        from flask import has_app_context
+    except ImportError:
+        return False
+    return has_app_context()
 
 
 SCHEMA_SQL = """
@@ -143,7 +150,9 @@ _RUNTIME_DB_CONNECTION = None
 
 
 def get_db():
-    if has_app_context():
+    if _has_flask_app_context():
+        from flask import current_app, g
+
         if "db" not in g:
             g.db = connect_sqlite_database(current_app.config["DATABASE"])
         return g.db
@@ -154,6 +163,8 @@ def get_db():
 
 
 def close_db(_error=None):
+    from flask import g
+
     db = g.pop("db", None)
 
     if db is not None:

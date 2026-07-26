@@ -32,12 +32,12 @@ async def lifespan(app: FastAPI):
     settings: AppSettings = app.state.settings
     config = settings.to_config_mapping()
 
-    initialize_sqlite_database(settings.database)
-    db = connect_sqlite_database(settings.database)
-    app.state.sqlite_db = db
-    set_runtime_db_connection(db)
-
+    db = None
     if settings.repository_backend == "sqlite":
+        initialize_sqlite_database(settings.database)
+        db = connect_sqlite_database(settings.database)
+        app.state.sqlite_db = db
+        set_runtime_db_connection(db)
         app.state.repository_provider = build_repository_provider(config, db=db)
     else:
         app.state.repository_provider = build_repository_provider(config)

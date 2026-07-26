@@ -45,20 +45,6 @@ def build_object_key(folder: str, filename: str) -> str:
     return f"{folder}/{uuid4().hex}{suffix}"
 
 
-def _stream_size_and_checksum(file_storage) -> tuple[int, str]:
-    file_storage.stream.seek(0)
-    digest = hashlib.sha256()
-    total = 0
-    while True:
-        chunk = file_storage.stream.read(1024 * 1024)
-        if not chunk:
-            break
-        total += len(chunk)
-        digest.update(chunk)
-    file_storage.stream.seek(0)
-    return total, digest.hexdigest()
-
-
 def _stream_size_and_checksum_from_stream(stream) -> tuple[int, str]:
     stream.seek(0)
     digest = hashlib.sha256()
@@ -97,19 +83,6 @@ def public_asset_url_for_config(config: dict[str, object], object_key: str) -> s
     return f"/uploads/{object_key}"
 
 
-def _r2_client():
-    account_id = current_app.config["R2_ACCOUNT_ID"]
-    endpoint_url = f"https://{account_id}.r2.cloudflarestorage.com"
-    return boto3.client(
-        "s3",
-        endpoint_url=endpoint_url,
-        aws_access_key_id=current_app.config["R2_ACCESS_KEY_ID"],
-        aws_secret_access_key=current_app.config["R2_SECRET_ACCESS_KEY"],
-        config=Config(signature_version="s3v4"),
-        region_name="auto",
-    )
-
-
 def _r2_client_for_config(config: dict[str, object]):
     account_id = config["R2_ACCOUNT_ID"]
     endpoint_url = f"https://{account_id}.r2.cloudflarestorage.com"
@@ -128,41 +101,13 @@ def upload_image(file_storage, folder: str = "documents") -> dict[str, str]:
 
 
 def upload_file(file_storage, folder: str = "assets") -> dict[str, str]:
-    object_key = build_object_key(folder, file_storage.filename or "file")
-    content_type = file_storage.mimetype or "application/octet-stream"
-    size, checksum = _stream_size_and_checksum(file_storage)
-
-    if current_app.config.get("STORAGE_BACKEND") == "r2" and not is_r2_enabled():
-        missing = ", ".join(missing_r2_config_fields())
-        raise RuntimeError(f"R2 storage is selected but missing configuration: {missing}")
-
-    if is_r2_enabled():
-        client = _r2_client()
-        client.upload_fileobj(
-            file_storage.stream,
-            current_app.config["R2_BUCKET_NAME"],
-            object_key,
-            ExtraArgs={"ContentType": content_type},
-        )
-        return {
-            "object_key": object_key,
-            "url": public_asset_url(object_key),
-            "content_type": content_type,
-            "size": str(size),
-            "checksum": checksum,
-        }
-
-    upload_dir = Path(current_app.config["UPLOAD_FOLDER"]) / folder
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    target = upload_dir / Path(object_key).name
-    file_storage.save(target)
-    return {
-        "object_key": f"{folder}/{target.name}",
-        "url": public_asset_url(f"{folder}/{target.name}"),
-        "content_type": content_type,
-        "size": str(size),
-        "checksum": checksum,
-    }
+    return upload_file_from_stream(
+        dict(current_app.config),
+        filename=file_storage.filename or "file",
+        stream=file_storage.stream,
+        content_type=file_storage.mimetype,
+        folder=folder,
+    )
 
 
 def upload_file_from_stream(
@@ -212,17 +157,7 @@ def upload_file_from_stream(
 
 
 def delete_object(object_key: str) -> None:
-    if not object_key:
-        return
-
-    if is_r2_enabled():
-        client = _r2_client()
-        client.delete_object(Bucket=current_app.config["R2_BUCKET_NAME"], Key=object_key)
-        return
-
-    target = Path(current_app.config["UPLOAD_FOLDER"]) / object_key
-    if target.exists():
-        target.unlink()
+    delete_object_with_config(dict(current_app.config), object_key)
 
 
 def delete_object_with_config(config: dict[str, object], object_key: str) -> None:
@@ -240,21 +175,7 @@ def delete_object_with_config(config: dict[str, object], object_key: str) -> Non
 
 
 def read_object_bytes(object_key: str) -> tuple[bytes, str | None]:
-    if not object_key:
-        raise FileNotFoundError("Missing object key")
-
-    if is_r2_enabled():
-        client = _r2_client()
-        response = client.get_object(
-            Bucket=current_app.config["R2_BUCKET_NAME"],
-            Key=object_key,
-        )
-        return response["Body"].read(), response.get("ContentType")
-
-    target = Path(current_app.config["UPLOAD_FOLDER"]) / object_key
-    if not target.exists():
-        raise FileNotFoundError(object_key)
-    return target.read_bytes(), None
+    return read_object_bytes_with_config(dict(current_app.config), object_key)
 
 
 def read_object_bytes_with_config(config: dict[str, object], object_key: str) -> tuple[bytes, str | None]:

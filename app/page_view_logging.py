@@ -4,9 +4,10 @@ import json
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from flask import Flask
+if TYPE_CHECKING:
+    from flask import Flask
 
 
 PAGE_VIEW_LOGGER_NAME = "page_views"

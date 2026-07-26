@@ -7,15 +7,21 @@ from uuid import uuid4
 
 import boto3
 from botocore.client import Config
-from flask import current_app, send_file
 
 
 ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 
 
+def _flask_config():
+    from flask import current_app
+
+    return current_app.config
+
+
 def missing_r2_config_fields() -> list[str]:
     required = ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY")
-    return [key for key in required if not current_app.config.get(key)]
+    config = _flask_config()
+    return [key for key in required if not config.get(key)]
 
 
 def missing_r2_config_fields_for_config(config: dict[str, object]) -> list[str]:
@@ -24,10 +30,8 @@ def missing_r2_config_fields_for_config(config: dict[str, object]) -> list[str]:
 
 
 def is_r2_enabled() -> bool:
-    return (
-        current_app.config.get("STORAGE_BACKEND") == "r2"
-        and not missing_r2_config_fields()
-    )
+    config = _flask_config()
+    return is_r2_enabled_for_config(dict(config))
 
 
 def is_r2_enabled_for_config(config: dict[str, object]) -> bool:
@@ -60,15 +64,7 @@ def _stream_size_and_checksum_from_stream(stream) -> tuple[int, str]:
 
 
 def public_asset_url(object_key: str) -> str:
-    base_url = (current_app.config.get("R2_PUBLIC_BASE_URL") or "").rstrip("/")
-    if base_url:
-        return f"{base_url}/{object_key}"
-
-    if is_r2_enabled():
-        account_id = current_app.config["R2_ACCOUNT_ID"]
-        return f"https://pub-{account_id}.r2.dev/{object_key}"
-
-    return f"/uploads/{object_key}"
+    return public_asset_url_for_config(dict(_flask_config()), object_key)
 
 
 def public_asset_url_for_config(config: dict[str, object], object_key: str) -> str:
@@ -102,7 +98,7 @@ def upload_image(file_storage, folder: str = "documents") -> dict[str, str]:
 
 def upload_file(file_storage, folder: str = "assets") -> dict[str, str]:
     return upload_file_from_stream(
-        dict(current_app.config),
+        dict(_flask_config()),
         filename=file_storage.filename or "file",
         stream=file_storage.stream,
         content_type=file_storage.mimetype,
@@ -157,7 +153,7 @@ def upload_file_from_stream(
 
 
 def delete_object(object_key: str) -> None:
-    delete_object_with_config(dict(current_app.config), object_key)
+    delete_object_with_config(dict(_flask_config()), object_key)
 
 
 def delete_object_with_config(config: dict[str, object], object_key: str) -> None:
@@ -175,7 +171,7 @@ def delete_object_with_config(config: dict[str, object], object_key: str) -> Non
 
 
 def read_object_bytes(object_key: str) -> tuple[bytes, str | None]:
-    return read_object_bytes_with_config(dict(current_app.config), object_key)
+    return read_object_bytes_with_config(dict(_flask_config()), object_key)
 
 
 def read_object_bytes_with_config(config: dict[str, object], object_key: str) -> tuple[bytes, str | None]:
@@ -202,6 +198,8 @@ def download_object(*, object_key: str, download_name: str, content_type: str | 
 
     body, detected_content_type = read_object_bytes(object_key)
     resolved_content_type = content_type or detected_content_type or "application/octet-stream"
+    from flask import send_file
+
     return send_file(
         BytesIO(body),
         mimetype=resolved_content_type,

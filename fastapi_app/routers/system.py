@@ -14,7 +14,8 @@ async def health(request: Request):
         "service": "personal-service-fastapi",
         "repository_backend": settings.repository_backend,
         "storage_backend": settings.storage_backend,
-        "database_configured": bool(settings.database) if settings.repository_backend == "sqlite" else False,
+        "database_configured": bool(settings.database),
+        "database_role": "source" if settings.repository_backend == "sqlite" else "shadow",
     }
 
 

@@ -4,16 +4,16 @@ import json
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from flask import Flask
+if TYPE_CHECKING:
+    from flask import Flask
 
 
 PAGE_VIEW_LOGGER_NAME = "page_views"
 
 
-def setup_page_view_logger(app: Flask) -> None:
-    logs_dir = Path(app.instance_path) / "logs"
+def _build_page_view_logger(logs_dir: Path) -> logging.Logger:
     logs_dir.mkdir(parents=True, exist_ok=True)
     log_path = logs_dir / "page-views.log"
 
@@ -24,8 +24,7 @@ def setup_page_view_logger(app: Flask) -> None:
     resolved_log_path = log_path.resolve()
     for existing_handler in logger.handlers:
         if getattr(existing_handler, "baseFilename", None) == str(resolved_log_path):
-            app.extensions["page_view_logger"] = logger
-            return
+            return logger
 
     handler = TimedRotatingFileHandler(
         filename=log_path,
@@ -36,7 +35,16 @@ def setup_page_view_logger(app: Flask) -> None:
     )
     handler.setFormatter(logging.Formatter("%(message)s"))
     logger.addHandler(handler)
+    return logger
+
+
+def setup_page_view_logger(app: Flask) -> None:
+    logger = _build_page_view_logger(Path(app.instance_path) / "logs")
     app.extensions["page_view_logger"] = logger
+
+
+def setup_page_view_logger_for_path(instance_path: str | Path) -> logging.Logger:
+    return _build_page_view_logger(Path(instance_path) / "logs")
 
 
 def write_page_view_log(app: Flask, payload: dict) -> None:
@@ -48,12 +56,27 @@ def write_page_view_log(app: Flask, payload: dict) -> None:
     logger.info(json.dumps(payload, ensure_ascii=False))
 
 
+def write_page_view_log_with_logger(logger: logging.Logger, payload: dict) -> None:
+    logger.info(json.dumps(payload, ensure_ascii=False))
+
+
 def _log_dir(app: Flask) -> Path:
     return Path(app.instance_path) / "logs"
 
 
+def _log_dir_for_path(instance_path: str | Path) -> Path:
+    return Path(instance_path) / "logs"
+
+
 def iter_page_view_log_files(app: Flask) -> list[Path]:
-    log_dir = _log_dir(app)
+    return _iter_page_view_log_files(_log_dir(app))
+
+
+def iter_page_view_log_files_for_path(instance_path: str | Path) -> list[Path]:
+    return _iter_page_view_log_files(_log_dir_for_path(instance_path))
+
+
+def _iter_page_view_log_files(log_dir: Path) -> list[Path]:
     if not log_dir.exists():
         return []
     return sorted(
@@ -70,11 +93,26 @@ def read_page_view_logs(
     search: str = "",
     visitor_id: str = "",
 ) -> list[dict[str, Any]]:
+    return _read_page_view_logs_from_files(
+        iter_page_view_log_files(app),
+        limit=limit,
+        search=search,
+        visitor_id=visitor_id,
+    )
+
+
+def _read_page_view_logs_from_files(
+    log_files: list[Path],
+    *,
+    limit: int,
+    search: str,
+    visitor_id: str,
+) -> list[dict[str, Any]]:
     normalized_search = (search or "").strip().lower()
     normalized_visitor_id = (visitor_id or "").strip()
     rows: list[dict[str, Any]] = []
 
-    for log_file in iter_page_view_log_files(app):
+    for log_file in log_files:
         try:
             lines = log_file.read_text(encoding="utf-8").splitlines()
         except OSError:
@@ -110,3 +148,18 @@ def read_page_view_logs(
                 return rows
 
     return rows
+
+
+def read_page_view_logs_for_path(
+    instance_path: str | Path,
+    *,
+    limit: int = 200,
+    search: str = "",
+    visitor_id: str = "",
+) -> list[dict[str, Any]]:
+    return _read_page_view_logs_from_files(
+        iter_page_view_log_files_for_path(instance_path),
+        limit=limit,
+        search=search,
+        visitor_id=visitor_id,
+    )

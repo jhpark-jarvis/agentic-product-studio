@@ -1,9 +1,7 @@
-import os
 from pathlib import Path
 
 import click
 from flask import Flask
-from dotenv import load_dotenv
 
 from .api import bp as api_bp
 from .db import close_db, init_app as init_db_app, init_db
@@ -11,9 +9,9 @@ from .documents import bp as documents_bp
 from .frontend import bp as frontend_bp
 from .page_view_logging import setup_page_view_logger
 from .repositories.provider import get_repository_provider
+from .settings import AppSettings, load_settings
 from .storage import is_r2_enabled, missing_r2_config_fields
 from .utils import (
-    DEFAULT_TIMEZONE,
     css_badge_class,
     format_datetime_local,
     markdown_to_html,
@@ -21,35 +19,23 @@ from .utils import (
 )
 
 
-def create_app(test_config=None):
-    project_root = Path(__file__).resolve().parent.parent
-    load_dotenv(project_root / ".env")
+def _apply_flask_settings(app: Flask, settings: AppSettings) -> None:
+    app.config.from_mapping(settings.to_config_mapping())
+    app.config["SECRET_KEY"] = settings.secret_key
+    app.config["DATABASE"] = settings.database
+    app.config["UPLOAD_FOLDER"] = settings.upload_folder
+    app.config["MAX_CONTENT_LENGTH"] = settings.max_content_length
+    app.config["DISPLAY_TIMEZONE"] = settings.display_timezone
+    app.config["STORAGE_BACKEND"] = settings.storage_backend
+    app.config["REPOSITORY_BACKEND"] = settings.repository_backend
+    app.config["FLASK_ENV"] = settings.flask_env
+    app.config["FLASK_DEBUG"] = settings.flask_debug
+
+
+def create_app(test_config=None, *, settings: AppSettings | None = None):
     app = Flask(__name__, instance_relative_config=True)
-
-    base_dir = Path(app.root_path).parent
-    upload_dir = base_dir / "uploads"
-
-    app.config.from_mapping(
-        SECRET_KEY=os.environ.get("SECRET_KEY", "dev"),
-        DATABASE=os.environ.get("DATABASE", str(Path(app.instance_path) / "app.db")),
-        UPLOAD_FOLDER=os.environ.get("UPLOAD_FOLDER", str(upload_dir)),
-        MAX_CONTENT_LENGTH=int(os.environ.get("MAX_CONTENT_LENGTH", 20 * 1024 * 1024)),
-        DISPLAY_TIMEZONE=os.environ.get("DISPLAY_TIMEZONE", DEFAULT_TIMEZONE),
-        STORAGE_BACKEND=os.environ.get("STORAGE_BACKEND", "local"),
-        REPOSITORY_BACKEND=os.environ.get("REPOSITORY_BACKEND", "sqlite"),
-        CLOUDFLARE_ACCOUNT_ID=os.environ.get(
-            "CLOUDFLARE_ACCOUNT_ID", os.environ.get("R2_ACCOUNT_ID", "")
-        ),
-        D1_DATABASE_ID=os.environ.get("D1_DATABASE_ID", ""),
-        CLOUDFLARE_API_TOKEN=os.environ.get("CLOUDFLARE_API_TOKEN", ""),
-        R2_BUCKET_NAME=os.environ.get("R2_BUCKET_NAME", ""),
-        R2_ACCOUNT_ID=os.environ.get("R2_ACCOUNT_ID", ""),
-        R2_ACCESS_KEY_ID=os.environ.get("R2_ACCESS_KEY_ID", ""),
-        R2_SECRET_ACCESS_KEY=os.environ.get("R2_SECRET_ACCESS_KEY", ""),
-        R2_PUBLIC_BASE_URL=os.environ.get("R2_PUBLIC_BASE_URL", ""),
-        FLASK_ENV=os.environ.get("FLASK_ENV", "development"),
-        FLASK_DEBUG=os.environ.get("FLASK_DEBUG", "0") == "1",
-    )
+    resolved_settings = settings or load_settings()
+    _apply_flask_settings(app, resolved_settings)
 
     if test_config is None:
         app.config.from_pyfile("config.py", silent=True)

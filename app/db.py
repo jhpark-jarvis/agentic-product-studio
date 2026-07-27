@@ -2,7 +2,14 @@ import sqlite3
 from pathlib import Path
 
 import click
-from flask import current_app, g
+
+
+def _has_flask_app_context() -> bool:
+    try:
+        from flask import has_app_context
+    except ImportError:
+        return False
+    return has_app_context()
 
 
 SCHEMA_SQL = """
@@ -139,18 +146,25 @@ CREATE TABLE IF NOT EXISTS document_assets (
 """
 
 
-def get_db():
-    if "db" not in g:
-        db_path = Path(current_app.config["DATABASE"])
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        g.db = sqlite3.connect(db_path)
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA foreign_keys = ON")
+_RUNTIME_DB_CONNECTION = None
 
-    return g.db
+
+def get_db():
+    if _has_flask_app_context():
+        from flask import current_app, g
+
+        if "db" not in g:
+            g.db = connect_sqlite_database(current_app.config["DATABASE"])
+        return g.db
+
+    if _RUNTIME_DB_CONNECTION is None:
+        raise RuntimeError("Database connection is not initialized for the current runtime.")
+    return _RUNTIME_DB_CONNECTION
 
 
 def close_db(_error=None):
+    from flask import g
+
     db = g.pop("db", None)
 
     if db is not None:
@@ -159,9 +173,40 @@ def close_db(_error=None):
 
 def init_db():
     db = get_db()
+    initialize_database(db)
+
+
+def connect_sqlite_database(database_path: str | Path):
+    db_path = Path(database_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(db_path)
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA foreign_keys = ON")
+    return db
+
+
+def initialize_database(db):
     db.executescript(SCHEMA_SQL)
     migrate_legacy_schema(db)
     db.commit()
+
+
+def initialize_sqlite_database(database_path: str | Path):
+    db = connect_sqlite_database(database_path)
+    try:
+        initialize_database(db)
+    finally:
+        db.close()
+
+
+def set_runtime_db_connection(db):
+    global _RUNTIME_DB_CONNECTION
+    _RUNTIME_DB_CONNECTION = db
+
+
+def clear_runtime_db_connection():
+    global _RUNTIME_DB_CONNECTION
+    _RUNTIME_DB_CONNECTION = None
 
 
 def _table_exists(db, table_name):

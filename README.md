@@ -4,7 +4,7 @@
 
 이 서비스는 사용자가 브라우저에서 직접 사용하는 협업 도구이면서, 동시에 AI Agent가 기획 문서와 운영 데이터를 확인하며 개발 작업을 진행할 때 참조하는 작업 허브 역할도 합니다.
 
-현재 운영 기준은 `Flask + React(MUI)` 프론트, `Cloudflare D1 / SQLite` 데이터 저장소, `Cloudflare R2 / 로컬 uploads` 파일 스토리지 조합입니다.
+현재 운영 전환 기준은 `FastAPI + React(MUI)` 프론트, `Cloudflare D1 / SQLite` 데이터 저장소, `Cloudflare R2 / 로컬 uploads` 파일 스토리지 조합입니다.
 
 ![Agentic Product Studio Overview](./Overview.png)
 
@@ -13,7 +13,7 @@
 ```text
 User
   -> Browser
-      -> Flask (PythonAnywhere)
+      -> FastAPI (ASGI hosting)
           -> React build (app/static/frontend)
           -> Frontend routes (/ /dashboard /documents /assets /wbs /schedules /members /log)
           -> API (/api/*)
@@ -24,7 +24,7 @@ User
 AI Agent
   -> Static guides (.docs/catalog/*)
   -> HTTP API (/api/*, /documents/*)
-      -> Flask (PythonAnywhere)
+      -> FastAPI (ASGI runtime)
           -> D1-backed documents / project data
           -> Markdown helper endpoints
 ```
@@ -32,15 +32,16 @@ AI Agent
 이 구조를 쓰는 이유는 아래와 같습니다.
 
 - 프론트는 React로 분리해 화면 리팩토링과 UI 유지보수를 쉽게 가져갑니다.
-- Flask는 API, 업로드, Markdown 유틸, 배포 진입점 역할에 집중합니다.
-- PythonAnywhere에서는 React 빌드 결과만 서빙하면 되므로 운영이 단순합니다.
+- FastAPI는 API, 업로드, Markdown 유틸, SPA 서빙을 담당하는 기본 런타임입니다.
+- Flask는 기존 명령과 호환 실행을 위한 legacy 경로로만 유지합니다.
 - 데이터와 스토리지를 D1/R2로 분리해 이후 Cloudflare 중심 구조로 확장하기 쉽습니다.
 - AI Agent는 `.docs/catalog/` 가이드와 운영 API를 함께 참조해, 최신 기획 문맥과 구현 대상 데이터를 확인하며 작업할 수 있습니다.
 
 ## 사용자와 AI Agent의 역할
 
 - 사용자는 브라우저에서 대시보드, 문서, WBS, 일정, 멤버, 에셋 관리 화면을 직접 사용합니다.
-- Flask 앱은 React 프론트엔드와 API를 함께 서빙하며, 문서 미리보기/업로드 같은 보조 엔드포인트도 제공합니다.
+- FastAPI 앱은 React 프론트엔드와 API를 함께 서빙하며, 문서 미리보기/업로드 같은 보조 엔드포인트도 제공합니다.
+- `run.py`와 Flask blueprint는 ASGI 운영 검증이 끝날 때까지 호환 경로로 유지합니다.
 - AI Agent는 `.docs/catalog/`의 정적 가이드를 먼저 읽고, 필요하면 운영 API를 조회해 최신 문서와 데이터를 다시 확인합니다.
 - 즉, 이 서비스는 단순한 내부 웹앱이 아니라, 사용자와 AI가 같은 문서/데이터 기반 위에서 협업하는 개발 허브로 동작합니다.
 
@@ -99,7 +100,7 @@ AI Agent
 ## 기술 스택
 
 - Frontend: `React`, `React Router`, `MUI`, `Vite`
-- Backend: `Flask`
+- Backend: `FastAPI` (`Flask` legacy compatibility)
 - Database:
   - `SQLite` 로컬 개발/보조 저장
   - `Cloudflare D1` 운영 데이터 저장소
@@ -107,7 +108,7 @@ AI Agent
   - `Cloudflare R2`
   - 또는 로컬 `uploads/`
 - Infra / Deploy:
-  - `PythonAnywhere`
+  - ASGI 서버 (`Uvicorn` 등)
   - `Cloudflare Wrangler` 관련 설정 파일 유지
 
 ## 디렉터리 개요
@@ -329,21 +330,29 @@ python fastapi_run.py
 
 ## PythonAnywhere 배포
 
-현재 문서 기준 운영 구성은 PythonAnywhere의 Flask 기준 설명을 유지하고 있습니다.
+PythonAnywhere용 Flask 설정은 legacy 호환 경로로만 남아 있습니다.
 
-다만 코드베이스는 FastAPI 이관을 진행 중이므로, 앞으로 운영 전환 시에는 `run.py` 대신 `asgi.py`를 기준으로 ASGI 서버 구성을 잡는 방향이 자연스럽습니다.
+현재 운영 전환 대상은 `run.py`가 아니라 `asgi.py`입니다. FastAPI를 지원하는 ASGI 호스팅 환경에서 Uvicorn 등의 서버로 실행해야 합니다.
 
-ASGI 서버 예시는 [deployment/asgi_uvicorn.example.txt](/D:/dev/git/agentic-product-studio/deployment/asgi_uvicorn.example.txt)에 정리해두었습니다.
+ASGI 서버 예시는 [deployment/asgi_uvicorn.example.txt](deployment/asgi_uvicorn.example.txt)에 정리해두었습니다.
 
 일반적인 반영 순서는 아래와 같습니다.
 
 1. 로컬에서 React 빌드
 2. 빌드 결과 포함하여 커밋 / 푸시
-3. PythonAnywhere에서 `git pull`
-4. 필요 시 스크립트 실행
-5. 웹 앱 reload
+3. ASGI 호스팅 환경에서 `git pull`
+4. 필요 시 환경 변수와 DB 초기화 확인
+5. ASGI 프로세스 재시작
 
-빠른 반영용 스크립트:
+Flask 호환 실행은 마이그레이션 검증이나 기존 CLI가 필요한 경우에만 사용합니다.
+
+```bash
+python run.py
+```
+
+Flask 제거는 ASGI 운영 검증과 FastAPI 기반 테스트가 끝난 뒤 별도 작업으로 진행합니다.
+
+PythonAnywhere legacy 환경에서만 사용하는 빠른 반영용 스크립트:
 
 ```bash
 bash scripts/pythonanywhere_refresh.sh

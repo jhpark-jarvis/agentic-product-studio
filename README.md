@@ -322,6 +322,15 @@ flask cloudflare-check
 uvicorn asgi:app --reload
 ```
 
+Docker로 실행하려면 아래처럼 사용할 수 있습니다.
+
+```bash
+docker build -t personal-service-fastapi .
+docker run --rm -p 8000:8000 --env-file .env personal-service-fastapi
+```
+
+운영 환경에서는 `.env` 파일을 이미지에 포함하지 말고, 호스팅 플랫폼의 런타임 환경변수/Secret 기능으로 주입합니다. 이 이미지는 Cloudflare Container뿐 아니라 일반 Docker 호스팅에서도 사용할 수 있습니다.
+
 간단한 래퍼 스크립트를 쓰고 싶다면 아래도 가능합니다.
 
 ```bash

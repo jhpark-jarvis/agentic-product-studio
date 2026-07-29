@@ -1,0 +1,16 @@
+.git
+.github
+.docs
+.env
+.env.*
+__pycache__
+*.py[cod]
+*.db
+*.db-journal
+instance
+uploads
+node_modules
+frontend/node_modules
+worker-python
+dev_reports
+uploads/assets

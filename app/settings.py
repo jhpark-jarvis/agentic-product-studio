@@ -61,14 +61,18 @@ def load_settings(*, env_file: str | Path | None = None) -> AppSettings:
     load_dotenv(env_file or (project_root / ".env"))
 
     instance_path = project_root / "instance"
-    upload_dir = project_root / "uploads"
+    default_upload_dir = project_root / "uploads"
     instance_path.mkdir(parents=True, exist_ok=True)
-    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    database = os.environ.get("DATABASE", str(instance_path / "app.db"))
+    upload_folder = os.environ.get("UPLOAD_FOLDER", str(default_upload_dir))
+    Path(database).parent.mkdir(parents=True, exist_ok=True)
+    Path(upload_folder).mkdir(parents=True, exist_ok=True)
 
     return AppSettings(
         secret_key=os.environ.get("SECRET_KEY", "dev"),
-        database=os.environ.get("DATABASE", str(instance_path / "app.db")),
-        upload_folder=os.environ.get("UPLOAD_FOLDER", str(upload_dir)),
+        database=database,
+        upload_folder=upload_folder,
         max_content_length=int(os.environ.get("MAX_CONTENT_LENGTH", 20 * 1024 * 1024)),
         display_timezone=os.environ.get("DISPLAY_TIMEZONE", DEFAULT_TIMEZONE),
         storage_backend=os.environ.get("STORAGE_BACKEND", "local"),

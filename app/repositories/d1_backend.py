@@ -226,6 +226,25 @@ def _shadow_upsert_document(document_id: int, data, folder_id):
     )
 
 
+def _shadow_upsert_document_with_dependencies(client, document_id: int, data, folder_id):
+    """Keep foreign-key rows present before mirroring a D1 document locally."""
+    if folder_id is not None:
+        folder = client.query_first(
+            "SELECT id, doc_type, name FROM document_folders WHERE id = ?",
+            [folder_id],
+        )
+        if folder:
+            _shadow_upsert_folder(folder["id"], folder["doc_type"], folder["name"])
+
+    author_id = data.get("author_id")
+    if author_id is not None:
+        member = client.query_first("SELECT * FROM members WHERE id = ?", [author_id])
+        if member:
+            _shadow_upsert_member(member["id"], member)
+
+    _shadow_upsert_document(document_id, data, folder_id)
+
+
 def _shadow_delete_document(document_id: int):
     local_db = get_db()
     local_db.execute("DELETE FROM document_assets WHERE document_id = ?", (document_id,))
@@ -900,7 +919,7 @@ class D1DocumentsRepository:
         document_id = result.get("meta", {}).get("last_row_id")
         if document_id is None:
             raise D1RepositoryError("Failed to create document in D1.")
-        _shadow_upsert_document(document_id, data, folder_id)
+        _shadow_upsert_document_with_dependencies(self.client, document_id, data, folder_id)
         _cache_invalidate(f"documents:detail:{document_id}", "documents:", "common:document_link_options", "dashboard:")
         return document_id
 
@@ -1026,7 +1045,7 @@ class D1DocumentsRepository:
                 document_id,
             ],
         )
-        _shadow_upsert_document(document_id, data, folder_id)
+        _shadow_upsert_document_with_dependencies(self.client, document_id, data, folder_id)
         _cache_invalidate(f"documents:detail:{document_id}", "documents:", "common:document_link_options", "dashboard:")
 
     def bulk_set_hidden(self, document_ids: list[int], is_hidden: int):
@@ -1054,7 +1073,9 @@ class D1DocumentsRepository:
                 [document_id],
             )
             if document:
-                _shadow_upsert_document(document_id, document, document.get("folder_id"))
+                _shadow_upsert_document_with_dependencies(
+                    self.client, document_id, document, document.get("folder_id")
+                )
 
         _cache_invalidate("documents:", "common:document_link_options", "dashboard:")
         for document_id in normalized_ids:
@@ -1095,7 +1116,7 @@ class D1DocumentsRepository:
             [document_id],
         )
         if document:
-            _shadow_upsert_document(document_id, document, folder_id)
+            _shadow_upsert_document_with_dependencies(self.client, document_id, document, folder_id)
         _cache_invalidate(f"documents:detail:{document_id}", "documents:", "common:document_link_options", "dashboard:")
 
 

@@ -4,37 +4,43 @@
 
 이 서비스는 사용자가 브라우저에서 직접 사용하는 협업 도구이면서, 동시에 AI Agent가 기획 문서와 운영 데이터를 확인하며 개발 작업을 진행할 때 참조하는 작업 허브 역할도 합니다.
 
-현재 운영 전환 기준은 `FastAPI + React(MUI)` 프론트, `Cloudflare D1 / SQLite` 데이터 저장소, `Cloudflare R2 / 로컬 uploads` 파일 스토리지 조합입니다.
+현재 운영 기준은 `FastAPI + React(MUI)` 애플리케이션을 Docker로 패키징하고, Oracle Cloud VM의 Nginx 뒤에서 실행하는 구조입니다. 데이터와 파일은 각각 Cloudflare D1과 R2를 사용하며, Cloudflare DNS/Proxy가 외부 진입점 역할을 담당합니다.
 
-![Agentic Product Studio Overview](./Overview.png)
+![Agentic Product Studio Architecture Overview](./Overview.svg)
 
 ## 현재 운영 구조
 
 ```text
 User
-  -> Browser
-      -> FastAPI (ASGI hosting)
-          -> React build (app/static/frontend)
-          -> Frontend routes (/ /dashboard /documents /assets /wbs /schedules /members /log)
-          -> API (/api/*)
-          -> Markdown utility endpoints (/documents/*)
-          -> D1 or SQLite
-          -> R2 or local uploads
+  -> Cloudflare DNS / Proxy / TLS
+      -> Oracle VM
+          -> Nginx :80/:443
+              -> Docker Compose
+                  -> Uvicorn + FastAPI :8000
+                      -> React build (app/static/frontend)
+                      -> API (/api/*)
+                      -> Markdown utility endpoints (/documents/*)
+                      -> Cloudflare D1 / SQLite shadow
+                      -> Cloudflare R2 / local uploads fallback
 
 AI Agent
   -> Static guides (.docs/catalog/*)
   -> HTTP API (/api/*, /documents/*)
-      -> FastAPI (ASGI runtime)
-          -> D1-backed documents / project data
-          -> Markdown helper endpoints
+      -> Cloudflare Proxy
+          -> Nginx
+              -> FastAPI
+                  -> D1-backed documents / project data
+                  -> Markdown helper endpoints
 ```
 
 이 구조를 쓰는 이유는 아래와 같습니다.
 
 - 프론트는 React로 분리해 화면 리팩토링과 UI 유지보수를 쉽게 가져갑니다.
 - FastAPI는 API, 업로드, Markdown 유틸, SPA 서빙을 담당하는 기본 런타임입니다.
+- Nginx는 HTTPS를 종료하고 애플리케이션 포트 `127.0.0.1:8000`으로 요청을 전달합니다.
+- Docker 이미지는 특정 클라우드 런타임에 종속되지 않으며, 일반 Docker 환경에서도 실행할 수 있습니다.
 - Flask는 기존 명령과 호환 실행을 위한 legacy 경로로만 유지합니다.
-- 데이터와 스토리지를 D1/R2로 분리해 이후 Cloudflare 중심 구조로 확장하기 쉽습니다.
+- 데이터와 스토리지를 D1/R2로 분리해 실행 서버를 교체해도 운영 데이터를 유지할 수 있습니다.
 - AI Agent는 `.docs/catalog/` 가이드와 운영 API를 함께 참조해, 최신 기획 문맥과 구현 대상 데이터를 확인하며 작업할 수 있습니다.
 
 ## 사용자와 AI Agent의 역할
@@ -108,15 +114,18 @@ AI Agent
   - `Cloudflare R2`
   - 또는 로컬 `uploads/`
 - Infra / Deploy:
-  - ASGI 서버 (`Uvicorn` 등)
-  - `Cloudflare Wrangler` 관련 설정 파일 유지
+  - `Docker` / `Docker Compose`
+  - Oracle Cloud VM (Ubuntu)
+  - `Nginx` reverse proxy
+  - `Uvicorn` ASGI server
+  - Cloudflare DNS / Proxy / D1 / R2
 
 ## 디렉터리 개요
 
 ```text
 agentic-product-studio/
 ├─ app/
-│  ├─ __init__.py              # Flask app factory / config
+│  ├─ __init__.py              # Flask legacy app factory / config
 │  ├─ api.py                   # React frontend용 API
 │  ├─ frontend.py              # React build 서빙 및 라우팅
 │  ├─ documents.py             # Markdown 유틸 / 업로드 관련 엔드포인트
@@ -132,11 +141,12 @@ agentic-product-studio/
 │  └─ schema.sql
 ├─ scripts/
 ├─ deployment/
+│  └─ oracle/                  # Oracle VM Compose 실행 예시와 배포 안내
 ├─ .docs/                      # 개발용 내부 문서 / 회고 / 마일스톤
 ├─ uploads/
 ├─ instance/                   # 로컬 SQLite DB / page view 로그 등 런타임 파일
-├─ worker/                     # Cloudflare Worker(JS) 관련 실험/보조 배포 코드
-├─ worker-python/              # Cloudflare Python Worker 관련 설정/코드
+├─ worker/                     # Cloudflare Worker 관련 레거시/실험 코드
+├─ worker-python/              # Cloudflare Python Worker 관련 레거시 설정/코드
 ├─ run.py
 ├─ requirements.txt
 ├─ package.json
@@ -337,7 +347,32 @@ docker run --rm -p 8000:8000 --env-file .env personal-service-fastapi
 python fastapi_run.py
 ```
 
-## PythonAnywhere 배포
+## 운영 배포
+
+현재 운영 배포는 Oracle Cloud VM에서 Docker Compose로 수행합니다.
+
+상세 절차는 [deployment/oracle/README.md](deployment/oracle/README.md)를 참고하세요.
+
+핵심 실행 구조는 다음과 같습니다.
+
+```text
+Cloudflare DNS / Proxy
+  -> Nginx :443
+      -> 127.0.0.1:8000
+          -> Docker Compose
+              -> Uvicorn + FastAPI
+```
+
+운영 환경변수는 VM의 `.env`에 직접 주입하며, 저장소나 Docker 이미지에 포함하지 않습니다. D1 API Token과 R2 S3 Access Key도 각각 필요한 최소 권한으로 관리합니다.
+
+배포 브랜치를 갱신한 뒤에는 VM에서 다음처럼 컨테이너를 재생성합니다.
+
+```bash
+git pull origin master
+docker compose -f deployment/oracle/docker-compose.yml up -d --build --force-recreate
+```
+
+## PythonAnywhere legacy 배포
 
 PythonAnywhere용 Flask 설정은 legacy 호환 경로로만 남아 있습니다.
 

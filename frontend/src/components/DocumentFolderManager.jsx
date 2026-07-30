@@ -1,6 +1,7 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import CreateRoundedIcon from '@mui/icons-material/CreateRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import FolderOpenRoundedIcon from '@mui/icons-material/FolderOpenRounded'
 import {
   Button,
   Chip,
@@ -15,7 +16,6 @@ import {
 } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { apiGet, apiJson } from '../api/client'
-import { SectionCard } from './SectionCard'
 
 const initialForm = {
   doc_type: '',
@@ -66,6 +66,11 @@ export function DocumentFolderManager({ onFoldersChanged }) {
     setDialogMode('create')
     setActiveFolder(null)
     setForm({ doc_type: documentTypes[0] || '', name: '' })
+    setError('')
+  }
+
+  const openManage = () => {
+    setDialogMode('manage')
     setError('')
   }
 
@@ -126,73 +131,81 @@ export function DocumentFolderManager({ onFoldersChanged }) {
   }
 
   return (
-    <SectionCard
-      title="문서 폴더 관리"
-      description="문서 유형별 폴더를 만들고 이름을 변경하거나 정리할 수 있습니다."
-      actions={
-        <Button variant="outlined" startIcon={<AddRoundedIcon />} onClick={openCreate} disabled={loading}>
-          폴더 추가
-        </Button>
-      }
-    >
-      <Stack spacing={1.25} sx={{ px: 3, pb: 3 }}>
-        {error ? <Typography color="error">{error}</Typography> : null}
-        {loading ? (
-          <Typography color="text.secondary">폴더 목록을 불러오는 중입니다...</Typography>
-        ) : folders.length ? (
-          folders.map((folder) => (
-            <Stack
-              key={folder.id}
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={1}
-              sx={{
-                alignItems: { sm: 'center' },
-                justifyContent: 'space-between',
-                px: 1.5,
-                py: 1.25,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 1.5,
-              }}
-            >
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
-                <Chip size="small" label={folder.doc_type} />
-                <Typography fontWeight={700} noWrap>
-                  {folder.name}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  문서 {folder.document_count || 0}건
-                </Typography>
-              </Stack>
-              <Stack direction="row" spacing={0.5}>
-                <Button size="small" startIcon={<CreateRoundedIcon />} onClick={() => openRename(folder)}>
-                  이름 변경
-                </Button>
-                <Button
-                  size="small"
-                  color="error"
-                  startIcon={<DeleteOutlineRoundedIcon />}
-                  onClick={() => openDelete(folder)}
-                >
-                  삭제
-                </Button>
-              </Stack>
-            </Stack>
-          ))
-        ) : (
-          <Typography color="text.secondary">등록된 문서 폴더가 없습니다.</Typography>
-        )}
-      </Stack>
+    <>
+      <Button variant="outlined" startIcon={<FolderOpenRoundedIcon />} onClick={openManage} disabled={loading}>
+        폴더 관리
+      </Button>
 
-      <Dialog open={Boolean(dialogMode)} onClose={closeDialog} fullWidth maxWidth="xs">
+      <Dialog open={Boolean(dialogMode)} onClose={closeDialog} fullWidth maxWidth={dialogMode === 'manage' ? 'md' : 'xs'}>
         <DialogTitle>
-          {dialogMode === 'create' ? '문서 폴더 추가' : dialogMode === 'rename' ? '문서 폴더 이름 변경' : '문서 폴더 삭제'}
+          {dialogMode === 'manage'
+            ? '문서 폴더 관리'
+            : dialogMode === 'create'
+              ? '문서 폴더 추가'
+              : dialogMode === 'rename'
+                ? '문서 폴더 이름 변경'
+                : '문서 폴더 삭제'}
         </DialogTitle>
         <DialogContent>
-          {dialogMode === 'delete' ? (
-            <Typography sx={{ pt: 1 }} color="text.secondary">
-              {activeFolder?.doc_type} / {activeFolder?.name} 폴더를 삭제합니다. 문서가 연결된 폴더는 삭제할 수 없습니다.
-            </Typography>
+          {dialogMode === 'manage' ? (
+            <Stack spacing={1.25} sx={{ pt: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                문서 유형별 폴더를 만들고 이름을 변경하거나 정리할 수 있습니다.
+              </Typography>
+              {error ? <Typography color="error">{error}</Typography> : null}
+              {loading ? (
+                <Typography color="text.secondary">폴더 목록을 불러오는 중입니다...</Typography>
+              ) : folders.length ? (
+                folders.map((folder) => (
+                  <Stack
+                    key={folder.id}
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1}
+                    sx={{
+                      alignItems: { sm: 'center' },
+                      justifyContent: 'space-between',
+                      px: 1.5,
+                      py: 1.25,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1.5,
+                    }}
+                  >
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+                      <Chip size="small" label={folder.doc_type} />
+                      <Typography fontWeight={700} noWrap>
+                        {folder.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        문서 {folder.document_count || 0}건
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={0.5}>
+                      <Button size="small" startIcon={<CreateRoundedIcon />} onClick={() => openRename(folder)}>
+                        이름 변경
+                      </Button>
+                      <Button
+                        size="small"
+                        color="error"
+                        startIcon={<DeleteOutlineRoundedIcon />}
+                        onClick={() => openDelete(folder)}
+                      >
+                        삭제
+                      </Button>
+                    </Stack>
+                  </Stack>
+                ))
+              ) : (
+                <Typography color="text.secondary">등록된 문서 폴더가 없습니다.</Typography>
+              )}
+            </Stack>
+          ) : dialogMode === 'delete' ? (
+            <Stack spacing={1} sx={{ pt: 1 }}>
+              {error ? <Typography color="error">{error}</Typography> : null}
+              <Typography color="text.secondary">
+                {activeFolder?.doc_type} / {activeFolder?.name} 폴더를 삭제합니다. 문서가 연결된 폴더는 삭제할 수 없습니다.
+              </Typography>
+            </Stack>
           ) : (
             <Stack spacing={2} sx={{ pt: 1 }}>
               <TextField
@@ -221,19 +234,30 @@ export function DocumentFolderManager({ onFoldersChanged }) {
           )}
         </DialogContent>
         <DialogActions>
+          {dialogMode === 'manage' ? (
+            <Button onClick={openCreate} variant="contained" startIcon={<AddRoundedIcon />}>
+              폴더 추가
+            </Button>
+          ) : (
+            <>
+              <Button onClick={openManage} disabled={busy}>
+                취소
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                variant="contained"
+                color={dialogMode === 'delete' ? 'error' : 'primary'}
+                disabled={busy || (dialogMode !== 'delete' && (!form.doc_type || !form.name.trim()))}
+              >
+                {busy ? '처리 중...' : dialogMode === 'delete' ? '삭제' : '저장'}
+              </Button>
+            </>
+          )}
           <Button onClick={closeDialog} disabled={busy}>
-            취소
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            variant="contained"
-            color={dialogMode === 'delete' ? 'error' : 'primary'}
-            disabled={busy || (dialogMode !== 'delete' && (!form.doc_type || !form.name.trim()))}
-          >
-            {busy ? '처리 중...' : dialogMode === 'delete' ? '삭제' : '저장'}
+            닫기
           </Button>
         </DialogActions>
       </Dialog>
-    </SectionCard>
+    </>
   )
 }

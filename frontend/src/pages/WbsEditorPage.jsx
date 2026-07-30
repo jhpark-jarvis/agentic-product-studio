@@ -6,7 +6,6 @@ import {
   Button,
   Checkbox,
   CircularProgress,
-  ListItemText,
   MenuItem,
   Paper,
   Stack,
@@ -128,6 +127,19 @@ export function WbsEditorPage() {
         }
       }
       return next
+    })
+  }
+
+  const toggleDocument = (documentId, checked) => {
+    const normalizedId = Number(documentId)
+    setForm((prev) => {
+      const selectedIds = new Set(prev.document_ids.map((id) => Number(id)))
+      if (checked) {
+        selectedIds.add(normalizedId)
+      } else {
+        selectedIds.delete(normalizedId)
+      }
+      return { ...prev, document_ids: [...selectedIds] }
     })
   }
 
@@ -306,32 +318,70 @@ export function WbsEditorPage() {
             minRows={4}
           />
 
-          <TextField
-            select
-            label="연관 문서"
-            value={form.document_ids}
-            onChange={(event) => updateField('document_ids', event.target.value)}
-            SelectProps={{
-              multiple: true,
-              renderValue: (selected) =>
-                selected.length
-                  ? selected
-                      .map((id) => bootstrap?.documents?.find((document) => document.id === id)?.title || `#${id}`)
-                      .join(', ')
-                  : '선택 없음',
-            }}
-            helperText="여러 문서를 선택해 이 작업과 연결할 수 있습니다."
-          >
-            {(bootstrap?.documents || []).map((document) => (
-              <MenuItem key={document.id} value={document.id}>
-                <Checkbox checked={form.document_ids.includes(document.id)} />
-                <ListItemText
-                  primary={document.title}
-                  secondary={`${document.doc_type}${document.is_hidden ? ' · 숨김' : ''}`}
-                />
-              </MenuItem>
-            ))}
-          </TextField>
+          <Box>
+            <Typography component="h2" variant="subtitle1" fontWeight={700}>
+              연관 문서
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 1.25 }}>
+              여러 문서를 선택해 이 작업과 연결할 수 있습니다.
+            </Typography>
+            <Paper
+              variant="outlined"
+              sx={{
+                maxHeight: 320,
+                overflowY: 'auto',
+                p: 1,
+                bgcolor: 'background.default',
+              }}
+            >
+              {(bootstrap?.documents || []).length ? (
+                <Stack spacing={0.25}>
+                  {(bootstrap?.documents || []).map((document) => {
+                    const documentId = Number(document.id)
+                    const checked = form.document_ids.some((id) => Number(id) === documentId)
+                    return (
+                      <Box
+                        key={document.id}
+                        sx={{
+                          px: 1,
+                          borderRadius: 1,
+                          '&:hover': { bgcolor: 'action.hover' },
+                        }}
+                      >
+                        <label
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            minHeight: 48,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onChange={(event) => toggleDocument(documentId, event.target.checked)}
+                            inputProps={{ 'aria-label': `${document.title} 연관 문서 선택` }}
+                          />
+                          <span>
+                            <Typography variant="body2" fontWeight={600}>
+                              {document.title}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {document.doc_type}{document.is_hidden ? ' · 숨김' : ''}
+                            </Typography>
+                          </span>
+                        </label>
+                      </Box>
+                    )
+                  })}
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>
+                  연결할 문서가 없습니다.
+                </Typography>
+              )}
+            </Paper>
+          </Box>
 
           <TextField
             label="메모"

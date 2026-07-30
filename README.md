@@ -132,7 +132,7 @@ agentic-product-studio/
 │  ├─ db.py                    # SQLite schema / migration helper
 │  ├─ storage.py               # local / R2 파일 저장소 처리
 │  ├─ repositories/            # sqlite / d1 repository provider 레이어
-│  └─ static/frontend/         # Vite build 결과물
+│  └─ static/frontend/         # Docker build 시 생성되는 Vite 결과물
 ├─ frontend/
 │  ├─ src/
 │  └─ package.json
@@ -280,13 +280,13 @@ python run.py
 npm run frontend:dev
 ```
 
-최종 반영은 항상 아래 빌드 결과 기준입니다.
+로컬에서 정적 파일을 확인해야 할 때만 아래 명령을 실행합니다.
 
 ```bash
 npm run frontend:build
 ```
 
-빌드 결과물은 `app/static/frontend/`에 생성됩니다.
+`app/static/frontend/`는 배포 산출물이므로 Git에 커밋하지 않습니다. 운영 Docker image를 빌드할 때 Dockerfile의 Node build stage가 프론트 소스를 빌드해 최종 이미지에 포함합니다.
 
 ## 운영 / 점검 명령
 
@@ -380,13 +380,12 @@ PythonAnywhere용 Flask 설정은 legacy 호환 경로로만 남아 있습니다
 
 ASGI 서버 예시는 [deployment/asgi_uvicorn.example.txt](deployment/asgi_uvicorn.example.txt)에 정리해두었습니다.
 
-일반적인 반영 순서는 아래와 같습니다.
+PythonAnywhere legacy 환경의 일반적인 반영 순서는 아래와 같습니다.
 
-1. 로컬에서 React 빌드
-2. 빌드 결과 포함하여 커밋 / 푸시
-3. ASGI 호스팅 환경에서 `git pull`
-4. 필요 시 환경 변수와 DB 초기화 확인
-5. ASGI 프로세스 재시작
+1. 소스 커밋 / 푸시
+2. ASGI 호스팅 환경에서 `git pull`
+3. 필요 시 환경 변수와 DB 초기화 확인
+4. ASGI 프로세스 재시작
 
 Flask 호환 실행은 마이그레이션 검증이나 기존 CLI가 필요한 경우에만 사용합니다.
 
@@ -411,5 +410,5 @@ VENV_NAME=<your_virtualenv_name> bash scripts/pythonanywhere_refresh.sh
 ## 현재 참고 사항
 
 - 시간 표시는 프론트에서 `Asia/Seoul` 기준으로 변환해 보여줍니다.
-- React 빌드 청크는 배포 시 파일명이 바뀌므로, 빌드 후에는 최신 정적 파일 기준으로 반영해야 합니다.
+- React 빌드 청크는 Docker build 때 생성되며, `app/static/frontend/` 산출물은 Git 추적 대상이 아닙니다.
 - `instance/app.db`는 로컬/보조용 SQLite이며, 운영 데이터 기준은 D1을 우선으로 봅니다.

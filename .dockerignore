@@ -11,6 +11,7 @@ instance
 uploads
 node_modules
 frontend/node_modules
+app/static/frontend
 worker-python
 dev_reports
 uploads/assets

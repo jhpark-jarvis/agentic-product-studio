@@ -75,6 +75,7 @@ $RECYCLE.BIN/
 *.db
 instance/
 database/d1/data.sql
+app/static/frontend/
 wrangler.toml
 wrangler.python.toml
 worker-python/wrangler.toml

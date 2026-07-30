@@ -5,19 +5,23 @@ def fetch_document_folders(db, doc_type: str | None = None):
     if doc_type:
         return db.execute(
             """
-            SELECT id, doc_type, name
-            FROM document_folders
-            WHERE doc_type = ?
-            ORDER BY name COLLATE NOCASE ASC
+            SELECT f.id, f.doc_type, f.name, COUNT(d.id) AS document_count
+            FROM document_folders f
+            LEFT JOIN documents d ON d.folder_id = f.id
+            WHERE f.doc_type = ?
+            GROUP BY f.id, f.doc_type, f.name
+            ORDER BY f.name COLLATE NOCASE ASC
             """,
             (doc_type,),
         ).fetchall()
 
     return db.execute(
         """
-        SELECT id, doc_type, name
-        FROM document_folders
-        ORDER BY doc_type COLLATE NOCASE ASC, name COLLATE NOCASE ASC
+        SELECT f.id, f.doc_type, f.name, COUNT(d.id) AS document_count
+        FROM document_folders f
+        LEFT JOIN documents d ON d.folder_id = f.id
+        GROUP BY f.id, f.doc_type, f.name
+        ORDER BY f.doc_type COLLATE NOCASE ASC, f.name COLLATE NOCASE ASC
         """
     ).fetchall()
 
@@ -31,6 +35,63 @@ def fetch_folder(db, folder_id: int):
         """,
         (folder_id,),
     ).fetchone()
+
+
+def create_document_folder(db, doc_type: str, name: str):
+    normalized_name = (name or "").strip()
+    if not normalized_name:
+        raise ValueError("폴더 이름을 입력해주세요.")
+
+    existing = db.execute(
+        "SELECT id FROM document_folders WHERE doc_type = ? AND lower(name) = lower(?)",
+        (doc_type, normalized_name),
+    ).fetchone()
+    if existing:
+        raise ValueError("같은 유형에 동일한 폴더가 이미 있습니다.")
+
+    cursor = db.execute(
+        "INSERT INTO document_folders (doc_type, name) VALUES (?, ?)",
+        (doc_type, normalized_name),
+    )
+    return fetch_folder(db, cursor.lastrowid)
+
+
+def update_document_folder_definition(db, folder_id: int, doc_type: str, name: str):
+    normalized_name = (name or "").strip()
+    if not normalized_name:
+        raise ValueError("폴더 이름을 입력해주세요.")
+    if not fetch_folder(db, folder_id):
+        raise ValueError("선택한 폴더를 찾을 수 없습니다.")
+
+    existing = db.execute(
+        """
+        SELECT id
+        FROM document_folders
+        WHERE doc_type = ? AND lower(name) = lower(?) AND id != ?
+        """,
+        (doc_type, normalized_name, folder_id),
+    ).fetchone()
+    if existing:
+        raise ValueError("같은 유형에 동일한 폴더가 이미 있습니다.")
+
+    db.execute(
+        "UPDATE document_folders SET doc_type = ?, name = ? WHERE id = ?",
+        (doc_type, normalized_name, folder_id),
+    )
+    return fetch_folder(db, folder_id)
+
+
+def delete_document_folder(db, folder_id: int):
+    folder = fetch_folder(db, folder_id)
+    if not folder:
+        raise ValueError("선택한 폴더를 찾을 수 없습니다.")
+    document_count = db.execute(
+        "SELECT COUNT(*) AS count FROM documents WHERE folder_id = ?",
+        (folder_id,),
+    ).fetchone()["count"]
+    if document_count:
+        raise ValueError("문서가 연결된 폴더는 삭제할 수 없습니다. 먼저 문서를 다른 폴더로 이동해주세요.")
+    db.execute("DELETE FROM document_folders WHERE id = ?", (folder_id,))
 
 
 def fetch_document_with_relations(db, document_id: int):

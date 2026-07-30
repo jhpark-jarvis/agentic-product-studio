@@ -16,7 +16,7 @@ export async function apiGet(path, searchParams) {
 
   const payload = await response.json()
   if (!response.ok) {
-    throw new Error(payload.error || 'API request failed')
+    throw new Error(payload.error || payload.detail?.error || payload.detail || 'API request failed')
   }
   return payload
 }
@@ -47,7 +47,7 @@ export async function apiJson(path, { method = 'POST', body } = {}) {
 
   const payload = await response.json()
   if (!response.ok) {
-    throw new Error(payload.error || 'API request failed')
+    throw new Error(payload.error || payload.detail?.error || payload.detail || 'API request failed')
   }
   return payload
 }
@@ -63,7 +63,7 @@ export async function apiForm(path, formData, { method = 'POST' } = {}) {
 
   const payload = await response.json()
   if (!response.ok) {
-    throw new Error(payload.error || 'API request failed')
+    throw new Error(payload.error || payload.detail?.error || payload.detail || 'API request failed')
   }
   return payload
 }

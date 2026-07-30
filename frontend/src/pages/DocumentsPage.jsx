@@ -24,6 +24,7 @@ import { Link as RouterLink } from 'react-router-dom'
 import { apiGet, apiJson } from '../api/client'
 import { EmptyState, ErrorMessage, LoadingState } from '../components/FeedbackStates'
 import { FilterPanel } from '../components/FilterPanel'
+import { DocumentFolderManager } from '../components/DocumentFolderManager'
 import { PageHeader } from '../components/PageHeader'
 import { SectionCard } from '../components/SectionCard'
 import { hiddenStatusChipSx } from '../theme'
@@ -200,6 +201,18 @@ export function DocumentsPage() {
     }
   }
 
+  const handleFoldersChanged = (folders) => {
+    setData((prev) => {
+      if (!prev) {
+        return prev
+      }
+      const folderOptions = filters.doc_type
+        ? folders.filter((folder) => folder.doc_type === filters.doc_type)
+        : folders
+      return { ...prev, folder_options: folderOptions }
+    })
+  }
+
   return (
     <Stack spacing={3}>
       <PageHeader
@@ -207,6 +220,8 @@ export function DocumentsPage() {
         title="문서 관리"
         description="문서 검색, 분류, 상세 확인, 편집 진입까지 한 흐름으로 관리할 수 있도록 정리한 화면입니다."
       />
+
+      <DocumentFolderManager onFoldersChanged={handleFoldersChanged} />
 
       <FilterPanel
         title="문서 필터"

@@ -234,6 +234,72 @@ async def document_editor_bootstrap(
     }
 
 
+def _document_folder_payload(payload: dict[str, Any]):
+    doc_type = str(payload.get("doc_type") or "").strip()
+    name = str(payload.get("name") or "").strip()
+    if doc_type not in DOCUMENT_TYPES:
+        raise HTTPException(status_code=400, detail="유효하지 않은 문서 유형입니다.")
+    if not name:
+        raise HTTPException(status_code=400, detail="폴더 이름을 입력해주세요.")
+    return doc_type, name
+
+
+@router.get("/folders")
+async def document_folders_api(provider=Depends(get_repository_provider)):
+    return {
+        "folders": serialize_rows(provider.documents.fetch_document_folders()),
+        "document_types": list(DOCUMENT_TYPES),
+    }
+
+
+@router.post("/folders")
+async def create_document_folder_api(
+    payload: dict[str, Any] = Body(default_factory=dict),
+    provider=Depends(get_repository_provider),
+    sqlite_db=Depends(get_runtime_sqlite_db),
+):
+    doc_type, name = _document_folder_payload(payload)
+    try:
+        folder = provider.documents.create_folder(doc_type, name)
+        if sqlite_db is not None:
+            sqlite_db.commit()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"folder": dict(folder)}
+
+
+@router.patch("/folders/{folder_id}")
+async def update_document_folder_api(
+    folder_id: int,
+    payload: dict[str, Any] = Body(default_factory=dict),
+    provider=Depends(get_repository_provider),
+    sqlite_db=Depends(get_runtime_sqlite_db),
+):
+    doc_type, name = _document_folder_payload(payload)
+    try:
+        folder = provider.documents.update_folder(folder_id, doc_type, name)
+        if sqlite_db is not None:
+            sqlite_db.commit()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"folder": dict(folder)}
+
+
+@router.delete("/folders/{folder_id}")
+async def delete_document_folder_api(
+    folder_id: int,
+    provider=Depends(get_repository_provider),
+    sqlite_db=Depends(get_runtime_sqlite_db),
+):
+    try:
+        provider.documents.delete_folder(folder_id)
+        if sqlite_db is not None:
+            sqlite_db.commit()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"deleted": True, "folder_id": folder_id}
+
+
 @router.get("/{document_id}")
 async def document_detail(document_id: int, provider=Depends(get_repository_provider)):
     document, related_tasks, tags = provider.documents.fetch_document_with_relations(document_id)

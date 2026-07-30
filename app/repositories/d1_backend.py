@@ -654,10 +654,12 @@ class D1DocumentsRepository:
                 cache_key,
                 self.client.query_rows(
                 """
-                SELECT id, doc_type, name
-                FROM document_folders
-                WHERE doc_type = ?
-                ORDER BY name COLLATE NOCASE ASC
+                SELECT f.id, f.doc_type, f.name, COUNT(d.id) AS document_count
+                FROM document_folders f
+                LEFT JOIN documents d ON d.folder_id = f.id
+                WHERE f.doc_type = ?
+                GROUP BY f.id, f.doc_type, f.name
+                ORDER BY f.name COLLATE NOCASE ASC
                 """,
                 [doc_type],
                 ),
@@ -666,9 +668,11 @@ class D1DocumentsRepository:
             cache_key,
             self.client.query_rows(
             """
-            SELECT id, doc_type, name
-            FROM document_folders
-            ORDER BY doc_type COLLATE NOCASE ASC, name COLLATE NOCASE ASC
+            SELECT f.id, f.doc_type, f.name, COUNT(d.id) AS document_count
+            FROM document_folders f
+            LEFT JOIN documents d ON d.folder_id = f.id
+            GROUP BY f.id, f.doc_type, f.name
+            ORDER BY f.doc_type COLLATE NOCASE ASC, f.name COLLATE NOCASE ASC
             """
             ),
         )
@@ -726,6 +730,80 @@ class D1DocumentsRepository:
         _shadow_upsert_folder(folder_id, doc_type, normalized_name)
         _cache_invalidate("documents:")
         return folder_id
+
+    def create_folder(self, doc_type: str, name: str):
+        normalized_name = _normalize_folder_name(name)
+        if not normalized_name:
+            raise ValueError("폴더 이름을 입력해주세요.")
+        existing = self.client.query_first(
+            """
+            SELECT id FROM document_folders
+            WHERE doc_type = ? AND lower(name) = lower(?)
+            """,
+            [doc_type, normalized_name],
+        )
+        if existing:
+            raise ValueError("같은 유형에 동일한 폴더가 이미 있습니다.")
+        result = self.client.query(
+            "INSERT INTO document_folders (doc_type, name, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+            [doc_type, normalized_name],
+        )
+        folder_id = result.get("meta", {}).get("last_row_id")
+        if folder_id is None:
+            created = self.client.query_first(
+                """
+                SELECT id, doc_type, name
+                FROM document_folders
+                WHERE doc_type = ? AND lower(name) = lower(?)
+                ORDER BY id DESC LIMIT 1
+                """,
+                [doc_type, normalized_name],
+            )
+            if not created:
+                raise D1RepositoryError("Failed to create document folder in D1.")
+            folder_id = created["id"]
+        folder = self.fetch_folder(folder_id)
+        _shadow_upsert_folder(folder["id"], folder["doc_type"], folder["name"])
+        _cache_invalidate("documents:")
+        return folder
+
+    def update_folder(self, folder_id: int, doc_type: str, name: str):
+        normalized_name = _normalize_folder_name(name)
+        if not normalized_name:
+            raise ValueError("폴더 이름을 입력해주세요.")
+        if not self.fetch_folder(folder_id):
+            raise ValueError("선택한 폴더를 찾을 수 없습니다.")
+        existing = self.client.query_first(
+            """
+            SELECT id FROM document_folders
+            WHERE doc_type = ? AND lower(name) = lower(?) AND id != ?
+            """,
+            [doc_type, normalized_name, folder_id],
+        )
+        if existing:
+            raise ValueError("같은 유형에 동일한 폴더가 이미 있습니다.")
+        self.client.query(
+            "UPDATE document_folders SET doc_type = ?, name = ? WHERE id = ?",
+            [doc_type, normalized_name, folder_id],
+        )
+        folder = self.fetch_folder(folder_id)
+        _shadow_upsert_folder(folder["id"], folder["doc_type"], folder["name"])
+        _cache_invalidate("documents:")
+        return folder
+
+    def delete_folder(self, folder_id: int):
+        if not self.fetch_folder(folder_id):
+            raise ValueError("선택한 폴더를 찾을 수 없습니다.")
+        document_count = self.client.query_first(
+            "SELECT COUNT(*) AS count FROM documents WHERE folder_id = ?",
+            [folder_id],
+        )["count"]
+        if document_count:
+            raise ValueError("문서가 연결된 폴더는 삭제할 수 없습니다. 먼저 문서를 다른 폴더로 이동해주세요.")
+        self.client.query("DELETE FROM document_folders WHERE id = ?", [folder_id])
+        local_db = get_db()
+        local_db.execute("DELETE FROM document_folders WHERE id = ?", (folder_id,))
+        _cache_invalidate("documents:")
 
     def fetch_document_with_relations(self, document_id: int):
         cache_key = f"documents:detail:{document_id}:relations"

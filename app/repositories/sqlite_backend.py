@@ -54,6 +54,15 @@ class SQLiteDocumentsRepository:
     def ensure_folder(self, doc_type: str, folder_name: str):
         return ensure_document_folder(self.db, doc_type, folder_name)
 
+    def create_folder(self, doc_type: str, name: str):
+        return document_queries.create_document_folder(self.db, doc_type, name)
+
+    def update_folder(self, folder_id: int, doc_type: str, name: str):
+        return document_queries.update_document_folder_definition(self.db, folder_id, doc_type, name)
+
+    def delete_folder(self, folder_id: int):
+        return document_queries.delete_document_folder(self.db, folder_id)
+
     def fetch_document_with_relations(self, document_id: int):
         return document_queries.fetch_document_with_relations(self.db, document_id)
 

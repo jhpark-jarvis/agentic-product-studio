@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY fastapi_app ./fastapi_app
 COPY asgi.py ./asgi.py
-COPY --from=frontend-build /app/app/static/frontend ./app/static/frontend
+COPY --from=frontend-build /app/static/frontend ./app/static/frontend
 
 EXPOSE 8000
 

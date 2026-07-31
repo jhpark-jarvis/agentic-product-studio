@@ -1,3 +1,27 @@
+async function parseApiResponse(response) {
+  const raw = await response.text()
+  let payload = null
+
+  if (raw) {
+    try {
+      payload = JSON.parse(raw)
+    } catch {
+      // Some proxy/runtime errors are returned as plain text instead of JSON.
+    }
+  }
+
+  if (!response.ok) {
+    const detail = payload?.error || payload?.detail?.error || payload?.detail
+    const message = typeof detail === 'string' ? detail : raw.trim()
+    throw new Error(message || 'API request failed')
+  }
+
+  if (payload === null) {
+    throw new Error('서버가 올바른 JSON 응답을 반환하지 않았습니다.')
+  }
+  return payload
+}
+
 export async function apiGet(path, searchParams) {
   const url = new URL(path, window.location.origin)
   if (searchParams) {
@@ -14,11 +38,7 @@ export async function apiGet(path, searchParams) {
     },
   })
 
-  const payload = await response.json()
-  if (!response.ok) {
-    throw new Error(payload.error || payload.detail?.error || payload.detail || 'API request failed')
-  }
-  return payload
+  return parseApiResponse(response)
 }
 
 export function normalizeRedirectPath(path) {
@@ -45,11 +65,7 @@ export async function apiJson(path, { method = 'POST', body } = {}) {
     body: JSON.stringify(body ?? {}),
   })
 
-  const payload = await response.json()
-  if (!response.ok) {
-    throw new Error(payload.error || payload.detail?.error || payload.detail || 'API request failed')
-  }
-  return payload
+  return parseApiResponse(response)
 }
 
 export async function apiForm(path, formData, { method = 'POST' } = {}) {
@@ -61,9 +77,5 @@ export async function apiForm(path, formData, { method = 'POST' } = {}) {
     body: formData,
   })
 
-  const payload = await response.json()
-  if (!response.ok) {
-    throw new Error(payload.error || payload.detail?.error || payload.detail || 'API request failed')
-  }
-  return payload
+  return parseApiResponse(response)
 }

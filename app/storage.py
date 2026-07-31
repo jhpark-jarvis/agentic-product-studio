@@ -113,10 +113,13 @@ def upload_file_from_stream(
     stream,
     content_type: str | None = None,
     folder: str = "assets",
+    max_size: int | None = None,
 ) -> dict[str, str]:
     object_key = build_object_key(folder, filename or "file")
     resolved_content_type = content_type or "application/octet-stream"
     size, checksum = _stream_size_and_checksum_from_stream(stream)
+    if max_size is not None and size > max_size:
+        raise ValueError(f"파일 크기는 {max_size}바이트를 초과할 수 없습니다.")
 
     if config.get("STORAGE_BACKEND") == "r2" and not is_r2_enabled_for_config(config):
         missing = ", ".join(missing_r2_config_fields_for_config(config))

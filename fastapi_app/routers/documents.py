@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 from uuid import uuid4
 
@@ -20,6 +21,7 @@ from ..helpers import PER_PAGE_OPTIONS, extract_linked_document_ids, serialize_r
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 public_router = APIRouter(prefix="/documents", tags=["document-tools"])
+logger = logging.getLogger(__name__)
 
 
 def _document_form_payload(payload: dict[str, Any]):
@@ -127,22 +129,33 @@ async def upload_markdown_image(
 
     resolved_document_id = int(document_id) if str(document_id).strip().isdigit() else None
     resolved_draft_key = draft_key.strip() or None
-    uploaded = upload_file_from_stream(
-        settings.to_config_mapping(),
-        filename=image.filename,
-        stream=image.file,
-        content_type=image.content_type,
-        folder="documents",
-    )
-    asset_id = provider.documents.create_document_asset(
-        document_id=resolved_document_id,
-        draft_key=resolved_draft_key,
-        object_key=uploaded["object_key"],
-        url=uploaded["url"],
-        original_filename=image.filename,
-        content_type=uploaded["content_type"],
-        size=int(uploaded["size"]),
-    )
+    try:
+        uploaded = upload_file_from_stream(
+            settings.to_config_mapping(),
+            filename=image.filename,
+            stream=image.file,
+            content_type=image.content_type,
+            folder="documents",
+            max_size=settings.max_content_length,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    try:
+        asset_id = provider.documents.create_document_asset(
+            document_id=resolved_document_id,
+            draft_key=resolved_draft_key,
+            object_key=uploaded["object_key"],
+            url=uploaded["url"],
+            original_filename=image.filename,
+            content_type=uploaded["content_type"],
+            size=int(uploaded["size"]),
+        )
+    except Exception:
+        try:
+            delete_object_with_config(settings.to_config_mapping(), uploaded["object_key"])
+        except Exception:
+            logger.exception("Failed to roll back document image object %s", uploaded["object_key"])
+        raise
     if sqlite_db is not None:
         sqlite_db.commit()
     resolved_alt = alt.strip() or image.filename.rsplit(".", 1)[0]

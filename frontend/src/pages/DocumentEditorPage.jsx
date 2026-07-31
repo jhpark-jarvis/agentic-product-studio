@@ -68,6 +68,7 @@ export function DocumentEditorPage() {
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const editorSelectionRef = useRef({ start: 0, end: 0 })
+  const uploadInFlightRef = useRef(false)
   const [bootstrap, setBootstrap] = useState(null)
   const [form, setForm] = useState(initialForm)
   const [previewHtml, setPreviewHtml] = useState('')
@@ -341,10 +342,11 @@ export function DocumentEditorPage() {
   }
 
   const handleImageUpload = async (file) => {
-    if (!file || !file.type.startsWith('image/')) {
+    if (uploadInFlightRef.current || saving || !file || !file.type.startsWith('image/')) {
       return
     }
 
+    uploadInFlightRef.current = true
     setUploading(true)
     setStatus('이미지를 업로드하는 중입니다...')
     try {
@@ -362,8 +364,10 @@ export function DocumentEditorPage() {
       insertAtCursor(`\n${payload.markdown}\n`)
       setStatus('이미지 업로드가 완료되었습니다.')
     } catch (uploadError) {
+      setError(uploadError.message || '이미지 업로드에 실패했습니다.')
       setStatus(uploadError.message || '이미지 업로드에 실패했습니다.')
     } finally {
+      uploadInFlightRef.current = false
       setUploading(false)
       setDragActive(false)
       if (fileInputRef.current) {

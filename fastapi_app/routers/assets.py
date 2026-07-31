@@ -367,13 +367,17 @@ async def create_asset_api(
 ):
     uploaded = None
     if file and file.filename:
-        stored = upload_file_from_stream(
-            settings.to_config_mapping(),
-            filename=file.filename,
-            stream=file.file,
-            content_type=file.content_type,
-            folder="assets",
-        )
+        try:
+            stored = upload_file_from_stream(
+                settings.to_config_mapping(),
+                filename=file.filename,
+                stream=file.file,
+                content_type=file.content_type,
+                folder="assets",
+                max_size=settings.max_content_length,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=413, detail=str(exc)) from exc
         uploaded = {
             **stored,
             "file_name": file.filename,
@@ -430,13 +434,17 @@ async def update_asset_api(
 
     uploaded = None
     if file and file.filename:
-        stored = upload_file_from_stream(
-            settings.to_config_mapping(),
-            filename=file.filename,
-            stream=file.file,
-            content_type=file.content_type,
-            folder="assets",
-        )
+        try:
+            stored = upload_file_from_stream(
+                settings.to_config_mapping(),
+                filename=file.filename,
+                stream=file.file,
+                content_type=file.content_type,
+                folder="assets",
+                max_size=settings.max_content_length,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=413, detail=str(exc)) from exc
         uploaded = {
             **stored,
             "file_name": file.filename,

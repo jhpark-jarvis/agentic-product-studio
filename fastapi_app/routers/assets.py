@@ -174,53 +174,6 @@ async def asset_group_list_api(
     return asset_group_payload(provider, include_hidden=normalized_include_hidden)
 
 
-@router.get("/{asset_id}")
-async def asset_detail(asset_id: int, provider=Depends(get_repository_provider)):
-    asset, tags = provider.assets.fetch_asset_with_tags(asset_id)
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    return {
-        "asset": dict(asset),
-        "tags": list(tags),
-        "is_image": str(dict(asset).get("content_type") or "").startswith("image/"),
-    }
-
-
-@router.get("/{asset_id}/download")
-async def asset_download(
-    asset_id: int,
-    provider=Depends(get_repository_provider),
-    settings=Depends(get_settings),
-):
-    asset = provider.assets.fetch_asset(asset_id)
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-
-    asset_data = dict(asset)
-    object_key = str(asset_data.get("object_key") or "").strip()
-    download_name = (
-        str(asset_data.get("original_filename") or "").strip()
-        or str(asset_data.get("file_name") or "").strip()
-        or f"asset-{asset_id}"
-    )
-    content_type = str(asset_data.get("content_type") or "").strip() or None
-
-    try:
-        body, detected_content_type = read_object_bytes_with_config(
-            settings.to_config_mapping(),
-            object_key,
-        )
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Asset file not found")
-
-    headers = {"Content-Disposition": f'attachment; filename="{download_name}"'}
-    return Response(
-        content=body,
-        media_type=content_type or detected_content_type or "application/octet-stream",
-        headers=headers,
-    )
-
-
 @router.get("/download")
 async def asset_bulk_download(
     asset_ids: list[str] = Query(default_factory=list),
@@ -282,6 +235,53 @@ async def asset_bulk_download(
     return Response(
         content=archive_buffer.getvalue(),
         media_type="application/zip",
+        headers=headers,
+    )
+
+
+@router.get("/{asset_id}")
+async def asset_detail(asset_id: int, provider=Depends(get_repository_provider)):
+    asset, tags = provider.assets.fetch_asset_with_tags(asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    return {
+        "asset": dict(asset),
+        "tags": list(tags),
+        "is_image": str(dict(asset).get("content_type") or "").startswith("image/"),
+    }
+
+
+@router.get("/{asset_id}/download")
+async def asset_download(
+    asset_id: int,
+    provider=Depends(get_repository_provider),
+    settings=Depends(get_settings),
+):
+    asset = provider.assets.fetch_asset(asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    asset_data = dict(asset)
+    object_key = str(asset_data.get("object_key") or "").strip()
+    download_name = (
+        str(asset_data.get("original_filename") or "").strip()
+        or str(asset_data.get("file_name") or "").strip()
+        or f"asset-{asset_id}"
+    )
+    content_type = str(asset_data.get("content_type") or "").strip() or None
+
+    try:
+        body, detected_content_type = read_object_bytes_with_config(
+            settings.to_config_mapping(),
+            object_key,
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Asset file not found")
+
+    headers = {"Content-Disposition": f'attachment; filename="{download_name}"'}
+    return Response(
+        content=body,
+        media_type=content_type or detected_content_type or "application/octet-stream",
         headers=headers,
     )
 

@@ -313,6 +313,69 @@ async def delete_document_folder_api(
     return {"deleted": True, "folder_id": folder_id}
 
 
+@router.post("/bulk")
+async def bulk_documents_api(
+    payload: dict[str, Any] = Body(default_factory=dict),
+    provider=Depends(get_repository_provider),
+    settings=Depends(get_settings),
+    sqlite_db=Depends(get_runtime_sqlite_db),
+):
+    action = str(payload.get("action") or "").strip()
+    document_ids = _normalize_document_ids(payload.get("document_ids") or [])
+
+    if not document_ids:
+        raise HTTPException(status_code=400, detail="처리할 문서를 선택해주세요.")
+
+    documents = provider.documents.fetch_documents_by_ids(document_ids)
+    existing_ids = sorted({int(document["id"]) for document in documents})
+    if not existing_ids:
+        raise HTTPException(status_code=404, detail="선택한 문서를 찾을 수 없습니다.")
+
+    if action == "hide":
+        updated_count = provider.documents.bulk_set_hidden(existing_ids, 1)
+        if sqlite_db is not None:
+            sqlite_db.commit()
+        return {
+            "updated": True,
+            "action": action,
+            "document_ids": existing_ids,
+            "updated_count": updated_count,
+        }
+
+    if action == "unhide":
+        updated_count = provider.documents.bulk_set_hidden(existing_ids, 0)
+        if sqlite_db is not None:
+            sqlite_db.commit()
+        return {
+            "updated": True,
+            "action": action,
+            "document_ids": existing_ids,
+            "updated_count": updated_count,
+        }
+
+    if action == "delete":
+        deleted_ids: list[int] = []
+        for document_id in existing_ids:
+            assets = provider.documents.fetch_document_assets(document_id)
+            for asset in assets:
+                delete_object_with_config(
+                    settings.to_config_mapping(),
+                    str(dict(asset).get("object_key") or ""),
+                )
+            provider.documents.delete_document(document_id)
+            deleted_ids.append(document_id)
+        if sqlite_db is not None:
+            sqlite_db.commit()
+        return {
+            "deleted": True,
+            "action": action,
+            "document_ids": deleted_ids,
+            "deleted_count": len(deleted_ids),
+        }
+
+    raise HTTPException(status_code=400, detail="지원하지 않는 일괄 처리입니다.")
+
+
 @router.get("/{document_id}")
 async def document_detail(document_id: int, provider=Depends(get_repository_provider)):
     document, related_tasks, tags = provider.documents.fetch_document_with_relations(document_id)
@@ -425,69 +488,6 @@ async def delete_document_api(
         "deleted": True,
         "redirect_path": "/documents",
     }
-
-
-@router.post("/bulk")
-async def bulk_documents_api(
-    payload: dict[str, Any] = Body(default_factory=dict),
-    provider=Depends(get_repository_provider),
-    settings=Depends(get_settings),
-    sqlite_db=Depends(get_runtime_sqlite_db),
-):
-    action = str(payload.get("action") or "").strip()
-    document_ids = _normalize_document_ids(payload.get("document_ids") or [])
-
-    if not document_ids:
-        raise HTTPException(status_code=400, detail="처리할 문서를 선택해주세요.")
-
-    documents = provider.documents.fetch_documents_by_ids(document_ids)
-    existing_ids = sorted({int(document["id"]) for document in documents})
-    if not existing_ids:
-        raise HTTPException(status_code=404, detail="선택한 문서를 찾을 수 없습니다.")
-
-    if action == "hide":
-        updated_count = provider.documents.bulk_set_hidden(existing_ids, 1)
-        if sqlite_db is not None:
-            sqlite_db.commit()
-        return {
-            "updated": True,
-            "action": action,
-            "document_ids": existing_ids,
-            "updated_count": updated_count,
-        }
-
-    if action == "unhide":
-        updated_count = provider.documents.bulk_set_hidden(existing_ids, 0)
-        if sqlite_db is not None:
-            sqlite_db.commit()
-        return {
-            "updated": True,
-            "action": action,
-            "document_ids": existing_ids,
-            "updated_count": updated_count,
-        }
-
-    if action == "delete":
-        deleted_ids: list[int] = []
-        for document_id in existing_ids:
-            assets = provider.documents.fetch_document_assets(document_id)
-            for asset in assets:
-                delete_object_with_config(
-                    settings.to_config_mapping(),
-                    str(dict(asset).get("object_key") or ""),
-                )
-            provider.documents.delete_document(document_id)
-            deleted_ids.append(document_id)
-        if sqlite_db is not None:
-            sqlite_db.commit()
-        return {
-            "deleted": True,
-            "action": action,
-            "document_ids": deleted_ids,
-            "deleted_count": len(deleted_ids),
-        }
-
-    raise HTTPException(status_code=400, detail="지원하지 않는 일괄 처리입니다.")
 
 
 @router.delete("/{document_id}/assets/{asset_id}")

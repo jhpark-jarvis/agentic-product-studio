@@ -4,6 +4,7 @@ import BedtimeOutlinedIcon from '@mui/icons-material/BedtimeOutlined'
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined'
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
+import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
 import PermMediaOutlinedIcon from '@mui/icons-material/PermMediaOutlined'
 import Groups2OutlinedIcon from '@mui/icons-material/Groups2Outlined'
 import MenuIcon from '@mui/icons-material/Menu'
@@ -38,6 +39,7 @@ const navigationItems = [
   { label: '대시보드', path: '/', icon: <DashboardOutlinedIcon /> },
   { label: '문서', path: '/documents', icon: <DescriptionOutlinedIcon /> },
   { label: 'Assets', path: '/assets', icon: <PermMediaOutlinedIcon /> },
+  { label: '아바타 카탈로그', path: '/avatar-assets', icon: <PaletteOutlinedIcon /> },
   { label: 'WBS', path: '/wbs', icon: <SchemaOutlinedIcon /> },
   { label: '일정', path: '/schedules', icon: <CalendarMonthOutlinedIcon /> },
   { label: '멤버', path: '/members', icon: <Groups2OutlinedIcon /> },

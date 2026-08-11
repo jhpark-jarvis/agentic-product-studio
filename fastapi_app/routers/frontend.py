@@ -66,6 +66,7 @@ def _normalize_short_path(segment: str, path: str | None = None) -> str:
 @router.get("/documents/{path:path}", include_in_schema=False)
 @router.get("/assets", include_in_schema=False)
 @router.get("/assets/{path:path}", include_in_schema=False)
+@router.get("/avatar-assets", include_in_schema=False)
 @router.get("/wbs", include_in_schema=False)
 @router.get("/wbs/{path:path}", include_in_schema=False)
 @router.get("/schedules", include_in_schema=False)

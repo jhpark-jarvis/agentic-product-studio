@@ -88,6 +88,7 @@ AI Agent
 - `/dashboard`
 - `/documents`
 - `/assets`
+- `/avatar-assets`
 - `/wbs`
 - `/schedules`
 - `/members`
@@ -136,9 +137,12 @@ agentic-product-studio/
 ├─ frontend/
 │  ├─ src/
 │  └─ package.json
-├─ database/d1/
-│  ├─ README.md
-│  └─ schema.sql
+├─ database/
+│  ├─ d1/                      # Cloudflare D1 schema / migration
+│  │  ├─ README.md
+│  │  └─ schema.sql
+│  └─ seeds/
+│     └─ avatar_asset_variants.csv  # 아바타 카탈로그 초기 적재 원본
 ├─ scripts/
 ├─ deployment/
 │  └─ oracle/                  # Oracle VM Compose 실행 예시와 배포 안내
@@ -271,6 +275,47 @@ python run.py
 기본 로컬 주소:
 
 - `http://localhost:5000`
+
+FastAPI 기준으로 프론트 빌드와 서버 실행을 한 번에 하려면 PowerShell에서 아래 명령을 사용합니다.
+
+```powershell
+.\scripts\run_local.ps1
+```
+
+기본 포트는 `8000`이며, 아바타 카탈로그는 `http://127.0.0.1:8000/avatar-assets`에서 확인할 수 있습니다.
+포트를 바꾸려면 다음처럼 실행합니다.
+
+```powershell
+.\scripts\run_local.ps1 -Port 8010
+```
+
+페이지는 seed CSV를 직접 읽지 않고 `/api/avatar-assets` API를 통해 DB 데이터를 조회합니다.
+`run_local.ps1`도 실행 시 데이터를 자동으로 변경하지 않습니다.
+
+seed 데이터의 신규·변경 항목을 수동으로 UPSERT하려면 아래 명령을 사용합니다. DB에만 존재하는
+기존 항목은 삭제하지 않습니다.
+
+```powershell
+flask --app run.py import-avatar-assets
+```
+
+DB의 기존 아바타 카탈로그를 비우고 seed 데이터로 완전히 교체하려면 `--replace`를 사용합니다.
+
+```powershell
+flask --app run.py import-avatar-assets --replace
+```
+
+운영 D1에 신규·변경 항목을 UPSERT할 때는 현재 PowerShell 세션에서 repository backend만
+임시로 전환해 같은 명령을 실행합니다.
+
+```powershell
+$env:REPOSITORY_BACKEND="d1"
+flask --app run.py import-avatar-assets
+Remove-Item Env:REPOSITORY_BACKEND
+```
+
+일반 갱신에는 `--replace`를 붙이지 않습니다. seed에서 삭제된 항목까지 D1에서 제거해야 하는
+전체 동기화 작업에만 백업 후 `--replace`를 사용합니다.
 
 ## 프론트 개발
 

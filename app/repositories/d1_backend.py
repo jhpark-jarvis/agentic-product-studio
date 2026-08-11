@@ -18,6 +18,7 @@ from ..db import (
     sync_task_documents_for_document as sync_task_documents_for_document_local,
 )
 from .assets import AssetGroupError, normalize_asset_group_path
+from . import avatar_assets as avatar_asset_queries
 from .provider import RepositoryProvider
 
 
@@ -1609,6 +1610,123 @@ class D1AssetsRepository:
 
 
 @dataclass
+class D1AvatarAssetsRepository:
+    client: D1RestClient
+
+    def fetch_catalog(self, *, search: str, asset_type: str, gender: str):
+        query, params = avatar_asset_queries.build_avatar_catalog_query(
+            search=search,
+            asset_type=asset_type,
+            gender=gender,
+        )
+        return avatar_asset_queries.build_avatar_catalog(self.client.query_rows(query, params))
+
+    def fetch_catalog_summary(self):
+        row = self.client.query_first(
+            """
+            SELECT
+                COUNT(*) AS asset_count,
+                SUM(CASE WHEN asset_type = 'hair' THEN 1 ELSE 0 END) AS hair_count,
+                SUM(CASE WHEN asset_type = 'face' THEN 1 ELSE 0 END) AS face_count,
+                (SELECT COUNT(*) FROM avatar_asset_variants) AS variant_count
+            FROM avatar_assets
+            """
+        ) or {}
+        return {
+            "asset_count": int(row.get("asset_count") or 0),
+            "variant_count": int(row.get("variant_count") or 0),
+            "hair_count": int(row.get("hair_count") or 0),
+            "face_count": int(row.get("face_count") or 0),
+        }
+
+    def replace_catalog(self, records, *, replace: bool):
+        if replace:
+            self.client.query("DELETE FROM avatar_asset_variants")
+            self.client.query("DELETE FROM avatar_assets")
+
+        asset_keys = set()
+        for record in records:
+            asset_key = (record["asset_type"], record["gender"], record["master_resource_id"])
+            asset_keys.add(asset_key)
+            canonical = 1 if str(record.get("master_is_group_canonical") or "").lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            } else 0
+            self.client.query(
+                """
+                INSERT INTO avatar_assets (
+                    asset_type, gender, name, source_index, availability, match_status, series,
+                    confidence, master_resource_id, group_id, group_size, master_color_hex,
+                    master_is_group_canonical
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(asset_type, gender, master_resource_id) DO UPDATE SET
+                    name = excluded.name,
+                    source_index = excluded.source_index,
+                    availability = excluded.availability,
+                    match_status = excluded.match_status,
+                    series = excluded.series,
+                    confidence = excluded.confidence,
+                    group_id = excluded.group_id,
+                    group_size = excluded.group_size,
+                    master_color_hex = excluded.master_color_hex,
+                    master_is_group_canonical = excluded.master_is_group_canonical,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                [
+                    record["asset_type"],
+                    record["gender"],
+                    record["name"],
+                    int(record.get("source_index") or 0),
+                    record.get("availability") or "",
+                    record.get("match_status") or "",
+                    record.get("series") or "",
+                    record.get("confidence") or "",
+                    record["master_resource_id"],
+                    record.get("group_id") or "",
+                    int(record.get("group_size") or 0),
+                    record.get("master_color_hex") or "",
+                    canonical,
+                ],
+            )
+            asset_row = self.client.query_first(
+                """
+                SELECT id FROM avatar_assets
+                WHERE asset_type = ? AND gender = ? AND master_resource_id = ?
+                """,
+                list(asset_key),
+            )
+            if not asset_row:
+                raise D1RepositoryError("Failed to resolve imported avatar asset.")
+            self.client.query(
+                """
+                INSERT INTO avatar_asset_variants (
+                    avatar_asset_id, resource_id, thumbnail_url, hex_code, name, dname
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(avatar_asset_id, resource_id) DO UPDATE SET
+                    thumbnail_url = excluded.thumbnail_url,
+                    hex_code = excluded.hex_code,
+                    name = excluded.name,
+                    dname = excluded.dname
+                """,
+                [
+                    int(asset_row["id"]),
+                    record["variant_resource_id"],
+                    record.get("thumbnail_url") or "",
+                    record.get("hex_code") or "",
+                    record.get("variant_name") or "",
+                    record.get("dname") or "",
+                ],
+            )
+
+        _cache_invalidate("avatar-assets:")
+        return {"asset_count": len(asset_keys), "variant_count": len(records)}
+
+
+@dataclass
 class D1WbsRepository:
     client: D1RestClient
 
@@ -2071,6 +2189,7 @@ def build_d1_provider_from_config(config):
         common=D1CommonRepository(client),
         documents=D1DocumentsRepository(client),
         assets=D1AssetsRepository(client),
+        avatar_assets=D1AvatarAssetsRepository(client),
         wbs=D1WbsRepository(client),
         members=D1MembersRepository(client),
         schedules=D1SchedulesRepository(client),

@@ -16,6 +16,7 @@ from app.repositories.runtime_provider import build_repository_provider
 from app.settings import AppSettings, load_settings
 
 from .routers.assets import router as assets_router
+from .routers.avatar_assets import router as avatar_assets_router
 from .routers.dashboard import router as dashboard_router
 from .routers.documents import public_router as document_public_router
 from .routers.documents import router as documents_router
@@ -77,6 +78,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     app.include_router(documents_router)
     app.include_router(document_public_router)
     app.include_router(assets_router)
+    app.include_router(avatar_assets_router)
     app.include_router(wbs_router)
     app.include_router(schedules_router)
     app.include_router(members_router)

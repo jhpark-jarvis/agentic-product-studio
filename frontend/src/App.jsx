@@ -7,6 +7,9 @@ import { PageViewTracker } from './components/PageViewTracker'
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage').then((module) => ({ default: module.DocumentsPage })))
 const AssetsPage = lazy(() => import('./pages/AssetsPage').then((module) => ({ default: module.AssetsPage })))
+const AvatarCatalogPage = lazy(() =>
+  import('./pages/AvatarCatalogPage').then((module) => ({ default: module.AvatarCatalogPage })),
+)
 const AssetDetailPage = lazy(() => import('./pages/AssetDetailPage').then((module) => ({ default: module.AssetDetailPage })))
 const AssetEditorPage = lazy(() => import('./pages/AssetEditorPage').then((module) => ({ default: module.AssetEditorPage })))
 const DocumentEditorPage = lazy(() =>
@@ -55,6 +58,7 @@ function App() {
           <Route path="/assets/new" element={<AssetEditorPage />} />
           <Route path="/assets/:assetId" element={<AssetDetailPage />} />
           <Route path="/assets/:assetId/edit" element={<AssetEditorPage />} />
+          <Route path="/avatar-assets" element={<AvatarCatalogPage />} />
           <Route path="/wbs" element={<WbsPage />} />
           <Route path="/wbs/new" element={<WbsEditorPage />} />
           <Route path="/wbs/:taskId" element={<WbsDetailPage />} />

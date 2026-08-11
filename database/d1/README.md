@@ -60,6 +60,8 @@ Cloudflare D1 기준의 baseline schema입니다.
 - `schedules`
 - `notices`
 - `assets`
+- `avatar_assets`
+- `avatar_asset_variants`
 
 ## 테이블 설명
 
@@ -223,6 +225,14 @@ WBS 작업의 핵심 테이블입니다.
 
 - 구조는 남아 있지만 현재 핵심 흐름은 `document_assets` 중심으로 관리
 
+### 11. `avatar_assets` / `avatar_asset_variants`
+
+아바타 헤어·성형 기준 외형과 색상 변형을 정규화해 저장합니다.
+
+- `avatar_assets`: 성별별 기준 외형과 master RESOURCE_ID
+- `avatar_asset_variants`: 기준 외형에 속한 색상별 RESOURCE_ID, HEX, 썸네일 URL
+- 화면은 `/api/avatar-assets`를 통해 이 테이블을 조회합니다.
+
 ## 인덱스 전략
 
 `schema.sql`에는 조회 빈도가 높은 컬럼 기준 인덱스가 포함되어 있습니다.
@@ -270,6 +280,12 @@ erDiagram
 
 ```bash
 npx wrangler d1 execute agentic-product-studio --remote --file database/d1/schema.sql
+```
+
+기존 D1 데이터베이스에는 아바타 카탈로그 migration만 별도로 적용합니다.
+
+```bash
+npx wrangler d1 execute agentic-product-studio --remote --file database/d1/migrations/0001_avatar_assets.sql
 ```
 
 ### 2. SQLite 데이터 export

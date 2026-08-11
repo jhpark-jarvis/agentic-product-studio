@@ -62,6 +62,8 @@ def _normalize_short_path(segment: str, path: str | None = None) -> str:
 @bp.route("/assets")
 @bp.route("/assets/")
 @bp.route("/assets/<path:path>")
+@bp.route("/avatar-assets")
+@bp.route("/avatar-assets/")
 @bp.route("/wbs")
 @bp.route("/wbs/")
 @bp.route("/wbs/<path:path>")

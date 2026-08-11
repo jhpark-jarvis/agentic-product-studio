@@ -15,6 +15,8 @@ TABLE_EXPORT_ORDER = [
     "schedules",
     "notices",
     "assets",
+    "avatar_assets",
+    "avatar_asset_variants",
     "document_assets",
 ]
 
@@ -71,7 +73,7 @@ def export_table(connection: sqlite3.Connection, table_name: str) -> list[str]:
     return statements
 
 
-def build_export_sql(database_path: Path) -> str:
+def build_export_sql(database_path: Path, table_names: list[str] | None = None) -> str:
     connection = sqlite3.connect(database_path)
     connection.row_factory = sqlite3.Row
     try:
@@ -82,7 +84,7 @@ def build_export_sql(database_path: Path) -> str:
             "",
         ]
 
-        for table_name in TABLE_EXPORT_ORDER:
+        for table_name in table_names or TABLE_EXPORT_ORDER:
             chunks.extend(export_table(connection, table_name))
             chunks.append("")
 
@@ -105,6 +107,12 @@ def parse_args():
         default="database/d1/data.sql",
         help="Output SQL file path. Defaults to database/d1/data.sql",
     )
+    parser.add_argument(
+        "--tables",
+        nargs="+",
+        choices=TABLE_EXPORT_ORDER,
+        help="Export only the selected tables in the given order.",
+    )
     return parser.parse_args()
 
 
@@ -117,7 +125,10 @@ def main():
         raise SystemExit(f"Source database not found: {database_path}")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(build_export_sql(database_path), encoding="utf-8")
+    output_path.write_text(
+        build_export_sql(database_path, table_names=args.tables),
+        encoding="utf-8",
+    )
     print(f"D1 data export written to {output_path}")
 
 

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from . import common as common_queries
 from . import assets as asset_queries
+from . import avatar_assets as avatar_asset_queries
 from . import dashboard as dashboard_queries
 from . import documents as document_queries
 from . import members as member_queries
@@ -224,6 +225,25 @@ class SQLiteAssetsRepository:
 
 
 @dataclass
+class SQLiteAvatarAssetsRepository:
+    db: object
+
+    def fetch_catalog(self, *, search: str, asset_type: str, gender: str):
+        return avatar_asset_queries.fetch_avatar_catalog(
+            self.db,
+            search=search,
+            asset_type=asset_type,
+            gender=gender,
+        )
+
+    def fetch_catalog_summary(self):
+        return avatar_asset_queries.fetch_avatar_catalog_summary(self.db)
+
+    def replace_catalog(self, records, *, replace: bool):
+        return avatar_asset_queries.replace_avatar_catalog(self.db, records, replace=replace)
+
+
+@dataclass
 class SQLiteWbsRepository:
     db: object
 
@@ -321,6 +341,7 @@ def build_sqlite_provider_for_db(db):
         common=SQLiteCommonRepository(db),
         documents=SQLiteDocumentsRepository(db),
         assets=SQLiteAssetsRepository(db),
+        avatar_assets=SQLiteAvatarAssetsRepository(db),
         wbs=SQLiteWbsRepository(db),
         members=SQLiteMembersRepository(db),
         schedules=SQLiteSchedulesRepository(db),

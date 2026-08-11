@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from ..db import get_db
 from .contracts import (
     AssetsRepository,
+    AvatarAssetsRepository,
     CommonRepository,
     DashboardRepository,
     DocumentsRepository,
@@ -19,6 +20,7 @@ class RepositoryProvider:
     common: CommonRepository
     documents: DocumentsRepository
     assets: AssetsRepository
+    avatar_assets: AvatarAssetsRepository
     wbs: WbsRepository
     members: MembersRepository
     schedules: SchedulesRepository

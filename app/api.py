@@ -805,6 +805,29 @@ def assets_list():
     )
 
 
+@bp.route("/avatar-assets")
+def avatar_assets_list():
+    search = request.args.get("q", "").strip()
+    asset_type = request.args.get("asset_type", "").strip()
+    gender = request.args.get("gender", "").strip()
+    repository = get_repository_provider().avatar_assets
+    return jsonify(
+        {
+            "assets": repository.fetch_catalog(
+                search=search,
+                asset_type=asset_type,
+                gender=gender,
+            ),
+            "summary": repository.fetch_catalog_summary(),
+            "filters": {
+                "q": search,
+                "asset_type": asset_type,
+                "gender": gender,
+            },
+        }
+    )
+
+
 @bp.route("/assets/<int:asset_id>")
 def asset_detail(asset_id: int):
     asset, tags = get_repository_provider().assets.fetch_asset_with_tags(asset_id)

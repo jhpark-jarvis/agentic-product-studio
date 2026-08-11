@@ -156,6 +156,11 @@ export function AssetDetailPage() {
               <Typography variant="body2" color="text.secondary">크기: {asset.size} bytes</Typography>
               <Typography variant="body2" color="text.secondary">콘텐츠 타입: {asset.content_type || '-'}</Typography>
               <Typography variant="body2" color="text.secondary">체크섬: {asset.checksum || '-'}</Typography>
+              {asset.source_provider ? (
+                <Typography variant="body2" color="text.secondary">
+                  외부 출처: {asset.source_provider} · {asset.source_resource_id}
+                </Typography>
+              ) : null}
               <Typography variant="body2" color="text.secondary">업데이트: {formatDateTimeKst(asset.updated_at)}</Typography>
               <Link href={asset.url} target="_blank" rel="noreferrer" underline="hover">
                 {asset.url}

@@ -286,6 +286,9 @@ def _asset_form_payload(payload, *, uploaded=None, existing=None):
         "content_type": uploaded["content_type"] if uploaded else existing_data.get("content_type", ""),
         "size": int(uploaded["size"]) if uploaded else int(existing_data.get("size") or 0),
         "checksum": uploaded["checksum"] if uploaded else existing_data.get("checksum", ""),
+        "source_provider": existing_data.get("source_provider", ""),
+        "source_resource_id": existing_data.get("source_resource_id", ""),
+        "source_url": existing_data.get("source_url", ""),
     }
 
 
@@ -524,13 +527,15 @@ def document_detail(document_id: int):
     linked_document_ids = _extract_linked_document_ids(content, document_id)
     linked_documents = get_repository_provider().documents.fetch_documents_by_ids(linked_document_ids)
     linked_documents_by_id = {item["id"]: dict(item) for item in linked_documents}
+    serialized_assets = _serialize_rows(assets)
 
     return jsonify(
         {
             "document": dict(document),
             "related_tasks": _serialize_rows(related_tasks),
             "tags": list(tags),
-            "assets": _serialize_rows(assets),
+            "assets": serialized_assets,
+            "images": serialized_assets,
             "linked_documents": [
                 linked_documents_by_id[linked_document_id]
                 for linked_document_id in linked_document_ids
@@ -656,7 +661,9 @@ def delete_document_api(document_id: int):
     db = get_db()
     assets = get_repository_provider().documents.fetch_document_assets(document_id)
     for asset in assets:
-        delete_object(dict(asset).get("object_key") or "")
+        asset_data = dict(asset)
+        if int(asset_data.get("owns_object", 1) or 0):
+            delete_object(asset_data.get("object_key") or "")
     get_repository_provider().documents.delete_document(document_id)
     db.commit()
 
@@ -713,7 +720,9 @@ def bulk_documents_api():
         for document_id in sorted(existing_ids):
             assets = get_repository_provider().documents.fetch_document_assets(document_id)
             for asset in assets:
-                delete_object(dict(asset).get("object_key") or "")
+                asset_data = dict(asset)
+                if int(asset_data.get("owns_object", 1) or 0):
+                    delete_object(asset_data.get("object_key") or "")
             get_repository_provider().documents.delete_document(document_id)
             deleted_ids.append(document_id)
         db.commit()
@@ -742,7 +751,9 @@ def delete_document_asset_api(document_id: int, asset_id: int):
         return jsonify({"error": "Document asset not found"}), 404
 
     db = get_db()
-    delete_object(dict(asset).get("object_key") or "")
+    asset_data = dict(asset)
+    if int(asset_data.get("owns_object", 1) or 0):
+        delete_object(asset_data.get("object_key") or "")
     get_repository_provider().documents.delete_document_asset(asset_id)
     db.commit()
 
@@ -1083,6 +1094,8 @@ def delete_asset_api(asset_id: int):
     existing = get_repository_provider().assets.fetch_asset(asset_id)
     if not existing:
         return jsonify({"error": "Asset not found"}), 404
+    if get_repository_provider().assets.count_document_links(asset_id):
+        return jsonify({"error": "문서에서 사용 중인 Asset은 삭제할 수 없습니다."}), 409
     db = get_db()
     get_repository_provider().assets.delete_asset(asset_id)
     db.commit()

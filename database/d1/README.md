@@ -171,11 +171,16 @@ WBS 작업의 핵심 테이블입니다.
 - `original_filename`: 원본 파일명
 - `content_type`: MIME 타입
 - `size`: 파일 크기
+- `linked_asset_id`: 일반 `assets`에서 공유하는 Asset ID
+- `owns_object`: 문서가 R2 객체를 직접 소유하는지 여부
+- `alt_text`: Markdown 이미지 대체 텍스트
 
 특징:
 
 - R2와 연결되는 핵심 메타데이터 테이블입니다.
 - 초안 상태 업로드 후, 문서 생성 시 `draft_key` 기반으로 문서와 연결할 수 있습니다.
+- 직접 업로드 이미지는 `owns_object=1`, 일반 Asset 링크는 `owns_object=0`으로 구분합니다.
+- 일반 Asset 링크는 문서 삭제 시 연결만 삭제하고 공유 R2 객체는 유지합니다.
 
 ### 7. `task_documents`
 
@@ -219,11 +224,15 @@ WBS 작업의 핵심 테이블입니다.
 
 ### 10. `assets`
 
-레거시 자산 테이블입니다.
+일반 파일과 CATALOG에서 가져온 공유 이미지를 관리하는 자산 테이블입니다.
 
-현재 상태:
+외부 Asset 주요 컬럼:
 
-- 구조는 남아 있지만 현재 핵심 흐름은 `document_assets` 중심으로 관리
+- `source_provider`: 외부 출처. CATALOG는 `studiostory_worlds`
+- `source_resource_id`: CATALOG variant RESOURCE_ID
+- `source_url`: 최초 썸네일 API URL
+
+`(source_provider, source_resource_id)` 고유 인덱스로 같은 CATALOG 에셋의 중복 R2 저장을 방지합니다.
 
 ### 11. `avatar_assets` / `avatar_asset_variants`
 
@@ -282,10 +291,11 @@ erDiagram
 npx wrangler d1 execute agentic-product-studio --remote --file database/d1/schema.sql
 ```
 
-기존 D1 데이터베이스에는 아바타 카탈로그 migration만 별도로 적용합니다.
+기존 D1 데이터베이스에는 변경 migration을 순서대로 적용합니다.
 
 ```bash
 npx wrangler d1 execute agentic-product-studio --remote --file database/d1/migrations/0001_avatar_assets.sql
+npx wrangler d1 execute agentic-product-studio --remote --file database/d1/migrations/0002_catalog_asset_links.sql
 ```
 
 ### 2. SQLite 데이터 export

@@ -111,6 +111,9 @@ CREATE TABLE IF NOT EXISTS assets (
     content_type TEXT,
     size INTEGER NOT NULL DEFAULT 0,
     checksum TEXT DEFAULT '',
+    source_provider TEXT NOT NULL DEFAULT '',
+    source_resource_id TEXT NOT NULL DEFAULT '',
+    source_url TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT '사용 가능',
     is_hidden INTEGER NOT NULL DEFAULT 0,
     created_by INTEGER REFERENCES members(id) ON DELETE SET NULL,
@@ -177,8 +180,12 @@ CREATE TABLE IF NOT EXISTS document_assets (
     original_filename TEXT NOT NULL,
     content_type TEXT,
     size INTEGER NOT NULL DEFAULT 0,
+    linked_asset_id INTEGER REFERENCES assets(id) ON DELETE RESTRICT,
+    owns_object INTEGER NOT NULL DEFAULT 1,
+    alt_text TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
 """
 
 
@@ -279,6 +286,14 @@ def migrate_legacy_schema(db):
         _add_column_if_missing(db, "document_assets", "original_filename", "TEXT")
         _add_column_if_missing(db, "document_assets", "content_type", "TEXT")
         _add_column_if_missing(db, "document_assets", "size", "INTEGER NOT NULL DEFAULT 0")
+        _add_column_if_missing(
+            db,
+            "document_assets",
+            "linked_asset_id",
+            "INTEGER REFERENCES assets(id) ON DELETE RESTRICT",
+        )
+        _add_column_if_missing(db, "document_assets", "owns_object", "INTEGER NOT NULL DEFAULT 1")
+        _add_column_if_missing(db, "document_assets", "alt_text", "TEXT NOT NULL DEFAULT ''")
     if _table_exists(db, "assets"):
         _add_column_if_missing(db, "assets", "asset_type", "TEXT DEFAULT ''")
         _add_column_if_missing(db, "assets", "category", "TEXT DEFAULT ''")
@@ -288,10 +303,31 @@ def migrate_legacy_schema(db):
         _add_column_if_missing(db, "assets", "content_type", "TEXT")
         _add_column_if_missing(db, "assets", "size", "INTEGER NOT NULL DEFAULT 0")
         _add_column_if_missing(db, "assets", "checksum", "TEXT DEFAULT ''")
+        _add_column_if_missing(db, "assets", "source_provider", "TEXT NOT NULL DEFAULT ''")
+        _add_column_if_missing(db, "assets", "source_resource_id", "TEXT NOT NULL DEFAULT ''")
+        _add_column_if_missing(db, "assets", "source_url", "TEXT NOT NULL DEFAULT ''")
         _add_column_if_missing(db, "assets", "status", "TEXT NOT NULL DEFAULT '사용 가능'")
         _add_column_if_missing(db, "assets", "is_hidden", "INTEGER NOT NULL DEFAULT 0")
         _add_column_if_missing(db, "assets", "created_by", "INTEGER")
         _add_column_if_missing(db, "assets", "updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    db.executescript(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_assets_external_source
+        ON assets(source_provider, source_resource_id)
+        WHERE source_provider != '' AND source_resource_id != '';
+
+        CREATE INDEX IF NOT EXISTS idx_document_assets_linked_asset_id
+        ON document_assets(linked_asset_id);
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_document_assets_document_link
+        ON document_assets(document_id, linked_asset_id)
+        WHERE document_id IS NOT NULL AND linked_asset_id IS NOT NULL;
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_document_assets_draft_link
+        ON document_assets(draft_key, linked_asset_id)
+        WHERE draft_key IS NOT NULL AND linked_asset_id IS NOT NULL;
+        """
+    )
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS asset_groups (
@@ -441,6 +477,63 @@ def create_document_asset(
     return cursor.lastrowid
 
 
+def create_linked_document_asset(
+    db,
+    *,
+    document_id,
+    draft_key,
+    linked_asset_id,
+    asset,
+    alt_text,
+):
+    if document_id is None and not draft_key:
+        raise ValueError("문서 또는 draft key가 필요합니다.")
+    if document_id is not None:
+        existing = db.execute(
+            """
+            SELECT id FROM document_assets
+            WHERE document_id = ? AND linked_asset_id = ?
+            """,
+            (document_id, linked_asset_id),
+        ).fetchone()
+    else:
+        existing = db.execute(
+            """
+            SELECT id FROM document_assets
+            WHERE draft_key = ? AND linked_asset_id = ?
+            """,
+            (draft_key, linked_asset_id),
+        ).fetchone()
+    if existing:
+        db.execute(
+            "UPDATE document_assets SET alt_text = ? WHERE id = ?",
+            (alt_text, existing["id"]),
+        )
+        return existing["id"]
+
+    cursor = db.execute(
+        """
+        INSERT INTO document_assets (
+            document_id, draft_key, object_key, url, original_filename, content_type, size,
+            linked_asset_id, owns_object, alt_text
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+        """,
+        (
+            document_id,
+            draft_key,
+            asset["object_key"],
+            asset["url"],
+            asset["original_filename"],
+            asset["content_type"],
+            asset["size"],
+            linked_asset_id,
+            alt_text,
+        ),
+    )
+    return cursor.lastrowid
+
+
 def assign_draft_assets_to_document(db, document_id, draft_key):
     if not draft_key:
         return
@@ -458,10 +551,26 @@ def assign_draft_assets_to_document(db, document_id, draft_key):
 def fetch_document_assets(db, document_id):
     return db.execute(
         """
-        SELECT id, document_id, object_key, url, original_filename, content_type, size, created_at
-        FROM document_assets
-        WHERE document_id = ?
-        ORDER BY created_at DESC, id DESC
+        SELECT
+            da.id,
+            da.document_id,
+            da.object_key,
+            da.url,
+            da.original_filename,
+            da.content_type,
+            da.size,
+            da.linked_asset_id,
+            da.owns_object,
+            da.alt_text,
+            da.created_at,
+            a.source_provider,
+            a.source_resource_id,
+            a.source_url,
+            a.checksum
+        FROM document_assets da
+        LEFT JOIN assets a ON a.id = da.linked_asset_id
+        WHERE da.document_id = ?
+        ORDER BY da.created_at DESC, da.id DESC
         """,
         (document_id,),
     ).fetchall()
@@ -470,9 +579,26 @@ def fetch_document_assets(db, document_id):
 def fetch_document_asset(db, asset_id):
     return db.execute(
         """
-        SELECT id, document_id, draft_key, object_key, url, original_filename, content_type, size, created_at
-        FROM document_assets
-        WHERE id = ?
+        SELECT
+            da.id,
+            da.document_id,
+            da.draft_key,
+            da.object_key,
+            da.url,
+            da.original_filename,
+            da.content_type,
+            da.size,
+            da.linked_asset_id,
+            da.owns_object,
+            da.alt_text,
+            da.created_at,
+            a.source_provider,
+            a.source_resource_id,
+            a.source_url,
+            a.checksum
+        FROM document_assets da
+        LEFT JOIN assets a ON a.id = da.linked_asset_id
+        WHERE da.id = ?
         """,
         (asset_id,),
     ).fetchone()

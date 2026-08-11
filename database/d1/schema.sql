@@ -70,6 +70,9 @@ CREATE TABLE document_assets (
     original_filename TEXT NOT NULL,
     content_type TEXT,
     size INTEGER NOT NULL DEFAULT 0,
+    linked_asset_id INTEGER REFERENCES assets(id) ON DELETE RESTRICT,
+    owns_object INTEGER NOT NULL DEFAULT 1,
+    alt_text TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -113,6 +116,9 @@ CREATE TABLE assets (
     content_type TEXT,
     size INTEGER NOT NULL DEFAULT 0,
     checksum TEXT DEFAULT '',
+    source_provider TEXT NOT NULL DEFAULT '',
+    source_resource_id TEXT NOT NULL DEFAULT '',
+    source_url TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT '사용 가능',
     is_hidden INTEGER NOT NULL DEFAULT 0,
     created_by INTEGER REFERENCES members(id) ON DELETE SET NULL,
@@ -180,9 +186,19 @@ CREATE INDEX idx_document_tags_tag ON document_tags(tag);
 
 CREATE INDEX idx_document_assets_document_id_created_at ON document_assets(document_id, created_at);
 CREATE INDEX idx_document_assets_draft_key ON document_assets(draft_key);
+CREATE INDEX idx_document_assets_linked_asset_id ON document_assets(linked_asset_id);
+CREATE UNIQUE INDEX idx_document_assets_document_link
+ON document_assets(document_id, linked_asset_id)
+WHERE document_id IS NOT NULL AND linked_asset_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_document_assets_draft_link
+ON document_assets(draft_key, linked_asset_id)
+WHERE draft_key IS NOT NULL AND linked_asset_id IS NOT NULL;
 CREATE INDEX idx_assets_updated_at ON assets(updated_at DESC, id DESC);
 CREATE INDEX idx_assets_status_hidden ON assets(status, is_hidden, updated_at DESC, id DESC);
 CREATE INDEX idx_assets_type_category ON assets(asset_type, category);
+CREATE UNIQUE INDEX idx_assets_external_source
+ON assets(source_provider, source_resource_id)
+WHERE source_provider != '' AND source_resource_id != '';
 CREATE INDEX idx_asset_groups_path ON asset_groups(path);
 CREATE INDEX idx_asset_tags_asset_id ON asset_tags(asset_id);
 CREATE INDEX idx_asset_tags_tag ON asset_tags(tag);

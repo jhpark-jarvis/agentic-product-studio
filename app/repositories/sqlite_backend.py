@@ -13,6 +13,7 @@ from . import wbs as wbs_queries
 from ..db import (
     assign_draft_assets_to_document,
     create_document_asset,
+    create_linked_document_asset,
     delete_document_asset,
     ensure_document_folder,
     fetch_document_asset,
@@ -123,6 +124,26 @@ class SQLiteDocumentsRepository:
             size=size,
         )
 
+    def create_linked_document_asset(
+        self,
+        *,
+        document_id: int | None,
+        draft_key: str | None,
+        linked_asset_id: int,
+        alt_text: str,
+    ):
+        asset = asset_queries.fetch_asset(linked_asset_id, self.db)
+        if not asset:
+            raise ValueError("연결할 Asset을 찾을 수 없습니다.")
+        return create_linked_document_asset(
+            self.db,
+            document_id=document_id,
+            draft_key=draft_key,
+            linked_asset_id=linked_asset_id,
+            asset=asset,
+            alt_text=alt_text,
+        )
+
     def fetch_document_assets(self, document_id: int):
         return fetch_document_assets(self.db, document_id)
 
@@ -189,6 +210,12 @@ class SQLiteAssetsRepository:
 
     def fetch_asset(self, asset_id: int):
         return asset_queries.fetch_asset(asset_id, self.db)
+
+    def fetch_asset_by_source(self, source_provider: str, source_resource_id: str):
+        return asset_queries.fetch_asset_by_source(self.db, source_provider, source_resource_id)
+
+    def count_document_links(self, asset_id: int) -> int:
+        return asset_queries.count_document_links(self.db, asset_id)
 
     def fetch_tag_options(self):
         return asset_queries.fetch_asset_tag_options(self.db)

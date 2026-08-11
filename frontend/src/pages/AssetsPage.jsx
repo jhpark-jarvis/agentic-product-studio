@@ -3,6 +3,7 @@ import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import PreviewRoundedIcon from '@mui/icons-material/PreviewRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import TravelExploreRoundedIcon from '@mui/icons-material/TravelExploreRounded'
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
 import {
   Alert,
@@ -25,11 +26,12 @@ import {
 } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
-import { apiGet } from '../api/client'
+import { apiGet, apiJson } from '../api/client'
 import { AssetGroupTree } from '../components/AssetGroupTree'
 import { EmptyState, ErrorMessage, LoadingState } from '../components/FeedbackStates'
 import { FilterPanel } from '../components/FilterPanel'
 import { PageHeader } from '../components/PageHeader'
+import { CatalogAssetSearchDialog } from '../components/CatalogAssetSearchDialog'
 import { SectionCard } from '../components/SectionCard'
 import { hiddenStatusChipSx } from '../theme'
 import { formatDateTimeKst } from '../utils/datetime'
@@ -61,6 +63,8 @@ export function AssetsPage() {
   const [error, setError] = useState('')
   const [showPreview, setShowPreview] = useState(false)
   const [selectedAssetIds, setSelectedAssetIds] = useState([])
+  const [catalogSearchOpen, setCatalogSearchOpen] = useState(false)
+  const [importMessage, setImportMessage] = useState('')
 
   const loadAssets = async (nextFilters = filters) => {
     setLoading(true)
@@ -143,6 +147,19 @@ export function AssetsPage() {
     window.location.assign(`/api/assets/download?${params.toString()}`)
   }
 
+  const importCatalogAsset = async (item) => {
+    const payload = await apiJson('/api/catalog-assets/import', {
+      body: { resource_id: item.resource_id },
+    })
+    setImportMessage(
+      payload.created
+        ? `${payload.asset.title} Asset을 R2에 저장했습니다.`
+        : `${payload.asset.title} Asset은 이미 등록되어 있습니다.`,
+    )
+    setCatalogSearchOpen(false)
+    await loadAssets({ ...filters, page: 1 })
+  }
+
   return (
     <Stack spacing={3}>
       <PageHeader
@@ -150,6 +167,8 @@ export function AssetsPage() {
         title="Assets Library"
         description="그룹별로 Assets를 정리하고, 필요한 파일만 찾아서 상세 확인과 편집으로 이어질 수 있도록 구성한 화면입니다."
       />
+
+      {importMessage ? <Alert severity="success">{importMessage}</Alert> : null}
 
       <FilterPanel
         title="Assets 필터"
@@ -178,6 +197,13 @@ export function AssetsPage() {
               to="/assets/new"
             >
               Asset 등록
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<TravelExploreRoundedIcon />}
+              onClick={() => setCatalogSearchOpen(true)}
+            >
+              CATALOG 검색
             </Button>
           </Stack>
         }
@@ -562,6 +588,13 @@ export function AssetsPage() {
           )}
         </SectionCard>
       </Box>
+
+      <CatalogAssetSearchDialog
+        open={catalogSearchOpen}
+        onClose={() => setCatalogSearchOpen(false)}
+        onSelect={importCatalogAsset}
+        actionLabel="Assets로 가져오기"
+      />
     </Stack>
   )
 }

@@ -51,6 +51,9 @@ def _asset_form_payload(payload, *, uploaded=None, existing=None):
         ),
         "size": int(uploaded["size"]) if uploaded else int(existing_data.get("size") or 0),
         "checksum": uploaded["checksum"] if uploaded else existing_data.get("checksum", ""),
+        "source_provider": existing_data.get("source_provider", ""),
+        "source_resource_id": existing_data.get("source_resource_id", ""),
+        "source_url": existing_data.get("source_url", ""),
     }
 
 
@@ -492,6 +495,11 @@ async def delete_asset_api(
     existing = provider.assets.fetch_asset(asset_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Asset not found")
+    if provider.assets.count_document_links(asset_id):
+        raise HTTPException(
+            status_code=409,
+            detail="문서에서 사용 중인 Asset은 삭제할 수 없습니다. 먼저 문서 연결을 제거해주세요.",
+        )
     provider.assets.delete_asset(asset_id)
     if sqlite_db is not None:
         sqlite_db.commit()

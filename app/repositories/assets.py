@@ -45,10 +45,10 @@ def list_assets(
         clauses.append("a.is_hidden = 0")
     if search:
         clauses.append(
-            "(a.title LIKE ? OR a.original_filename LIKE ? OR a.category LIKE ? OR a.notes LIKE ?)"
+            "(a.title LIKE ? OR a.original_filename LIKE ? OR a.category LIKE ? OR a.notes LIKE ? OR a.source_resource_id LIKE ?)"
         )
         wildcard = f"%{search}%"
-        params.extend([wildcard, wildcard, wildcard, wildcard])
+        params.extend([wildcard, wildcard, wildcard, wildcard, wildcard])
     if asset_type:
         clauses.append("a.asset_type = ?")
         params.append(asset_type)
@@ -118,6 +118,26 @@ def fetch_asset(asset_id: int, db):
         """,
         (asset_id,),
     ).fetchone()
+
+
+def fetch_asset_by_source(db, source_provider: str, source_resource_id: str):
+    return db.execute(
+        """
+        SELECT a.*, m.name AS created_by_name
+        FROM assets a
+        LEFT JOIN members m ON m.id = a.created_by
+        WHERE a.source_provider = ? AND a.source_resource_id = ?
+        """,
+        (source_provider, source_resource_id),
+    ).fetchone()
+
+
+def count_document_links(db, asset_id: int) -> int:
+    row = db.execute(
+        "SELECT COUNT(*) AS count FROM document_assets WHERE linked_asset_id = ?",
+        (asset_id,),
+    ).fetchone()
+    return int(row["count"] or 0)
 
 
 def fetch_asset_with_tags(asset_id: int, db):
@@ -359,9 +379,10 @@ def create_asset(db, data):
         """
         INSERT INTO assets (
             title, asset_type, category, file_name, original_filename, object_key, url,
-            content_type, size, checksum, status, is_hidden, created_by, notes, created_at, updated_at
+            content_type, size, checksum, source_provider, source_resource_id, source_url,
+            status, is_hidden, created_by, notes, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """,
         (
             data["title"],
@@ -374,6 +395,9 @@ def create_asset(db, data):
             data["content_type"],
             data["size"],
             data["checksum"],
+            data.get("source_provider", ""),
+            data.get("source_resource_id", ""),
+            data.get("source_url", ""),
             data["status"],
             data["is_hidden"],
             data["created_by"],
@@ -390,6 +414,7 @@ def update_asset(db, asset_id: int, data):
         UPDATE assets
         SET title = ?, asset_type = ?, category = ?, file_name = ?, original_filename = ?,
             object_key = ?, url = ?, content_type = ?, size = ?, checksum = ?,
+            source_provider = ?, source_resource_id = ?, source_url = ?,
             status = ?, is_hidden = ?, created_by = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
         """,
@@ -404,6 +429,9 @@ def update_asset(db, asset_id: int, data):
             data["content_type"],
             data["size"],
             data["checksum"],
+            data.get("source_provider", ""),
+            data.get("source_resource_id", ""),
+            data.get("source_url", ""),
             data["status"],
             data["is_hidden"],
             data["created_by"],

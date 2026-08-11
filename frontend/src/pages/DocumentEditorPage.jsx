@@ -10,6 +10,7 @@ import FormatBoldRoundedIcon from '@mui/icons-material/FormatBoldRounded'
 import LinkRoundedIcon from '@mui/icons-material/LinkRounded'
 import SaveRoundedIcon from '@mui/icons-material/SaveRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import TravelExploreRoundedIcon from '@mui/icons-material/TravelExploreRounded'
 import {
   Alert,
   Box,
@@ -40,6 +41,7 @@ import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
 import { apiForm, apiGet, apiJson, normalizeRedirectPath } from '../api/client'
 import { hiddenStatusChipSx } from '../theme'
 import { PageHeader } from '../components/PageHeader'
+import { CatalogAssetSearchDialog } from '../components/CatalogAssetSearchDialog'
 
 const initialForm = {
   asset_draft_key: '',
@@ -86,6 +88,7 @@ export function DocumentEditorPage() {
   const [searchingLinks, setSearchingLinks] = useState(false)
   const [floatingBarCollapsed, setFloatingBarCollapsed] = useState(false)
   const [deletingAssetIds, setDeletingAssetIds] = useState([])
+  const [catalogSearchOpen, setCatalogSearchOpen] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -217,6 +220,11 @@ export function DocumentEditorPage() {
     fileInputRef.current?.click()
   }
 
+  const openCatalogSearch = () => {
+    syncEditorSelection()
+    setCatalogSearchOpen(true)
+  }
+
   const focusEditorSelection = (start, end = start) => {
     const textarea = textareaRef.current
     if (!textarea) {
@@ -301,6 +309,13 @@ export function DocumentEditorPage() {
       icon: <LinkRoundedIcon fontSize="small" />,
       onClick: openLinkSearch,
     },
+    {
+      key: 'float-catalog',
+      label: 'CATALOG 에셋',
+      icon: <TravelExploreRoundedIcon fontSize="small" />,
+      onClick: openCatalogSearch,
+      disabled: uploading || saving,
+    },
   ]
 
   const insertAtCursor = (snippet, fallbackSelection = '') => {
@@ -373,6 +388,39 @@ export function DocumentEditorPage() {
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
+    }
+  }
+
+  const handleCatalogAssetInsert = async (item) => {
+    setUploading(true)
+    setStatus('CATALOG 에셋을 R2에 저장하고 문서에 연결하는 중입니다...')
+    try {
+      const payload = await apiJson('/api/catalog-assets/insert-document', {
+        body: {
+          resource_id: item.resource_id,
+          document_id: documentId ? Number(documentId) : null,
+          draft_key: form.asset_draft_key || null,
+          alt: item.name || item.parent_name || item.resource_id,
+        },
+      })
+      insertAtCursor(`\n${payload.markdown}\n`)
+      if (payload.image) {
+        setBootstrap((current) => ({
+          ...current,
+          assets: [
+            payload.image,
+            ...(current?.assets || []).filter((asset) => asset.id !== payload.image.id),
+          ],
+        }))
+      }
+      setCatalogSearchOpen(false)
+      setStatus('CATALOG 에셋을 본문에 삽입했습니다.')
+    } catch (insertError) {
+      setError(insertError.message || 'CATALOG 에셋 삽입에 실패했습니다.')
+      setStatus('CATALOG 에셋 삽입에 실패했습니다.')
+      throw insertError
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -656,6 +704,16 @@ export function DocumentEditorPage() {
                   onClick={openImagePicker}
                 >
                   이미지
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<TravelExploreRoundedIcon />}
+                  disabled={uploading || saving}
+                  onMouseDown={preserveEditorSelection}
+                  onClick={openCatalogSearch}
+                >
+                  CATALOG 에셋
                 </Button>
                 <Button
                   size="small"
@@ -960,6 +1018,14 @@ export function DocumentEditorPage() {
           </Paper>
         )}
       </Box>
+
+      <CatalogAssetSearchDialog
+        open={catalogSearchOpen}
+        onClose={() => setCatalogSearchOpen(false)}
+        onSelect={handleCatalogAssetInsert}
+        actionLabel="본문에 삽입"
+        title="문서에 External Asset Catalog 에셋 삽입"
+      />
 
       <Dialog
         open={linkSearchOpen}

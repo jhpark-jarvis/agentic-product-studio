@@ -358,10 +358,12 @@ async def bulk_documents_api(
         for document_id in existing_ids:
             assets = provider.documents.fetch_document_assets(document_id)
             for asset in assets:
-                delete_object_with_config(
-                    settings.to_config_mapping(),
-                    str(dict(asset).get("object_key") or ""),
-                )
+                asset_data = dict(asset)
+                if int(asset_data.get("owns_object", 1) or 0):
+                    delete_object_with_config(
+                        settings.to_config_mapping(),
+                        str(asset_data.get("object_key") or ""),
+                    )
             provider.documents.delete_document(document_id)
             deleted_ids.append(document_id)
         if sqlite_db is not None:
@@ -388,11 +390,13 @@ async def document_detail(document_id: int, provider=Depends(get_repository_prov
     linked_documents = provider.documents.fetch_documents_by_ids(linked_document_ids)
     linked_documents_by_id = {item["id"]: dict(item) for item in linked_documents}
 
+    serialized_assets = serialize_rows(assets)
     return {
         "document": dict(document),
         "related_tasks": serialize_rows(related_tasks),
         "tags": list(tags),
-        "assets": serialize_rows(assets),
+        "assets": serialized_assets,
+        "images": serialized_assets,
         "linked_documents": [
             linked_documents_by_id[linked_document_id]
             for linked_document_id in linked_document_ids
@@ -476,10 +480,12 @@ async def delete_document_api(
 
     assets = provider.documents.fetch_document_assets(document_id)
     for asset in assets:
-        delete_object_with_config(
-            settings.to_config_mapping(),
-            dict(asset).get("object_key") or "",
-        )
+        asset_data = dict(asset)
+        if int(asset_data.get("owns_object", 1) or 0):
+            delete_object_with_config(
+                settings.to_config_mapping(),
+                asset_data.get("object_key") or "",
+            )
     provider.documents.delete_document(document_id)
     if sqlite_db is not None:
         sqlite_db.commit()
@@ -508,10 +514,12 @@ async def delete_document_asset_api(
     if not asset or int(asset["document_id"] or 0) != document_id:
         raise HTTPException(status_code=404, detail="Document asset not found")
 
-    delete_object_with_config(
-        settings.to_config_mapping(),
-        dict(asset).get("object_key") or "",
-    )
+    asset_data = dict(asset)
+    if int(asset_data.get("owns_object", 1) or 0):
+        delete_object_with_config(
+            settings.to_config_mapping(),
+            asset_data.get("object_key") or "",
+        )
     provider.documents.delete_document_asset(asset_id)
     if sqlite_db is not None:
         sqlite_db.commit()

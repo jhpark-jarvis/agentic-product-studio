@@ -264,6 +264,9 @@ def _shadow_upsert_document_asset(
     original_filename: str,
     content_type: str,
     size: int,
+    linked_asset_id: int | None = None,
+    owns_object: int = 1,
+    alt_text: str = "",
 ):
     local_db = get_db()
     existing = local_db.execute(
@@ -278,6 +281,9 @@ def _shadow_upsert_document_asset(
         original_filename,
         content_type,
         size,
+        linked_asset_id,
+        owns_object,
+        alt_text,
         asset_id,
     )
     if existing:
@@ -285,7 +291,8 @@ def _shadow_upsert_document_asset(
             """
             UPDATE document_assets
             SET document_id = ?, draft_key = ?, object_key = ?, url = ?,
-                original_filename = ?, content_type = ?, size = ?
+                original_filename = ?, content_type = ?, size = ?, linked_asset_id = ?,
+                owns_object = ?, alt_text = ?
             WHERE id = ?
             """,
             params,
@@ -294,9 +301,10 @@ def _shadow_upsert_document_asset(
     local_db.execute(
         """
         INSERT INTO document_assets (
-            id, document_id, draft_key, object_key, url, original_filename, content_type, size, created_at
+            id, document_id, draft_key, object_key, url, original_filename, content_type, size,
+            linked_asset_id, owns_object, alt_text, created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """,
         (
             asset_id,
@@ -307,6 +315,9 @@ def _shadow_upsert_document_asset(
             original_filename,
             content_type,
             size,
+            linked_asset_id,
+            owns_object,
+            alt_text,
         ),
     )
 
@@ -329,6 +340,9 @@ def _shadow_upsert_asset(asset_id: int, data):
         data["content_type"],
         data["size"],
         data["checksum"],
+        data.get("source_provider", ""),
+        data.get("source_resource_id", ""),
+        data.get("source_url", ""),
         data["status"],
         data["is_hidden"],
         data["created_by"],
@@ -341,6 +355,7 @@ def _shadow_upsert_asset(asset_id: int, data):
             UPDATE assets
             SET title = ?, asset_type = ?, category = ?, file_name = ?, original_filename = ?,
                 object_key = ?, url = ?, content_type = ?, size = ?, checksum = ?,
+                source_provider = ?, source_resource_id = ?, source_url = ?,
                 status = ?, is_hidden = ?, created_by = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -351,9 +366,10 @@ def _shadow_upsert_asset(asset_id: int, data):
         """
         INSERT INTO assets (
             id, title, asset_type, category, file_name, original_filename, object_key, url,
-            content_type, size, checksum, status, is_hidden, created_by, notes, created_at, updated_at
+            content_type, size, checksum, source_provider, source_resource_id, source_url,
+            status, is_hidden, created_by, notes, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """,
         (
             asset_id,
@@ -367,6 +383,9 @@ def _shadow_upsert_asset(asset_id: int, data):
             data["content_type"],
             data["size"],
             data["checksum"],
+            data.get("source_provider", ""),
+            data.get("source_resource_id", ""),
+            data.get("source_url", ""),
             data["status"],
             data["is_hidden"],
             data["created_by"],
@@ -1040,6 +1059,93 @@ class D1DocumentsRepository:
         _cache_invalidate("dashboard:")
         return asset_id
 
+    def create_linked_document_asset(
+        self,
+        *,
+        document_id: int | None,
+        draft_key: str | None,
+        linked_asset_id: int,
+        alt_text: str,
+    ):
+        if document_id is None and not draft_key:
+            raise ValueError("문서 또는 draft key가 필요합니다.")
+        asset = self.client.query_first("SELECT * FROM assets WHERE id = ?", [linked_asset_id])
+        if not asset:
+            raise ValueError("연결할 Asset을 찾을 수 없습니다.")
+        if document_id is not None:
+            existing = self.client.query_first(
+                "SELECT id FROM document_assets WHERE document_id = ? AND linked_asset_id = ?",
+                [document_id, linked_asset_id],
+            )
+        else:
+            existing = self.client.query_first(
+                "SELECT id FROM document_assets WHERE draft_key = ? AND linked_asset_id = ?",
+                [draft_key, linked_asset_id],
+            )
+        if existing:
+            self.client.query(
+                "UPDATE document_assets SET alt_text = ? WHERE id = ?",
+                [alt_text, existing["id"]],
+            )
+            _shadow_upsert_asset(linked_asset_id, asset)
+            _shadow_upsert_document_asset(
+                existing["id"],
+                document_id=document_id,
+                draft_key=draft_key,
+                object_key=asset["object_key"],
+                url=asset["url"],
+                original_filename=asset["original_filename"],
+                content_type=asset["content_type"],
+                size=int(asset["size"] or 0),
+                linked_asset_id=linked_asset_id,
+                owns_object=0,
+                alt_text=alt_text,
+            )
+            if document_id is not None:
+                _cache_invalidate(f"documents:detail:{document_id}")
+            return existing["id"]
+
+        result = self.client.query(
+            """
+            INSERT INTO document_assets (
+                document_id, draft_key, object_key, url, original_filename, content_type, size,
+                linked_asset_id, owns_object, alt_text, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, CURRENT_TIMESTAMP)
+            """,
+            [
+                document_id,
+                draft_key,
+                asset["object_key"],
+                asset["url"],
+                asset["original_filename"],
+                asset["content_type"],
+                asset["size"],
+                linked_asset_id,
+                alt_text,
+            ],
+        )
+        document_asset_id = result.get("meta", {}).get("last_row_id")
+        if document_asset_id is None:
+            raise D1RepositoryError("Failed to link document asset in D1.")
+        _shadow_upsert_asset(linked_asset_id, asset)
+        _shadow_upsert_document_asset(
+            document_asset_id,
+            document_id=document_id,
+            draft_key=draft_key,
+            object_key=asset["object_key"],
+            url=asset["url"],
+            original_filename=asset["original_filename"],
+            content_type=asset["content_type"],
+            size=int(asset["size"] or 0),
+            linked_asset_id=linked_asset_id,
+            owns_object=0,
+            alt_text=alt_text,
+        )
+        if document_id is not None:
+            _cache_invalidate(f"documents:detail:{document_id}")
+        return document_asset_id
+
     def fetch_document_assets(self, document_id: int):
         cache_key = f"documents:detail:{document_id}:assets"
         cached = _cache_get(cache_key)
@@ -1049,10 +1155,14 @@ class D1DocumentsRepository:
             cache_key,
             self.client.query_rows(
             """
-            SELECT id, document_id, object_key, url, original_filename, content_type, size, created_at
-            FROM document_assets
-            WHERE document_id = ?
-            ORDER BY created_at DESC, id DESC
+            SELECT
+                da.id, da.document_id, da.object_key, da.url, da.original_filename,
+                da.content_type, da.size, da.linked_asset_id, da.owns_object, da.alt_text,
+                da.created_at, a.source_provider, a.source_resource_id, a.source_url, a.checksum
+            FROM document_assets da
+            LEFT JOIN assets a ON a.id = da.linked_asset_id
+            WHERE da.document_id = ?
+            ORDER BY da.created_at DESC, da.id DESC
             """,
             [document_id],
             ),
@@ -1061,9 +1171,14 @@ class D1DocumentsRepository:
     def fetch_document_asset(self, asset_id: int):
         return self.client.query_first(
             """
-            SELECT id, document_id, draft_key, object_key, url, original_filename, content_type, size, created_at
-            FROM document_assets
-            WHERE id = ?
+            SELECT
+                da.id, da.document_id, da.draft_key, da.object_key, da.url,
+                da.original_filename, da.content_type, da.size, da.linked_asset_id,
+                da.owns_object, da.alt_text, da.created_at, a.source_provider,
+                a.source_resource_id, a.source_url, a.checksum
+            FROM document_assets da
+            LEFT JOIN assets a ON a.id = da.linked_asset_id
+            WHERE da.id = ?
             """,
             [asset_id],
         )
@@ -1225,10 +1340,10 @@ class D1AssetsRepository:
             clauses.append("a.is_hidden = 0")
         if search:
             clauses.append(
-                "(a.title LIKE ? OR a.original_filename LIKE ? OR a.category LIKE ? OR a.notes LIKE ?)"
+                "(a.title LIKE ? OR a.original_filename LIKE ? OR a.category LIKE ? OR a.notes LIKE ? OR a.source_resource_id LIKE ?)"
             )
             wildcard = f"%{search}%"
-            params.extend([wildcard, wildcard, wildcard, wildcard])
+            params.extend([wildcard, wildcard, wildcard, wildcard, wildcard])
         if asset_type:
             clauses.append("a.asset_type = ?")
             params.append(asset_type)
@@ -1297,6 +1412,24 @@ class D1AssetsRepository:
             """,
             [asset_id],
         )
+
+    def fetch_asset_by_source(self, source_provider: str, source_resource_id: str):
+        return self.client.query_first(
+            """
+            SELECT a.*, m.name AS created_by_name
+            FROM assets a
+            LEFT JOIN members m ON m.id = a.created_by
+            WHERE a.source_provider = ? AND a.source_resource_id = ?
+            """,
+            [source_provider, source_resource_id],
+        )
+
+    def count_document_links(self, asset_id: int) -> int:
+        row = self.client.query_first(
+            "SELECT COUNT(*) AS count FROM document_assets WHERE linked_asset_id = ?",
+            [asset_id],
+        )
+        return int((row or {}).get("count", 0) or 0)
 
     def fetch_asset_with_tags(self, asset_id: int):
         asset = self.fetch_asset(asset_id)
@@ -1536,9 +1669,10 @@ class D1AssetsRepository:
             """
             INSERT INTO assets (
                 title, asset_type, category, file_name, original_filename, object_key, url,
-                content_type, size, checksum, status, is_hidden, created_by, notes, created_at, updated_at
+                content_type, size, checksum, source_provider, source_resource_id, source_url,
+                status, is_hidden, created_by, notes, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """,
             [
                 data["title"],
@@ -1551,6 +1685,9 @@ class D1AssetsRepository:
                 data["content_type"],
                 data["size"],
                 data["checksum"],
+                data.get("source_provider", ""),
+                data.get("source_resource_id", ""),
+                data.get("source_url", ""),
                 data["status"],
                 data["is_hidden"],
                 data["created_by"],
@@ -1574,6 +1711,7 @@ class D1AssetsRepository:
             UPDATE assets
             SET title = ?, asset_type = ?, category = ?, file_name = ?, original_filename = ?,
                 object_key = ?, url = ?, content_type = ?, size = ?, checksum = ?,
+                source_provider = ?, source_resource_id = ?, source_url = ?,
                 status = ?, is_hidden = ?, created_by = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -1588,6 +1726,9 @@ class D1AssetsRepository:
                 data["content_type"],
                 data["size"],
                 data["checksum"],
+                data.get("source_provider", ""),
+                data.get("source_resource_id", ""),
+                data.get("source_url", ""),
                 data["status"],
                 data["is_hidden"],
                 data["created_by"],

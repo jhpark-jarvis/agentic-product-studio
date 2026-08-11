@@ -64,11 +64,13 @@ AI Agent
   - 관련 WBS 연결
   - Markdown 렌더링
   - 이미지 업로드 및 문서 자산 연결
+  - External Asset Catalog 에셋 검색 및 R2 영구 저장 후 본문 삽입
 - Assets
   - Assets 목록 / 상세 / 등록 / 수정 / 삭제
   - 그룹(폴더) 트리 관리
   - 태그 / 상태 / 유형 / 등록자 관리
   - Cloudflare R2 또는 로컬 파일 연동
+  - External Asset Catalog 실시간 검색, PNG 변환, 중복 없는 Asset 가져오기
 - 아바타 카탈로그
   - 헤어 / 성형과 남성 / 여성 조건별 조회
   - 이름 / 기준 RESOURCE_ID / 변형 RESOURCE_ID 검색
@@ -209,6 +211,21 @@ agentic-product-studio/
 
 즉, `instance/app.db` 같은 런타임 SQLite 파일은 생성 결과물이고, 구조의 정식 기준은 위 스키마와
 migration 파일입니다.
+
+CATALOG Asset 연동은 일반 `assets`의 외부 출처 컬럼과 문서 공유 링크 메타데이터를 사용합니다.
+
+- 검색: `GET /api/catalog-assets/search?q=<검색어>`
+- 일반 Asset으로 가져오기: `POST /api/catalog-assets/import`
+- R2 저장 및 문서 삽입: `POST /api/catalog-assets/insert-document`
+- 문서 상세의 `images`: `GET /api/documents/{document_id}`
+
+CATALOG 썸네일은 서버가 RESOURCE_ID로 조회한 WebP를 검증하고 알파 채널을 유지한 PNG로 변환한 뒤
+R2 또는 로컬 스토리지에 저장합니다. 같은 RESOURCE_ID는 `source_provider`와
+`source_resource_id` 기준으로 한 번만 일반 Asset에 등록됩니다. 문서는 공유 Asset을 링크하므로
+문서를 삭제해도 일반 Asset의 R2 객체는 삭제되지 않습니다.
+
+현재 서비스에는 인증 계층이 없으므로 운영에서 쓰기 API를 공개할 때는 Cloudflare Access 등의
+보호 계층과 요청 제한을 별도로 적용해야 합니다.
 
 ## 빠른 시작
 

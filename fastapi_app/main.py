@@ -22,6 +22,7 @@ from .routers.documents import public_router as document_public_router
 from .routers.documents import router as documents_router
 from .routers.frontend import router as frontend_router
 from .routers.members import router as members_router
+from .routers.catalog_assets import router as catalog_assets_router
 from .routers.schedules import router as schedules_router
 from .routers.system import router as system_router
 from .routers.telemetry import router as telemetry_router
@@ -79,6 +80,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
     app.include_router(document_public_router)
     app.include_router(assets_router)
     app.include_router(avatar_assets_router)
+    app.include_router(catalog_assets_router)
     app.include_router(wbs_router)
     app.include_router(schedules_router)
     app.include_router(members_router)

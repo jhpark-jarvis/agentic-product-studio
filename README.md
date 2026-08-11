@@ -1,6 +1,7 @@
 # Agentic Product Studio
 
-`Agentic Product Studio`는 외부 에셋 카탈로그 개발팀이 문서, WBS, 일정, 멤버, Assets를 한 곳에서 관리하기 위한 내부 협업용 웹앱입니다.
+`Agentic Product Studio`는 외부 에셋 카탈로그 개발팀이 문서, WBS, 일정, 멤버, Assets를 관리하고
+아바타 카탈로그를 확인하기 위한 내부 협업용 웹앱입니다.
 
 이 서비스는 사용자가 브라우저에서 직접 사용하는 협업 도구이면서, 동시에 AI Agent가 기획 문서와 운영 데이터를 확인하며 개발 작업을 진행할 때 참조하는 작업 허브 역할도 합니다.
 
@@ -21,7 +22,7 @@ User
                       -> API (/api/*)
                       -> Markdown utility endpoints (/documents/*)
                       -> Cloudflare D1 / SQLite shadow
-                      -> Cloudflare R2 / local uploads fallback
+                      -> Cloudflare R2 또는 local uploads
 
 AI Agent
   -> Static guides (.docs/catalog/*)
@@ -45,7 +46,7 @@ AI Agent
 
 ## 사용자와 AI Agent의 역할
 
-- 사용자는 브라우저에서 대시보드, 문서, WBS, 일정, 멤버, 에셋 관리 화면을 직접 사용합니다.
+- 사용자는 브라우저에서 대시보드, 문서, WBS, 일정, 멤버, 에셋 관리, 아바타 카탈로그 화면을 직접 사용합니다.
 - FastAPI 앱은 React 프론트엔드와 API를 함께 서빙하며, 문서 미리보기/업로드 같은 보조 엔드포인트도 제공합니다.
 - `run.py`와 Flask blueprint는 ASGI 운영 검증이 끝날 때까지 호환 경로로 유지합니다.
 - AI Agent는 `.docs/catalog/`의 정적 가이드를 먼저 읽고, 필요하면 운영 API를 조회해 최신 문서와 데이터를 다시 확인합니다.
@@ -68,6 +69,11 @@ AI Agent
   - 그룹(폴더) 트리 관리
   - 태그 / 상태 / 유형 / 등록자 관리
   - Cloudflare R2 또는 로컬 파일 연동
+- 아바타 카탈로그
+  - 헤어 / 성형과 남성 / 여성 조건별 조회
+  - 이름 / 기준 RESOURCE_ID / 변형 RESOURCE_ID 검색
+  - 색상별 썸네일 / HEX / 내부명 확인
+  - SQLite 또는 Cloudflare D1 기반 조회
 - WBS
   - 작업 생성 / 수정 / 삭제
   - 상위 / 하위 작업 구조
@@ -94,9 +100,13 @@ AI Agent
 - `/members`
 - `/log`
 
-레거시 경로는 현재 아래처럼 리다이렉트됩니다.
+레거시 호환 경로는 현재 아래처럼 리다이렉트됩니다.
 
-- `/app/*`
+- `/app/dashboard`
+- `/app/documents/*`
+- `/app/wbs/*`
+- `/app/schedules/*`
+- `/app/members/*`
 - `/document/*`
 - `/asset/*`
 - `/task/*`
@@ -137,9 +147,11 @@ agentic-product-studio/
 ├─ frontend/
 │  ├─ src/
 │  └─ package.json
+├─ fastapi_app/                # FastAPI 앱 / API router / SPA route
 ├─ database/
 │  ├─ d1/                      # Cloudflare D1 schema / migration
 │  │  ├─ README.md
+│  │  ├─ migrations/
 │  │  └─ schema.sql
 │  └─ seeds/
 │     └─ avatar_asset_variants.csv  # 아바타 카탈로그 초기 적재 원본
@@ -152,6 +164,9 @@ agentic-product-studio/
 ├─ worker/                     # Cloudflare Worker 관련 레거시/실험 코드
 ├─ worker-python/              # Cloudflare Python Worker 관련 레거시 설정/코드
 ├─ run.py
+├─ asgi.py                     # FastAPI ASGI 엔트리포인트
+├─ fastapi_run.py              # 로컬 Uvicorn 실행 래퍼
+├─ Dockerfile                  # React build + FastAPI multi-stage image
 ├─ requirements.txt
 ├─ package.json
 ├─ wrangler.toml
@@ -175,6 +190,9 @@ agentic-product-studio/
 - `STORAGE_BACKEND=r2`
   - Cloudflare R2 사용
 
+두 storage backend는 명시적으로 선택합니다. `STORAGE_BACKEND=r2`인데 필수 R2 설정이 빠진
+경우 로컬 저장소로 자동 전환하지 않고 오류를 반환합니다.
+
 ## 스키마 기준
 
 로컬 SQLite와 D1은 DB 파일 자체보다 아래 스키마 정의를 기준으로 관리합니다.
@@ -185,8 +203,12 @@ agentic-product-studio/
 - Cloudflare D1 baseline 스키마:
   - [database/d1/schema.sql](database/d1/schema.sql)
   - Wrangler/D1 반영 시 기준이 되는 정식 SQL 스키마입니다.
+- 기존 D1 변경 migration:
+  - [database/d1/migrations/](database/d1/migrations/)
+  - 이미 운영 중인 D1에 신규 테이블과 인덱스를 추가할 때 사용합니다.
 
-즉, `instance/app.db` 같은 런타임 SQLite 파일은 생성 결과물이고, 구조의 정식 기준은 위 두 파일입니다.
+즉, `instance/app.db` 같은 런타임 SQLite 파일은 생성 결과물이고, 구조의 정식 기준은 위 스키마와
+migration 파일입니다.
 
 ## 빠른 시작
 
@@ -268,14 +290,6 @@ flask --app run.py seed-sample-data --force
 
 ### 6. 로컬 실행
 
-```bash
-python run.py
-```
-
-기본 로컬 주소:
-
-- `http://localhost:5000`
-
 FastAPI 기준으로 프론트 빌드와 서버 실행을 한 번에 하려면 PowerShell에서 아래 명령을 사용합니다.
 
 ```powershell
@@ -292,8 +306,9 @@ FastAPI 기준으로 프론트 빌드와 서버 실행을 한 번에 하려면 P
 페이지는 seed CSV를 직접 읽지 않고 `/api/avatar-assets` API를 통해 DB 데이터를 조회합니다.
 `run_local.ps1`도 실행 시 데이터를 자동으로 변경하지 않습니다.
 
-seed 데이터의 신규·변경 항목을 수동으로 UPSERT하려면 아래 명령을 사용합니다. DB에만 존재하는
-기존 항목은 삭제하지 않습니다.
+새 SQLite DB에서는 아바타 카탈로그가 비어 있습니다. 최초 한 번 아래 명령으로 seed 데이터를
+적재합니다. 이후 같은 명령을 다시 실행하면 신규·변경 항목만 UPSERT하며, DB에만 존재하는 기존
+항목은 삭제하지 않습니다.
 
 ```powershell
 flask --app run.py import-avatar-assets
@@ -314,8 +329,24 @@ flask --app run.py import-avatar-assets
 Remove-Item Env:REPOSITORY_BACKEND
 ```
 
+위 명령은 Python 의존성이 설치된 저장소 checkout에서 실행하는 방식입니다. Oracle VM의 Docker
+컨테이너 안에서 실행할 때는 이미지에 `run.py`가 포함되지 않으므로 앱 팩토리를 직접 지정합니다.
+
+```bash
+docker compose -f deployment/oracle/docker-compose.yml exec fastapi \
+  python -m flask --app app:create_app import-avatar-assets
+```
+
 일반 갱신에는 `--replace`를 붙이지 않습니다. seed에서 삭제된 항목까지 D1에서 제거해야 하는
 전체 동기화 작업에만 백업 후 `--replace`를 사용합니다.
+
+기존 Flask 호환 런타임이 필요한 경우에는 아래처럼 실행합니다.
+
+```bash
+python run.py
+```
+
+Flask 기본 로컬 주소는 `http://localhost:5000`입니다.
 
 ## 프론트 개발
 
@@ -324,6 +355,10 @@ Remove-Item Env:REPOSITORY_BACKEND
 ```bash
 npm run frontend:dev
 ```
+
+현재 Vite 개발 서버의 `/api` proxy는 Flask 호환 서버의 `http://127.0.0.1:5000`을 바라봅니다.
+따라서 이 방식에서는 별도 터미널에서 `python run.py`를 함께 실행해야 합니다. FastAPI 기준의
+통합 확인에는 `scripts/run_local.ps1`을 사용합니다.
 
 로컬에서 정적 파일을 확인해야 할 때만 아래 명령을 실행합니다.
 

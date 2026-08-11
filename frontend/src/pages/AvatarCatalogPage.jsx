@@ -159,12 +159,12 @@ export function AvatarCatalogPage() {
         onSubmit={applyFilters}
         actions={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-            <Button type="submit" variant="contained" startIcon={<SearchRoundedIcon />}>
-              필터 적용
-            </Button>
             <Chip color="primary" variant="outlined" label={`${catalog.length}개 표시`} />
             <Button variant="outlined" onClick={resetFilters} startIcon={<RefreshRoundedIcon />}>
               초기화
+            </Button>
+            <Button type="submit" variant="contained" startIcon={<SearchRoundedIcon />}>
+              필터 적용
             </Button>
           </Stack>
         }

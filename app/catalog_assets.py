@@ -112,6 +112,8 @@ def _normalize_result(raw: Mapping[str, Any]) -> dict[str, Any]:
         "resource_type": str(raw.get("type") or ""),
         "color_hex": str(payload.get("color_hex") or ""),
         "group_id": str(payload.get("group_id") or ""),
+        "group_canonical": str(payload.get("group_canonical") or "").lower()
+        in {"1", "true", "yes", "on"},
         "thumbnail_url": build_thumbnail_url(resource_id),
         "variants": variants,
     }

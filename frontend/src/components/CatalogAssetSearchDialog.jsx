@@ -3,12 +3,14 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   MenuItem,
   Paper,
   Stack,
@@ -33,11 +35,13 @@ export function CatalogAssetSearchDialog({
   onSelect,
   actionLabel = '선택',
   title = 'External Asset Catalog 에셋 검색',
+  enableAvatarCatalog = false,
 }) {
   const [query, setQuery] = useState('')
   const [items, setItems] = useState([])
   const [pagination, setPagination] = useState(null)
   const [selectedResourceIdByGroup, setSelectedResourceIdByGroup] = useState({})
+  const [catalogOptionsByGroup, setCatalogOptionsByGroup] = useState({})
   const [loading, setLoading] = useState(false)
   const [selectingResourceId, setSelectingResourceId] = useState('')
   const [error, setError] = useState('')
@@ -105,7 +109,12 @@ export function CatalogAssetSearchDialog({
     const groupKey = item.group_id || item.resource_id
     const selectedResourceId = selectedResourceIdByGroup[groupKey] || defaultVariant(item)?.resource_id
     const variant = item.variants?.find((candidate) => candidate.resource_id === selectedResourceId) || defaultVariant(item)
+    const catalogOption = catalogOptionsByGroup[groupKey] || { enabled: false, gender: '' }
     if (!variant) {
+      return
+    }
+    if (catalogOption.enabled && !catalogOption.gender) {
+      setError('아바타 카탈로그에 추가하려면 성별을 선택해주세요.')
       return
     }
     setSelectingResourceId(variant.resource_id)
@@ -116,6 +125,8 @@ export function CatalogAssetSearchDialog({
         category: item.category,
         group_id: item.group_id,
         parent_name: item.name,
+        add_to_avatar_catalog: catalogOption.enabled,
+        gender: catalogOption.gender || null,
       })
     } catch (selectError) {
       setError(selectError.message)
@@ -164,6 +175,8 @@ export function CatalogAssetSearchDialog({
               const groupKey = item.group_id || item.resource_id
               const selectedResourceId = selectedResourceIdByGroup[groupKey] || defaultVariant(item)?.resource_id
               const variant = item.variants?.find((candidate) => candidate.resource_id === selectedResourceId) || defaultVariant(item)
+              const catalogOption = catalogOptionsByGroup[groupKey] || { enabled: false, gender: '' }
+              const supportsAvatarCatalog = enableAvatarCatalog && ['hair', 'face'].includes(item.category)
               return (
                 <Paper key={groupKey} variant="outlined" sx={{ p: 2 }}>
                   <Stack spacing={1.5}>
@@ -191,9 +204,42 @@ export function CatalogAssetSearchDialog({
                         </MenuItem>
                       ))}
                     </TextField>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>
-                      {variant?.resource_id}
-                    </Typography>
+                    {supportsAvatarCatalog ? (
+                      <Stack spacing={1}>
+                        <FormControlLabel
+                          control={(
+                            <Checkbox
+                              checked={catalogOption.enabled}
+                              onChange={(event) => setCatalogOptionsByGroup((current) => ({
+                                ...current,
+                                [groupKey]: { ...catalogOption, enabled: event.target.checked },
+                              }))}
+                            />
+                          )}
+                          label="아바타 카탈로그에도 추가"
+                        />
+                        <TextField
+                          select
+                          size="small"
+                          label="카탈로그 성별"
+                          value={catalogOption.gender}
+                          disabled={!catalogOption.enabled}
+                          onChange={(event) => setCatalogOptionsByGroup((current) => ({
+                            ...current,
+                            [groupKey]: { ...catalogOption, gender: event.target.value },
+                          }))}
+                        >
+                          <MenuItem value="male">남성</MenuItem>
+                          <MenuItem value="female">여성</MenuItem>
+                        </TextField>
+                      </Stack>
+                    ) : null}
+                    <Stack direction="row" spacing={0.75} alignItems="center">
+                      <Chip size="small" color="info" variant="outlined" label="RESOURCE_ID" />
+                      <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>
+                        {variant?.resource_id}
+                      </Typography>
+                    </Stack>
                     <Button
                       variant="contained"
                       onClick={() => selectItem(item)}

@@ -134,6 +134,21 @@ def fetch_avatar_catalog_summary(db):
     }
 
 
+def fetch_avatar_catalog_group(db, *, asset_type: str, gender: str, group_id: str):
+    if not group_id:
+        return None
+    return db.execute(
+        """
+        SELECT *
+        FROM avatar_assets
+        WHERE asset_type = ? AND gender = ? AND group_id = ?
+        ORDER BY id ASC
+        LIMIT 1
+        """,
+        (asset_type, gender, group_id),
+    ).fetchone()
+
+
 def _as_bool(value):
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 

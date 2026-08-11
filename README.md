@@ -71,6 +71,7 @@ AI Agent
   - 태그 / 상태 / 유형 / 등록자 관리
   - Cloudflare R2 또는 로컬 파일 연동
   - External Asset Catalog 실시간 검색, PNG 변환, 중복 없는 Asset 가져오기
+  - 헤어·성형 가져오기 시 성별을 지정해 전체 색상 그룹을 아바타 카탈로그에 선택적으로 UPSERT
 - 아바타 카탈로그
   - 헤어 / 성형과 남성 / 여성 조건별 조회
   - 이름 / 기준 RESOURCE_ID / 변형 RESOURCE_ID 검색
@@ -223,6 +224,11 @@ CATALOG 썸네일은 서버가 RESOURCE_ID로 조회한 WebP를 검증하고 알
 R2 또는 로컬 스토리지에 저장합니다. 같은 RESOURCE_ID는 `source_provider`와
 `source_resource_id` 기준으로 한 번만 일반 Asset에 등록됩니다. 문서는 공유 Asset을 링크하므로
 문서를 삭제해도 일반 Asset의 R2 객체는 삭제되지 않습니다.
+
+헤어·성형을 일반 Asset으로 가져올 때 `add_to_avatar_catalog: true`와 `gender: male|female`을
+함께 보내면 선택한 색상의 PNG만 스토리지에 저장하고, CATALOG `group_members`의 전체 색상
+메타데이터는 `avatar_assets`와 `avatar_asset_variants`에 UPSERT합니다. 동일한 성별·그룹이
+이미 있으면 기존 기준 RESOURCE_ID를 유지해 중복 그룹 생성을 방지합니다.
 
 현재 서비스에는 인증 계층이 없으므로 운영에서 쓰기 API를 공개할 때는 Cloudflare Access 등의
 보호 계층과 요청 제한을 별도로 적용해야 합니다.

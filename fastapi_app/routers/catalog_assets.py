@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -26,11 +26,16 @@ SOURCE_PROVIDER = "studiostory_worlds"
 CATEGORY_LABELS = {"hair": "헤어", "face": "성형"}
 
 
-class CatalogAssetImportRequest(BaseModel):
+class CatalogResourceIdRequest(BaseModel):
     resource_id: str = Field(min_length=32, max_length=32)
 
 
-class CatalogDocumentAssetRequest(CatalogAssetImportRequest):
+class CatalogAssetImportRequest(CatalogResourceIdRequest):
+    add_to_avatar_catalog: bool = False
+    gender: Literal["male", "female"] | None = None
+
+
+class CatalogDocumentAssetRequest(CatalogResourceIdRequest):
     document_id: int | None = Field(default=None, ge=1)
     draft_key: str | None = Field(default=None, max_length=100)
     alt: str = Field(default="", max_length=200)
@@ -87,7 +92,7 @@ async def _import_asset(*, resource_id: str, provider, settings):
     normalized_resource_id = validate_resource_id(resource_id)
     existing = provider.assets.fetch_asset_by_source(SOURCE_PROVIDER, normalized_resource_id)
     if existing:
-        return existing, False
+        return existing, False, None
 
     item, downloaded, stored = await asyncio.to_thread(
         _download_and_store_asset,
@@ -109,7 +114,84 @@ async def _import_asset(*, resource_id: str, provider, settings):
             logger.exception("Failed to roll back CATALOG asset object %s", stored["object_key"])
         raise
     asset = provider.assets.fetch_asset(asset_id)
-    return asset, True
+    return asset, True, item
+
+
+def _avatar_catalog_records(item, *, gender: str, master_resource_id: str, existing_group=None):
+    existing = dict(existing_group) if existing_group is not None else {}
+    variants = list(item.get("variants") or [])
+    if not variants:
+        variants = [
+            {
+                "resource_id": item["resource_id"],
+                "name": item.get("name") or item["resource_id"],
+                "dname": item.get("dname") or "",
+                "color_hex": item.get("color_hex") or "",
+                "thumbnail_url": item["thumbnail_url"],
+            }
+        ]
+    master_variant = next(
+        (variant for variant in variants if variant["resource_id"] == master_resource_id),
+        None,
+    )
+    return [
+        {
+            "asset_type": item["category"],
+            "gender": gender,
+            "name": existing.get("name") or item.get("name") or master_resource_id,
+            "source_index": int(existing.get("source_index") or 0),
+            "availability": existing.get("availability") or "CATALOG 검색",
+            "match_status": existing.get("match_status") or "검색 추가",
+            "series": existing.get("series") or "",
+            "confidence": existing.get("confidence") or "",
+            "master_resource_id": master_resource_id,
+            "group_id": item.get("group_id") or "",
+            "group_size": len(variants),
+            "master_color_hex": (
+                existing.get("master_color_hex")
+                or (master_variant or {}).get("color_hex")
+                or ""
+            ),
+            "master_is_group_canonical": (
+                existing.get("master_is_group_canonical")
+                if existing
+                else item.get("group_canonical") if item["resource_id"] == master_resource_id else False
+            ),
+            "variant_resource_id": variant["resource_id"],
+            "thumbnail_url": variant["thumbnail_url"],
+            "hex_code": variant.get("color_hex") or "",
+            "variant_name": variant.get("name") or variant["resource_id"],
+            "dname": variant.get("dname") or "",
+        }
+        for variant in variants
+    ]
+
+
+def _sync_avatar_catalog(*, item, gender: str, provider):
+    category = item.get("category") or ""
+    if category not in CATEGORY_LABELS:
+        raise CatalogAssetError("헤어 또는 성형 에셋만 아바타 카탈로그에 추가할 수 있습니다.")
+    existing_group = provider.avatar_assets.fetch_catalog_group(
+        asset_type=category,
+        gender=gender,
+        group_id=item.get("group_id") or "",
+    )
+    master_resource_id = (
+        existing_group["master_resource_id"] if existing_group is not None else item["resource_id"]
+    )
+    records = _avatar_catalog_records(
+        item,
+        gender=gender,
+        master_resource_id=master_resource_id,
+        existing_group=existing_group,
+    )
+    result = provider.avatar_assets.replace_catalog(records, replace=False)
+    return {
+        "gender": gender,
+        "asset_type": category,
+        "group_id": item.get("group_id") or "",
+        **result,
+    }
 
 
 def _markdown_alt(value: str, fallback: str) -> str:
@@ -132,16 +214,31 @@ async def import_asset(
     sqlite_db=Depends(get_runtime_sqlite_db),
 ):
     try:
-        asset, created = await _import_asset(
+        asset, created, source_item = await _import_asset(
             resource_id=payload.resource_id,
             provider=provider,
             settings=settings,
         )
+        catalog_result = None
+        if payload.add_to_avatar_catalog:
+            if payload.gender is None:
+                raise CatalogAssetError("아바타 카탈로그에 추가하려면 성별을 선택해주세요.")
+            if source_item is None:
+                source_item = await asyncio.to_thread(fetch_catalog_asset, payload.resource_id)
+            catalog_result = _sync_avatar_catalog(
+                item=source_item,
+                gender=payload.gender,
+                provider=provider,
+            )
     except CatalogAssetError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if sqlite_db is not None:
         sqlite_db.commit()
-    return {"asset": _serialize(asset), "created": created}
+    return {
+        "asset": _serialize(asset),
+        "created": created,
+        "avatar_catalog": catalog_result,
+    }
 
 
 @router.post("/insert-document")
@@ -162,7 +259,7 @@ async def insert_document_asset(
             raise HTTPException(status_code=404, detail="Document not found")
 
     try:
-        asset, created = await _import_asset(
+        asset, created, _source_item = await _import_asset(
             resource_id=payload.resource_id,
             provider=provider,
             settings=settings,

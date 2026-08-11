@@ -1780,6 +1780,20 @@ class D1AvatarAssetsRepository:
             "face_count": int(row.get("face_count") or 0),
         }
 
+    def fetch_catalog_group(self, *, asset_type: str, gender: str, group_id: str):
+        if not group_id:
+            return None
+        return self.client.query_first(
+            """
+            SELECT *
+            FROM avatar_assets
+            WHERE asset_type = ? AND gender = ? AND group_id = ?
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            [asset_type, gender, group_id],
+        )
+
     def replace_catalog(self, records, *, replace: bool):
         if replace:
             self.client.query("DELETE FROM avatar_asset_variants")

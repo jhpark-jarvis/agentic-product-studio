@@ -266,6 +266,14 @@ class SQLiteAvatarAssetsRepository:
     def fetch_catalog_summary(self):
         return avatar_asset_queries.fetch_avatar_catalog_summary(self.db)
 
+    def fetch_catalog_group(self, *, asset_type: str, gender: str, group_id: str):
+        return avatar_asset_queries.fetch_avatar_catalog_group(
+            self.db,
+            asset_type=asset_type,
+            gender=gender,
+            group_id=group_id,
+        )
+
     def replace_catalog(self, records, *, replace: bool):
         return avatar_asset_queries.replace_avatar_catalog(self.db, records, replace=replace)
 

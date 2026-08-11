@@ -149,12 +149,19 @@ export function AssetsPage() {
 
   const importCatalogAsset = async (item) => {
     const payload = await apiJson('/api/catalog-assets/import', {
-      body: { resource_id: item.resource_id },
+      body: {
+        resource_id: item.resource_id,
+        add_to_avatar_catalog: item.add_to_avatar_catalog,
+        gender: item.gender,
+      },
     })
+    const catalogMessage = payload.avatar_catalog
+      ? ` 아바타 카탈로그에 ${payload.avatar_catalog.variant_count}개 색상도 반영했습니다.`
+      : ''
     setImportMessage(
       payload.created
-        ? `${payload.asset.title} Asset을 R2에 저장했습니다.`
-        : `${payload.asset.title} Asset은 이미 등록되어 있습니다.`,
+        ? `${payload.asset.title} Asset을 R2에 저장했습니다.${catalogMessage}`
+        : `${payload.asset.title} Asset은 이미 등록되어 있습니다.${catalogMessage}`,
     )
     setCatalogSearchOpen(false)
     await loadAssets({ ...filters, page: 1 })
@@ -594,6 +601,7 @@ export function AssetsPage() {
         onClose={() => setCatalogSearchOpen(false)}
         onSelect={importCatalogAsset}
         actionLabel="Assets로 가져오기"
+        enableAvatarCatalog
       />
     </Stack>
   )

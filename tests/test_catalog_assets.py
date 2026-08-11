@@ -13,7 +13,7 @@ from PIL import Image
 
 from app.db import initialize_database
 from app.catalog_assets import download_catalog_thumbnail_png, search_catalog_assets
-from fastapi_app.routers.catalog_assets import _import_asset
+from fastapi_app.routers.catalog_assets import _import_asset, _sync_avatar_catalog
 
 
 class FakeResponse(BytesIO):
@@ -73,16 +73,75 @@ class CatalogAssetsTests(unittest.TestCase):
             "fastapi_app.routers.catalog_assets._download_and_store_asset",
             side_effect=prepare_asset,
         ):
-            asset, created = asyncio.run(
+            asset, created, source_item = asyncio.run(
                 _import_asset(resource_id="d" * 32, provider=provider, settings=settings)
             )
 
         self.assertTrue(created)
         self.assertEqual(7, asset["id"])
+        self.assertEqual("d" * 32, source_item["resource_id"])
         self.assertTrue(repository_thread_ids)
         self.assertTrue(all(thread_id == request_thread_id for thread_id in repository_thread_ids))
         self.assertTrue(worker_thread_ids)
         self.assertNotEqual(request_thread_id, worker_thread_ids[0])
+
+    def test_avatar_catalog_sync_upserts_every_group_member(self):
+        selected_resource_id = "a" * 32
+        existing_master_resource_id = "b" * 32
+        records_written = []
+        replace_values = []
+
+        class AvatarRepository:
+            def fetch_catalog_group(self, **_kwargs):
+                return {
+                    "master_resource_id": existing_master_resource_id,
+                    "name": "기존 카탈로그 이름",
+                    "source_index": 3,
+                }
+
+            def replace_catalog(self, records, *, replace):
+                replace_values.append(replace)
+                records_written.extend(records)
+                return {"asset_count": 1, "variant_count": len(records)}
+
+        provider = SimpleNamespace(avatar_assets=AvatarRepository())
+        item = {
+            "resource_id": selected_resource_id,
+            "name": "테스트 헤어",
+            "category": "hair",
+            "group_id": "hair:test",
+            "group_canonical": False,
+            "variants": [
+                {
+                    "resource_id": selected_resource_id,
+                    "name": "검은색 테스트 헤어",
+                    "dname": "hair-1",
+                    "color_hex": "#111111",
+                    "thumbnail_url": "https://example.test/a.webp",
+                },
+                {
+                    "resource_id": existing_master_resource_id,
+                    "name": "갈색 테스트 헤어",
+                    "dname": "hair-2",
+                    "color_hex": "#222222",
+                    "thumbnail_url": "https://example.test/b.webp",
+                },
+            ],
+        }
+
+        result = _sync_avatar_catalog(item=item, gender="female", provider=provider)
+
+        self.assertEqual(2, result["variant_count"])
+        self.assertEqual([False], replace_values)
+        self.assertEqual({selected_resource_id, existing_master_resource_id}, {
+            record["variant_resource_id"] for record in records_written
+        })
+        self.assertTrue(all(
+            record["master_resource_id"] == existing_master_resource_id for record in records_written
+        ))
+        self.assertTrue(all(
+            record["name"] == "기존 카탈로그 이름" for record in records_written
+        ))
 
     def test_initialize_database_migrates_existing_asset_tables_before_creating_indexes(self):
         db = sqlite3.connect(":memory:")

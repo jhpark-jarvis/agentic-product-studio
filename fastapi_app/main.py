@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
 from app.db import (
@@ -27,6 +27,17 @@ from .routers.schedules import router as schedules_router
 from .routers.system import router as system_router
 from .routers.telemetry import router as telemetry_router
 from .routers.wbs import router as wbs_router
+
+
+SEARCH_EXCLUSION_DIRECTIVE = "noindex, nofollow, noarchive"
+
+
+def install_search_exclusion_headers(app: FastAPI) -> None:
+    @app.middleware("http")
+    async def add_search_exclusion_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Robots-Tag"] = SEARCH_EXCLUSION_DIRECTIVE
+        return response
 
 
 @asynccontextmanager
@@ -63,6 +74,7 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         version="0.1.0-fastapi",
         lifespan=lifespan,
     )
+    install_search_exclusion_headers(app)
     app.state.settings = resolved_settings
     app.mount(
         "/static",

@@ -1,0 +1,19 @@
+name = "agentic-product-studio-python"
+main = "src/entry.py"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["python_workers"]
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "your-d1-database-name"
+database_id = "your-d1-database-id"
+
+[[r2_buckets]]
+binding = "DOCUMENT_IMAGES"
+bucket_name = "your-r2-bucket-name"
+
+[vars]
+R2_PUBLIC_BASE_URL = "https://pub-your-r2-public-host.r2.dev"

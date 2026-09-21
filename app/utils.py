@@ -26,7 +26,7 @@ SQL_ALIASES = {"sql", "mysql", "postgresql", "sqlite"}
 YAML_ALIASES = {"yaml", "yml"}
 HTML_ALIASES = {"html", "htm", "xml", "svg"}
 DEFAULT_TIMEZONE = "Asia/Seoul"
-WBS_PLATFORM_OPTIONS = ["Agentic Product Studio", "외부 에셋 카탈로그(게임 제작)"]
+WBS_PLATFORM_OPTIONS = ["Agentic Product Studio", "Client Product"]
 
 
 def parse_date(value: str | None) -> date | None:

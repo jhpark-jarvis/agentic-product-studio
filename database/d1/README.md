@@ -224,22 +224,22 @@ WBS 작업의 핵심 테이블입니다.
 
 ### 10. `assets`
 
-일반 파일과 CATALOG에서 가져온 공유 이미지를 관리하는 자산 테이블입니다.
+일반 파일과 외부 카탈로그에서 가져온 공유 이미지를 관리하는 자산 테이블입니다.
 
 외부 Asset 주요 컬럼:
 
-- `source_provider`: 외부 출처. CATALOG는 `studiostory_worlds`
-- `source_resource_id`: CATALOG variant RESOURCE_ID
+- `source_provider`: 외부 출처. 공개 예시는 `external_catalog`
+- `source_resource_id`: 외부 카탈로그의 변형 리소스 ID
 - `source_url`: 최초 썸네일 API URL
 
-`(source_provider, source_resource_id)` 고유 인덱스로 같은 CATALOG 에셋의 중복 R2 저장을 방지합니다.
+`(source_provider, source_resource_id)` 고유 인덱스로 같은 외부 에셋의 중복 R2 저장을 방지합니다.
 
 ### 11. `avatar_assets` / `avatar_asset_variants`
 
 아바타 헤어·성형 기준 외형과 색상 변형을 정규화해 저장합니다.
 
-- `avatar_assets`: 성별별 기준 외형과 master RESOURCE_ID
-- `avatar_asset_variants`: 기준 외형에 속한 색상별 RESOURCE_ID, HEX, 썸네일 URL
+- `avatar_assets`: 성별별 기준 외형과 master resource ID
+- `avatar_asset_variants`: 기준 외형에 속한 색상별 resource ID, HEX, 썸네일 URL
 - 화면은 `/api/avatar-assets`를 통해 이 테이블을 조회합니다.
 
 ## 인덱스 전략

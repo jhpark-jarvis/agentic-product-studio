@@ -140,7 +140,7 @@ export function AvatarCatalogPage() {
       <PageHeader
         eyebrow="AVATAR ASSETS"
         title="Avatar Asset Catalog"
-        description="CATALOG Resource Search에서 검증한 헤어·성형 색상 변형 데이터입니다. 썸네일은 원본 API URL을 사용해 바로 확인할 수 있습니다."
+        description="외부 카탈로그에서 가져온 헤어·성형 색상 변형 데이터입니다. 썸네일은 원본 API URL을 사용해 바로 확인할 수 있습니다."
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2 }}>
@@ -171,7 +171,7 @@ export function AvatarCatalogPage() {
       >
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(260px, 1.4fr) 1fr 1fr' }, gap: 2 }}>
           <TextField
-            label="이름 또는 RESOURCE_ID 검색"
+            label="이름 또는 Resource ID 검색"
             value={filters.q}
             onChange={(event) => setFilters((current) => ({ ...current, q: event.target.value }))}
             placeholder="예: 히어로 헤어"
@@ -201,7 +201,7 @@ export function AvatarCatalogPage() {
 
       <SectionCard
         title="외형 목록"
-        description="색상칩을 누르면 카드의 미리보기가 바뀌고, 카드를 누르면 각 변형의 RESOURCE_ID와 원본 썸네일을 확인할 수 있습니다."
+        description="색상칩을 누르면 카드의 미리보기가 바뀌고, 카드를 누르면 각 변형의 Resource ID와 원본 썸네일을 확인할 수 있습니다."
         metric={`${catalog.length}개 외형`}
       >
         <ErrorMessage message={error} sx={{ px: 3, pb: 3 }} />
@@ -304,8 +304,8 @@ export function AvatarCatalogPage() {
                 <Stack spacing={0.75}>
                   <Typography variant="body2" color="text.secondary">선택 색상: {selectedVariant.name || '-'}</Typography>
                   <Typography variant="body2" color="text.secondary">HEX: {selectedVariant.hex_code || '-'}</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>변형 RESOURCE_ID: {selectedVariant.resource_id}</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>기준 RESOURCE_ID: {selectedAsset.master_resource_id}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>변형 Resource ID: {selectedVariant.resource_id}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>기준 Resource ID: {selectedAsset.master_resource_id}</Typography>
                   <Typography variant="body2" color="text.secondary">내부명: {selectedVariant.dname || '-'}</Typography>
                 </Stack>
                 <Button component="a" href={selectedVariant.thumbnail_url} target="_blank" rel="noreferrer" variant="outlined" startIcon={<OpenInNewRoundedIcon />} sx={{ alignSelf: 'flex-start' }}>

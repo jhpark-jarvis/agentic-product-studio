@@ -34,7 +34,7 @@ export function CatalogAssetSearchDialog({
   onClose,
   onSelect,
   actionLabel = '선택',
-  title = 'External Asset Catalog 에셋 검색',
+  title = '외부 카탈로그 에셋 검색',
   enableAvatarCatalog = false,
 }) {
   const [query, setQuery] = useState('')
@@ -160,7 +160,7 @@ export function CatalogAssetSearchDialog({
           <TextField
             autoFocus
             fullWidth
-            label="에셋 이름 또는 RESOURCE_ID"
+            label="에셋 이름 또는 Resource ID"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
@@ -225,7 +225,7 @@ export function CatalogAssetSearchDialog({
                       ))}
                     </TextField>
                     <Box sx={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', gap: 1, alignItems: 'center' }}>
-                      <Chip size="small" color="info" variant="outlined" label="RESOURCE_ID" />
+                      <Chip size="small" color="info" variant="outlined" label="Resource ID" />
                       <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', lineHeight: 1.4, wordBreak: 'break-all' }}>
                         {variant?.resource_id}
                       </Typography>
@@ -274,7 +274,7 @@ export function CatalogAssetSearchDialog({
           <Stack spacing={0.5}>
             <Typography fontWeight={800}>{pendingSelection?.name}</Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', gap: 1, alignItems: 'center' }}>
-              <Chip size="small" color="info" variant="outlined" label="RESOURCE_ID" />
+              <Chip size="small" color="info" variant="outlined" label="Resource ID" />
               <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
                 {pendingSelection?.resource_id}
               </Typography>

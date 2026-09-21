@@ -210,7 +210,7 @@ export function AssetsPage() {
               startIcon={<TravelExploreRoundedIcon />}
               onClick={() => setCatalogSearchOpen(true)}
             >
-              CATALOG 검색
+              외부 카탈로그 검색
             </Button>
           </Stack>
         }

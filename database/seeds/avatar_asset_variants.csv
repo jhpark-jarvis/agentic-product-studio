@@ -1,0 +1,5 @@
+asset_type,gender,name,master_resource_id,variant_resource_id,thumbnail_url,hex_code,dname
+hair,female,Demo Wave,00000000000000000000000000000001,00000000000000000000000000000001,https://images.example.com/avatar/demo-wave-brown.png,#6B4F3A,brown
+hair,female,Demo Wave,00000000000000000000000000000001,00000000000000000000000000000002,https://images.example.com/avatar/demo-wave-blue.png,#4F6FA8,blue
+face,male,Demo Smile,00000000000000000000000000000003,00000000000000000000000000000003,https://images.example.com/avatar/demo-smile-neutral.png,#8A6A5A,neutral
+face,male,Demo Smile,00000000000000000000000000000003,00000000000000000000000000000004,https://images.example.com/avatar/demo-smile-warm.png,#B66D54,warm

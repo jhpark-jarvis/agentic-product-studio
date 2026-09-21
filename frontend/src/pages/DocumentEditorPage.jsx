@@ -311,7 +311,7 @@ export function DocumentEditorPage() {
     },
     {
       key: 'float-catalog',
-      label: 'CATALOG 에셋',
+      label: '외부 카탈로그 에셋',
       icon: <TravelExploreRoundedIcon fontSize="small" />,
       onClick: openCatalogSearch,
       disabled: uploading || saving,
@@ -393,7 +393,7 @@ export function DocumentEditorPage() {
 
   const handleCatalogAssetInsert = async (item) => {
     setUploading(true)
-    setStatus('CATALOG 에셋을 R2에 저장하고 문서에 연결하는 중입니다...')
+    setStatus('외부 카탈로그 에셋을 R2에 저장하고 문서에 연결하는 중입니다...')
     try {
       const payload = await apiJson('/api/catalog-assets/insert-document', {
         body: {
@@ -414,10 +414,10 @@ export function DocumentEditorPage() {
         }))
       }
       setCatalogSearchOpen(false)
-      setStatus('CATALOG 에셋을 본문에 삽입했습니다.')
+      setStatus('외부 카탈로그 에셋을 본문에 삽입했습니다.')
     } catch (insertError) {
-      setError(insertError.message || 'CATALOG 에셋 삽입에 실패했습니다.')
-      setStatus('CATALOG 에셋 삽입에 실패했습니다.')
+      setError(insertError.message || '외부 카탈로그 에셋 삽입에 실패했습니다.')
+      setStatus('외부 카탈로그 에셋 삽입에 실패했습니다.')
       throw insertError
     } finally {
       setUploading(false)
@@ -713,7 +713,7 @@ export function DocumentEditorPage() {
                   onMouseDown={preserveEditorSelection}
                   onClick={openCatalogSearch}
                 >
-                  CATALOG 에셋
+                  외부 카탈로그 에셋
                 </Button>
                 <Button
                   size="small"
@@ -1024,7 +1024,7 @@ export function DocumentEditorPage() {
         onClose={() => setCatalogSearchOpen(false)}
         onSelect={handleCatalogAssetInsert}
         actionLabel="본문에 삽입"
-        title="문서에 External Asset Catalog 에셋 삽입"
+        title="문서에 외부 카탈로그 에셋 삽입"
       />
 
       <Dialog

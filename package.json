@@ -1,7 +1,7 @@
 {
   "name": "agentic-product-studio",
   "version": "1.0.0",
-  "description": "`Agentic Product Studio`는 외부 에셋 카탈로그 개발팀을 위한 내부 협업용 웹앱입니다.",
+  "description": "Human-and-AI product collaboration hub for documents, planning, schedules, members, and assets.",
   "main": "index.js",
   "scripts": {
     "cf:deploy": "wrangler deploy",

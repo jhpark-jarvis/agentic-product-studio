@@ -22,7 +22,7 @@ from ..dependencies import get_repository_provider, get_runtime_sqlite_db, get_s
 
 router = APIRouter(prefix="/api/catalog-assets", tags=["catalog-assets"])
 logger = logging.getLogger(__name__)
-SOURCE_PROVIDER = "studiostory_worlds"
+SOURCE_PROVIDER = "external_catalog"
 CATEGORY_LABELS = {"hair": "헤어", "face": "성형"}
 
 
@@ -53,11 +53,11 @@ def _asset_data(item, uploaded):
         "title": item["name"] or resource_id,
         "asset_type": "sprite",
         "category": f"External Asset Catalog/{category_label}",
-        "tags": f"External Asset Catalog,{category_label},RESOURCE_ID",
+        "tags": f"External Asset Catalog,{category_label},resource-id",
         "status": ASSET_STATUSES[0],
         "is_hidden": 0,
         "created_by": None,
-        "notes": f"External Asset Catalog Resource Search에서 가져온 에셋입니다.\nRESOURCE_ID: {resource_id}",
+        "notes": f"외부 카탈로그에서 가져온 에셋입니다.\nResource ID: {resource_id}",
         "file_name": uploaded["filename"],
         "original_filename": uploaded["filename"],
         "object_key": uploaded["object_key"],
@@ -111,7 +111,7 @@ async def _import_asset(*, resource_id: str, provider, settings):
                 stored["object_key"],
             )
         except Exception:
-            logger.exception("Failed to roll back CATALOG asset object %s", stored["object_key"])
+            logger.exception("Failed to roll back catalog asset object %s", stored["object_key"])
         raise
     asset = provider.assets.fetch_asset(asset_id)
     return asset, True, item
@@ -140,7 +140,7 @@ def _avatar_catalog_records(item, *, gender: str, master_resource_id: str, exist
             "gender": gender,
             "name": existing.get("name") or item.get("name") or master_resource_id,
             "source_index": int(existing.get("source_index") or 0),
-            "availability": existing.get("availability") or "CATALOG 검색",
+            "availability": existing.get("availability") or "외부 카탈로그",
             "match_status": existing.get("match_status") or "검색 추가",
             "series": existing.get("series") or "",
             "confidence": existing.get("confidence") or "",

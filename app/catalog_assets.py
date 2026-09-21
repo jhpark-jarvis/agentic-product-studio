@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from io import BytesIO
 import json
+import os
 import re
 from typing import Any, Mapping
 from urllib.error import HTTPError, URLError
@@ -10,10 +11,13 @@ from urllib.request import Request, urlopen
 from PIL import Image, UnidentifiedImageError
 
 
-SEARCH_URL = "https://catalog.example.com/api/v3/search/resources"
-THUMBNAIL_URL_TEMPLATE = (
-    "https://catalog.example.com/"
-    "api/v3/resources/thumbnail/{resource_id}.webp"
+SEARCH_URL = os.getenv(
+    "EXTERNAL_CATALOG_SEARCH_URL",
+    "https://catalog.example.com/api/v1/search",
+)
+THUMBNAIL_URL_TEMPLATE = os.getenv(
+    "EXTERNAL_CATALOG_THUMBNAIL_URL_TEMPLATE",
+    "https://catalog.example.com/api/v1/assets/{resource_id}/thumbnail.webp",
 )
 RESOURCE_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
 MAX_SEARCH_LIMIT = 30
@@ -26,7 +30,7 @@ class CatalogAssetError(RuntimeError):
 def validate_resource_id(resource_id: str) -> str:
     normalized = str(resource_id or "").strip().lower()
     if not RESOURCE_ID_PATTERN.fullmatch(normalized):
-        raise CatalogAssetError("RESOURCE_ID는 32자리 소문자 16진수여야 합니다.")
+        raise CatalogAssetError("Resource ID는 32자리 소문자 16진수여야 합니다.")
     return normalized
 
 
@@ -58,7 +62,7 @@ def _search_request(query: str, *, limit: int, offset: int, timeout: float) -> d
         headers={
             "Content-Type": "application/json; charset=utf-8",
             "Accept": "application/json",
-            "User-Agent": "agentic-product-studio/1.0",
+            "User-Agent": "agentic-product-studio/portfolio",
         },
         method="POST",
     )
@@ -66,9 +70,9 @@ def _search_request(query: str, *, limit: int, offset: int, timeout: float) -> d
         with urlopen(request, timeout=timeout) as response:
             payload = json.load(response)
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
-        raise CatalogAssetError(f"External Asset Catalog 검색 요청에 실패했습니다: {exc}") from exc
+        raise CatalogAssetError(f"외부 카탈로그 검색 요청에 실패했습니다: {exc}") from exc
     if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
-        raise CatalogAssetError("External Asset Catalog가 올바르지 않은 검색 응답을 반환했습니다.")
+        raise CatalogAssetError("외부 카탈로그가 올바르지 않은 검색 응답을 반환했습니다.")
     return payload
 
 
@@ -164,10 +168,10 @@ def fetch_catalog_asset(resource_id: str, *, timeout: float = 15.0):
     payload = _search_request(normalized_resource_id, limit=1, offset=0, timeout=timeout)
     results = payload.get("results") or []
     if payload.get("exactMatch") is not True or len(results) != 1:
-        raise CatalogAssetError("해당 RESOURCE_ID의 External Asset Catalog 에셋을 찾지 못했습니다.")
+        raise CatalogAssetError("해당 Resource ID의 외부 카탈로그 에셋을 찾지 못했습니다.")
     item = _normalize_result(results[0])
     if item["resource_id"] != normalized_resource_id:
-        raise CatalogAssetError("External Asset Catalog 검색 결과의 RESOURCE_ID가 요청과 일치하지 않습니다.")
+        raise CatalogAssetError("외부 카탈로그 검색 결과의 Resource ID가 요청과 일치하지 않습니다.")
     return item
 
 
@@ -188,13 +192,13 @@ def download_catalog_thumbnail_png(
             content_type = response.headers.get("Content-Type", "").split(";", 1)[0].lower()
             if content_type != "image/webp":
                 raise CatalogAssetError(
-                    f"External Asset Catalog 썸네일 형식이 WebP가 아닙니다: {content_type or 'unknown'}"
+                    f"외부 카탈로그 썸네일 형식이 WebP가 아닙니다: {content_type or 'unknown'}"
                 )
             source = response.read(max_download_size + 1)
     except (HTTPError, URLError, TimeoutError, OSError) as exc:
-        raise CatalogAssetError(f"External Asset Catalog 썸네일 다운로드에 실패했습니다: {exc}") from exc
+        raise CatalogAssetError(f"외부 카탈로그 썸네일 다운로드에 실패했습니다: {exc}") from exc
     if len(source) > max_download_size:
-        raise CatalogAssetError("External Asset Catalog 썸네일이 허용 크기를 초과했습니다.")
+        raise CatalogAssetError("외부 카탈로그 썸네일이 허용 크기를 초과했습니다.")
 
     output = BytesIO()
     try:
@@ -204,7 +208,7 @@ def download_catalog_thumbnail_png(
             image.load()
             image.convert("RGBA").save(output, format="PNG", optimize=True)
     except (OSError, UnidentifiedImageError) as exc:
-        raise CatalogAssetError(f"External Asset Catalog 썸네일 변환에 실패했습니다: {exc}") from exc
+        raise CatalogAssetError(f"외부 카탈로그 썸네일 변환에 실패했습니다: {exc}") from exc
     output.seek(0)
     return {
         "stream": output,

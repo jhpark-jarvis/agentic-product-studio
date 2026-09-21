@@ -6,6 +6,8 @@
 
 > 이 저장소는 포트폴리오 공개판입니다. 실제 서비스의 이름, 도메인, 운영 설정, 비공개 기획, 실데이터와 전용 외부 연동 정보는 전체 Git 이력에서 제거하거나 일반화했습니다.
 
+![Agentic Product Studio Architecture Overview](docs/architecture-overview.svg)
+
 ## 핵심 아이디어
 
 - **사람과 Agent가 공유하는 작업 기준**: 기획 문서와 실행 데이터를 동일한 시스템에서 관리합니다.
